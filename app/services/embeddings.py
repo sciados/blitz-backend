@@ -6,7 +6,7 @@ import cohere
 import hashlib
 import logging
 from typing import List, Optional
-from app.config import settings, EMBEDDING_CONFIG
+from app.core.config.settings import settings, EMBEDDING_CONFIG
 
 logger = logging.getLogger(__name__)
 

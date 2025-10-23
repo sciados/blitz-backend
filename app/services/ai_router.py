@@ -6,7 +6,7 @@ Implements fallback and monitoring
 import random
 import logging
 from typing import Optional, Dict, Any, List
-from app.config import settings, AI_PROVIDERS, TASK_BUDGETS
+from app.core.config.settings import settings, AI_PROVIDERS, TASK_BUDGETS
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)

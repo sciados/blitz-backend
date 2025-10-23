@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from app.db.models import KnowledgeBase, Campaign
 from app.services.embeddings import EmbeddingService
-from app.config import settings
+from app.core.config.settings import settings
 import logging
 
 logger = logging.getLogger(__name__)

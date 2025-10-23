@@ -12,7 +12,7 @@ from app.auth import (
     create_access_token,
     get_current_active_user
 )
-from app.config import settings
+from app.core.config.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
