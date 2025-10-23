@@ -2,6 +2,7 @@
 CampaignForge Configuration
 Loads all environment variables from Railway
 """
+from wsgiref.validate import validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
@@ -37,6 +38,25 @@ class Settings(BaseSettings):
     # REDIS
     # ========================================================================
     REDIS_URL: str | None = None
+
+    CORS_ORIGINS: List[str] = ["https://web-production-0cbd.up.railway.app, http://localhost:3000"]
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: List[str] = ["*"]
+    CORS_ALLOW_HEADERS: List[str] = ["*"]
+
+    @validator("CORS_ORIGINS", pre=True)
+    def split_cors(cls, v):
+        if v is None or v == "":
+            return []
+        if isinstance(v, str):
+            # support comma-separated hosts (can be http://localhost:3000,https://yourapp.com)
+            return [s.strip() for s in v.split(",")]
+        return v
+
+    class Config:
+        case_sensitive = True
+
+    # settings = Settings()
 
     # ========================================================================
     # CLOUDFLARE R2
