@@ -31,7 +31,7 @@ class RAGService:
         content: str,
         source_type: str,
         source_url: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        meta_data: Optional[Dict[str, Any]] = None
     ) -> KnowledgeBase:
         """
         Ingest content into the knowledge base with chunking and embedding
@@ -41,7 +41,7 @@ class RAGService:
             content: Raw content to ingest
             source_type: Type of source (product_page, landing_page, review, etc.)
             source_url: Optional source URL
-            metadata: Additional metadata
+            meta_data: Additional meta_data
             
         Returns:
             KnowledgeBase entry
@@ -63,7 +63,7 @@ class RAGService:
                 embedding=avg_embedding,
                 source_type=source_type,
                 source_url=source_url,
-                metadata=metadata or {},
+                meta_data=meta_data or {},
                 chunk_count=len(chunks)
             )
             
@@ -124,7 +124,7 @@ class RAGService:
                             'content': entry.content,
                             'source_type': entry.source_type,
                             'source_url': entry.source_url,
-                            'metadata': entry.metadata,
+                            'meta_data': entry.meta_data,
                             'similarity': similarity,
                             'created_at': entry.created_at
                         })

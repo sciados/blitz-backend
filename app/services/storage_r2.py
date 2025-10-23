@@ -31,7 +31,7 @@ class R2StorageService:
         file_bytes: bytes,
         key: str,
         content_type: str,
-        metadata: Optional[dict] = None
+        meta_data: Optional[dict] = None
     ) -> tuple[str, str]:
         """
         Upload a file to R2
@@ -40,7 +40,7 @@ class R2StorageService:
             file_bytes: File content as bytes
             key: R2 object key (path)
             content_type: MIME type
-            metadata: Optional metadata dict
+            meta_data: Optional meta_data dict
             
         Returns:
             Tuple of (r2_key, public_url)
@@ -50,8 +50,8 @@ class R2StorageService:
                 "ContentType": content_type,
             }
             
-            if metadata:
-                extra_args["Metadata"] = {k: str(v) for k, v in metadata.items()}
+            if meta_data:
+                extra_args["meta_data"] = {k: str(v) for k, v in meta_data.items()}
             
             self.client.put_object(
                 Bucket=self.bucket,

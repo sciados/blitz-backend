@@ -105,7 +105,7 @@ class EmbeddingService:
         self,
         title: str,
         content: str,
-        metadata: Optional[dict] = None
+        meta_data: Optional[dict] = None
     ) -> dict:
         """
         Prepare text for storage in knowledge base
@@ -113,10 +113,10 @@ class EmbeddingService:
         Args:
             title: Document title
             content: Document content
-            metadata: Optional metadata
+            meta_data: Optional meta_data
             
         Returns:
-            Dict with embedding, hash, and metadata
+            Dict with embedding, hash, and meta_data
         """
         # Combine title and content for embedding
         combined_text = f"{title}\n\n{content}"
@@ -135,7 +135,7 @@ class EmbeddingService:
             "content_hash": content_hash,
             "title": title,
             "content": content,
-            "metadata": metadata or {}
+            "meta_data": meta_data or {}
         }
 
     async def embed_query(self, query: str) -> List[float]:

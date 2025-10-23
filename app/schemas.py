@@ -159,14 +159,14 @@ class IntelligenceResponse(BaseModel):
 class KnowledgeBaseEntry(BaseModel):
     campaign_id: int
     content: str
-    metadata: Optional[Dict[str, Any]] = None
+    meta_data: Optional[Dict[str, Any]] = None
     source_url: Optional[HttpUrl] = None
 
 class KnowledgeBaseResponse(BaseModel):
     id: int
     campaign_id: int
     content_preview: str
-    metadata: Dict[str, Any]
+    meta_data: Dict[str, Any]
     created_at: datetime
     
     class Config:

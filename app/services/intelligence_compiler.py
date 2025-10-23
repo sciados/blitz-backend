@@ -72,7 +72,7 @@ class IntelligenceCompiler:
                 content=json.dumps(product_info, indent=2),
                 source_type='product_page',
                 source_url=product_url,
-                metadata={
+                meta_data={
                     'title': product_info['title'],
                     'quality_score': product_info['quality_score']
                 }
@@ -162,7 +162,7 @@ class IntelligenceCompiler:
                         'id': kb.id,
                         'source_type': kb.source_type,
                         'source_url': kb.source_url,
-                        'metadata': kb.metadata,
+                        'meta_data': kb.meta_data,
                         'created_at': kb.created_at.isoformat()
                     }
                     for kb in kb_entries

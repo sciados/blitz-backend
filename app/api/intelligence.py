@@ -165,7 +165,7 @@ async def add_to_knowledge_base(
         campaign_id=entry.campaign_id,
         content=entry.content,
         embedding=embedding,
-        metadata=entry.metadata or {},
+        meta_data=entry.meta_data or {},
         source_url=str(entry.source_url) if entry.source_url else None
     )
     
@@ -177,7 +177,7 @@ async def add_to_knowledge_base(
         id=kb_entry.id,
         campaign_id=kb_entry.campaign_id,
         content_preview=kb_entry.content[:200] + "..." if len(kb_entry.content) > 200 else kb_entry.content,
-        metadata=kb_entry.metadata,
+        meta_data=kb_entry.meta_data,
         created_at=kb_entry.created_at
     )
 
@@ -227,7 +227,7 @@ async def list_knowledge_base(
             id=entry.id,
             campaign_id=entry.campaign_id,
             content_preview=entry.content[:200] + "..." if len(entry.content) > 200 else entry.content,
-            metadata=entry.metadata,
+            meta_data=entry.meta_data,
             created_at=entry.created_at
         )
         for entry in entries
