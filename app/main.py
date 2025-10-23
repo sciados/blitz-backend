@@ -7,9 +7,10 @@ from contextlib import asynccontextmanager
 import time
 import logging
 
-from app.config import settings
+from app.core.config.settings import settings
 from app.db.session import engine, Base
 from app.api import auth, campaigns, content, intelligence, compliance
+from app.core.middleware.cors_middleware import setup_cors
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,44 +24,40 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan events for startup and shutdown."""
     # Startup
-    logger.info("Starting CampaignForge API...")
+    logger.info("Starting Blitz API...")
     
     # NOTE: Database tables are now managed by Alembic migrations
     # No longer using Base.metadata.create_all()
     
-    logger.info("CampaignForge API started successfully")
+    logger.info("Blitz API started successfully")
     logger.info("Use 'python migrate.py upgrade' to apply database migrations")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down CampaignForge API...")
+    logger.info("Shutting down Blitz API...")
     await engine.dispose()
-    logger.info("CampaignForge API shut down successfully")
+    logger.info("Blitz API shut down successfully")
 
 # ============================================================================
 # CREATE APP
 # ============================================================================
 
 app = FastAPI(
-    title="CampaignForge API",
+    title="Blitz API",
     description="AI-Powered SaaS Platform for Affiliate Marketing Campaign Generation",
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Centralized CORS
+setup_cors(app)
 
 # ============================================================================
 # MIDDLEWARE
 # ============================================================================
 
 # CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Request Timing Middleware
 @app.middleware("http")
@@ -119,7 +116,7 @@ async def root():
     """Root endpoint - health check."""
     return {
         "status": "healthy",
-        "service": "CampaignForge API",
+        "service": "Blitz API",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT
     }
