@@ -1,326 +1,301 @@
-"""
-Web Crawler & Content Extraction Service
-Scrapes and extracts structured content from URLs
-"""
+"""Web scraping and content extraction service."""
 import httpx
-import hashlib
-import logging
 from bs4 import BeautifulSoup
-from typing import Optional, Dict, Any, List
-from urllib.parse import urljoin, urlparse
-import json
-from tenacity import retry, stop_after_attempt, wait_exponential
-
-logger = logging.getLogger(__name__)
+from typing import Dict, Any, Optional, List
+import re
+from urllib.parse import urlparse, urljoin
+import asyncio
 
 
-class ContentExtractor:
-    """Extracts structured content from web pages"""
+class CrawlerService:
+    """Service for web scraping and content extraction."""
     
     def __init__(self):
+        """Initialize the crawler service."""
+        self.timeout = 30
+        self.max_retries = 3
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
-        self.timeout = 30.0
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
-    async def fetch_url(self, url: str) -> tuple[str, dict]:
+    
+    async def fetch_url(self, url: str) -> Optional[str]:
         """
-        Fetch URL content with retry logic
+        Fetch content from a URL.
         
         Args:
-            url: URL to fetch
+            url: The URL to fetch
             
         Returns:
-            Tuple of (html_content, response_headers)
+            HTML content as string or None if failed
         """
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+        for attempt in range(self.max_retries):
             try:
-                response = await client.get(url, headers=self.headers)
-                response.raise_for_status()
-                
-                logger.info(f"✅ Fetched URL: {url} (status: {response.status_code})")
-                
-                return response.text, dict(response.headers)
-                
-            except httpx.HTTPError as e:
-                logger.error(f"❌ Failed to fetch {url}: {e}")
-                raise
-
-    def extract_content(self, html: str, base_url: str) -> Dict[str, Any]:
+                async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                    response = await client.get(url, headers=self.headers)
+                    response.raise_for_status()
+                    return response.text
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    print(f"Failed to fetch {url} after {self.max_retries} attempts: {str(e)}")
+                    return None
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+        
+        return None
+    
+    def extract_text(self, html: str) -> str:
         """
-        Extract structured content from HTML
+        Extract clean text from HTML.
         
         Args:
             html: HTML content
-            base_url: Base URL for resolving relative links
             
         Returns:
-            Dict with extracted content
+            Cleaned text content
         """
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, 'html.parser')
         
         # Remove script and style elements
-        for element in soup(['script', 'style', 'nav', 'footer', 'header']):
-            element.decompose()
+        for script in soup(["script", "style", "nav", "footer", "header"]):
+            script.decompose()
         
-        # Extract title
-        title = self._extract_title(soup)
+        # Get text
+        text = soup.get_text()
         
-        # Extract meta description
-        meta_description = self._extract_meta_description(soup)
+        # Clean up whitespace
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = ' '.join(chunk for chunk in chunks if chunk)
         
-        # Extract main text content
-        text_content = self._extract_text(soup)
-        
-        # Extract headings
-        headings = self._extract_headings(soup)
-        
-        # Extract links
-        links = self._extract_links(soup, base_url)
-        
-        # Extract images
-        images = self._extract_images(soup, base_url)
-        
-        # Extract structured data
-        structured_data = self._extract_structured_data(soup)
-        
-        # Calculate quality score
-        quality_score = self._calculate_quality_score(
-            text_content, headings, images, structured_data
-        )
-        
-        # Detect risk flags
-        risk_flags = self._detect_risk_flags(text_content, images)
-        
-        return {
-            "title": title,
-            "meta_description": meta_description,
-            "text_content": text_content,
-            "headings": headings,
-            "links": links,
-            "images": images,
-            "structured_data": structured_data,
-            "quality_score": quality_score,
-            "risk_flags": risk_flags,
-            "word_count": len(text_content.split()),
-        }
-
-    def _extract_title(self, soup: BeautifulSoup) -> str:
-        """Extract page title"""
-        title_tag = soup.find('title')
-        if title_tag:
-            return title_tag.get_text(strip=True)
-        
-        # Fallback to h1
-        h1 = soup.find('h1')
-        if h1:
-            return h1.get_text(strip=True)
-        
-        return ""
-
-    def _extract_meta_description(self, soup: BeautifulSoup) -> str:
-        """Extract meta description"""
-        meta = soup.find('meta', attrs={'name': 'description'})
-        if meta and meta.get('content'):
-            return meta['content']
-        
-        # Try Open Graph
-        og_desc = soup.find('meta', attrs={'property': 'og:description'})
-        if og_desc and og_desc.get('content'):
-            return og_desc['content']
-        
-        return ""
-
-    def _extract_text(self, soup: BeautifulSoup) -> str:
-        """Extract main text content"""
-        # Try to find main content area
-        main_content = soup.find('main') or soup.find('article') or soup.find('body')
-        
-        if main_content:
-            text = main_content.get_text(separator=' ', strip=True)
-            # Clean up whitespace
-            text = ' '.join(text.split())
-            return text
-        
-        return ""
-
-    def _extract_headings(self, soup: BeautifulSoup) -> List[Dict[str, str]]:
-        """Extract all headings"""
-        headings = []
-        for level in range(1, 7):
-            for heading in soup.find_all(f'h{level}'):
-                headings.append({
-                    "level": level,
-                    "text": heading.get_text(strip=True)
-                })
-        return headings
-
-    def _extract_links(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, str]]:
-        """Extract all links"""
-        links = []
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            absolute_url = urljoin(base_url, href)
-            
-            links.append({
-                "url": absolute_url,
-                "text": link.get_text(strip=True),
-                "is_external": urlparse(absolute_url).netloc != urlparse(base_url).netloc
-            })
-        
-        return links[:100]  # Limit to first 100 links
-
-    def _extract_images(self, soup: BeautifulSoup, base_url: str) -> List[Dict[str, str]]:
-        """Extract all images"""
-        images = []
-        for img in soup.find_all('img'):
-            src = img.get('src', '')
-            if src:
-                absolute_url = urljoin(base_url, src)
-                images.append({
-                    "url": absolute_url,
-                    "alt": img.get('alt', ''),
-                    "title": img.get('title', '')
-                })
-        
-        return images[:50]  # Limit to first 50 images
-
-    def _extract_structured_data(self, soup: BeautifulSoup) -> Dict[str, Any]:
-        """Extract structured data (JSON-LD, Open Graph, etc.)"""
-        structured = {
-            "json_ld": [],
-            "open_graph": {},
-            "twitter_card": {}
-        }
-        
-        # JSON-LD
-        for script in soup.find_all('script', type='application/ld+json'):
-            try:
-                data = json.loads(script.string)
-                structured["json_ld"].append(data)
-            except:
-                pass
-        
-        # Open Graph
-        for meta in soup.find_all('meta', property=lambda x: x and x.startswith('og:')):
-            key = meta['property'].replace('og:', '')
-            structured["open_graph"][key] = meta.get('content', '')
-        
-        # Twitter Card
-        for meta in soup.find_all('meta', attrs={'name': lambda x: x and x.startswith('twitter:')}):
-            key = meta['name'].replace('twitter:', '')
-            structured["twitter_card"][key] = meta.get('content', '')
-        
-        return structured
-
-    def _calculate_quality_score(
-        self,
-        text: str,
-        headings: List[Dict],
-        images: List[Dict],
-        structured_data: Dict
-    ) -> float:
-        """Calculate content quality score (0-1)"""
-        score = 0.0
-        
-        # Text length (max 0.3)
-        word_count = len(text.split())
-        if word_count > 1000:
-            score += 0.3
-        elif word_count > 500:
-            score += 0.2
-        elif word_count > 200:
-            score += 0.1
-        
-        # Headings structure (max 0.2)
-        if len(headings) > 5:
-            score += 0.2
-        elif len(headings) > 2:
-            score += 0.1
-        
-        # Images (max 0.2)
-        if len(images) > 3:
-            score += 0.2
-        elif len(images) > 0:
-            score += 0.1
-        
-        # Structured data (max 0.3)
-        if structured_data.get("json_ld"):
-            score += 0.15
-        if structured_data.get("open_graph"):
-            score += 0.1
-        if structured_data.get("twitter_card"):
-            score += 0.05
-        
-        return min(score, 1.0)
-
-    def _detect_risk_flags(self, text: str, images: List[Dict]) -> List[str]:
-        """Detect potential compliance risks"""
-        flags = []
-        text_lower = text.lower()
-        
-        # Check for risky claims
-        risky_terms = [
-            "guaranteed", "miracle", "cure", "fda approved",
-            "get rich quick", "no risk", "100% success",
-            "instant results", "lose weight fast"
-        ]
-        
-        for term in risky_terms:
-            if term in text_lower:
-                flags.append(f"risky_claim:{term}")
-        
-        # Check for before/after images
-        for img in images:
-            alt = img.get("alt", "").lower()
-            if "before" in alt and "after" in alt:
-                flags.append("before_after_image")
-                break
-        
-        return flags
-
-    def generate_content_hash(self, html: str) -> str:
-        """Generate hash for content deduplication"""
-        return hashlib.sha256(html.encode('utf-8')).hexdigest()
-
-    async def extract_from_url(self, url: str) -> Dict[str, Any]:
+        return text
+    
+    def extract_metadata(self, html: str, url: str) -> Dict[str, Any]:
         """
-        Complete extraction pipeline for a URL
+        Extract metadata from HTML.
         
         Args:
-            url: URL to extract from
+            html: HTML content
+            url: Source URL
             
         Returns:
-            Dict with extracted content and metadata
+            Dictionary containing metadata
         """
-        # Fetch URL
-        html, headers = await self.fetch_url(url)
+        soup = BeautifulSoup(html, 'html.parser')
         
-        # Generate content hash
-        content_hash = self.generate_content_hash(html)
+        metadata = {
+            'url': url,
+            'title': '',
+            'description': '',
+            'keywords': [],
+            'og_data': {},
+            'links': []
+        }
         
-        # Extract content
-        extraction = self.extract_content(html, url)
+        # Extract title
+        title_tag = soup.find('title')
+        if title_tag:
+            metadata['title'] = title_tag.get_text().strip()
         
-        # Add metadata
-        extraction["content_hash"] = content_hash
-        extraction["etag"] = headers.get("etag")
-        extraction["last_modified"] = headers.get("last-modified")
+        # Extract meta description
+        desc_tag = soup.find('meta', attrs={'name': 'description'})
+        if desc_tag and desc_tag.get('content'):
+            metadata['description'] = desc_tag['content'].strip()
         
-        logger.info(
-            f"✅ Extracted content from {url}: "
-            f"{extraction['word_count']} words, "
-            f"quality: {extraction['quality_score']:.2f}"
-        )
+        # Extract keywords
+        keywords_tag = soup.find('meta', attrs={'name': 'keywords'})
+        if keywords_tag and keywords_tag.get('content'):
+            metadata['keywords'] = [k.strip() for k in keywords_tag['content'].split(',')]
         
-        return extraction
-
-
-# Global extractor instance
-content_extractor = ContentExtractor()
+        # Extract Open Graph data
+        og_tags = soup.find_all('meta', attrs={'property': re.compile(r'^og:')})
+        for tag in og_tags:
+            property_name = tag.get('property', '').replace('og:', '')
+            content = tag.get('content', '')
+            if property_name and content:
+                metadata['og_data'][property_name] = content
+        
+        # Extract links
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            # Convert relative URLs to absolute
+            absolute_url = urljoin(url, href)
+            metadata['links'].append({
+                'url': absolute_url,
+                'text': link.get_text().strip()
+            })
+        
+        return metadata
+    
+    def extract_product_info(self, html: str) -> Dict[str, Any]:
+        """
+        Extract product-specific information from HTML.
+        
+        Args:
+            html: HTML content
+            
+        Returns:
+            Dictionary containing product information
+        """
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        product_info = {
+            'price': None,
+            'features': [],
+            'benefits': [],
+            'testimonials': [],
+            'cta_buttons': []
+        }
+        
+        # Extract price (common patterns)
+        price_patterns = [
+            r'\$\d+(?:\.\d{2})?',
+            r'€\d+(?:\.\d{2})?',
+            r'£\d+(?:\.\d{2})?',
+            r'\d+(?:\.\d{2})?\s*(?:USD|EUR|GBP)'
+        ]
+        
+        text = soup.get_text()
+        for pattern in price_patterns:
+            match = re.search(pattern, text)
+            if match:
+                product_info['price'] = match.group(0)
+                break
+        
+        # Extract features (look for lists)
+        feature_sections = soup.find_all(['ul', 'ol'])
+        for section in feature_sections:
+            items = section.find_all('li')
+            if items:
+                features = [item.get_text().strip() for item in items]
+                product_info['features'].extend(features)
+        
+        # Extract CTAs
+        cta_buttons = soup.find_all(['button', 'a'], class_=re.compile(r'(btn|button|cta)', re.I))
+        for button in cta_buttons:
+            text = button.get_text().strip()
+            if text:
+                product_info['cta_buttons'].append(text)
+        
+        return product_info
+    
+    async def crawl_page(self, url: str) -> Dict[str, Any]:
+        """
+        Crawl a page and extract all relevant information.
+        
+        Args:
+            url: URL to crawl
+            
+        Returns:
+            Dictionary containing all extracted data
+        """
+        html = await self.fetch_url(url)
+        
+        if not html:
+            return {
+                'success': False,
+                'error': 'Failed to fetch URL',
+                'url': url
+            }
+        
+        try:
+            text_content = self.extract_text(html)
+            metadata = self.extract_metadata(html, url)
+            product_info = self.extract_product_info(html)
+            
+            return {
+                'success': True,
+                'url': url,
+                'text_content': text_content,
+                'metadata': metadata,
+                'product_info': product_info,
+                'word_count': len(text_content.split()),
+                'domain': urlparse(url).netloc
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'url': url
+            }
+    
+    async def crawl_multiple(self, urls: List[str]) -> List[Dict[str, Any]]:
+        """
+        Crawl multiple URLs concurrently.
+        
+        Args:
+            urls: List of URLs to crawl
+            
+        Returns:
+            List of crawl results
+        """
+        tasks = [self.crawl_page(url) for url in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle exceptions
+        processed_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                processed_results.append({
+                    'success': False,
+                    'error': str(result),
+                    'url': urls[i]
+                })
+            else:
+                processed_results.append(result)
+        
+        return processed_results
+    
+    def assess_content_quality(self, crawl_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Assess the quality and compliance of crawled content.
+        
+        Args:
+            crawl_result: Result from crawl_page
+            
+        Returns:
+            Quality assessment dictionary
+        """
+        if not crawl_result.get('success'):
+            return {
+                'quality_score': 0,
+                'issues': ['Failed to crawl page']
+            }
+        
+        issues = []
+        quality_score = 100
+        
+        # Check word count
+        word_count = crawl_result.get('word_count', 0)
+        if word_count < 100:
+            issues.append('Low content volume')
+            quality_score -= 20
+        
+        # Check for metadata
+        metadata = crawl_result.get('metadata', {})
+        if not metadata.get('title'):
+            issues.append('Missing title')
+            quality_score -= 10
+        
+        if not metadata.get('description'):
+            issues.append('Missing description')
+            quality_score -= 10
+        
+        # Check for product information
+        product_info = crawl_result.get('product_info', {})
+        if not product_info.get('price'):
+            issues.append('No price information found')
+            quality_score -= 15
+        
+        if not product_info.get('features'):
+            issues.append('No features listed')
+            quality_score -= 15
+        
+        if not product_info.get('cta_buttons'):
+            issues.append('No call-to-action buttons found')
+            quality_score -= 10
+        
+        return {
+            'quality_score': max(0, quality_score),
+            'issues': issues,
+            'has_sufficient_content': word_count >= 100,
+            'has_product_info': bool(product_info.get('price') or product_info.get('features'))
+        }
