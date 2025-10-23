@@ -1,54 +1,70 @@
-# app/api/content.py
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+"""Content generation API endpoints."""
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
-import json
+from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedContent
+from app.auth import get_current_user
 from app.schemas import (
     ContentGenerateRequest,
-    ContentRefineRequest,
-    ContentVariationRequest,
     ContentResponse,
-    MessageResponse
+    ContentRefineRequest,
+    ContentVariationRequest
 )
-from app.auth import get_current_active_user
+from app.services.rag import RAGService
 from app.services.ai_router import AIRouter
 from app.services.prompt_builder import PromptBuilder
 from app.services.compliance_checker import ComplianceChecker
-from app.services.rag import RAGService
 
-router = APIRouter(prefix="/api/content", tags=["Content Generation"])
+router = APIRouter(prefix="/content", tags=["content"])
 
-# Initialize services
-ai_router = AIRouter()
-prompt_builder = PromptBuilder()
-compliance_checker = ComplianceChecker()
-rag_service = RAGService()
 
-# ============================================================================
-# GENERATE NEW CONTENT
-# ============================================================================
+# Dependency to get RAGService instance
+def get_rag_service(db: AsyncSession = Depends(get_db)) -> RAGService:
+    """Get RAGService instance with database session."""
+    return RAGService(db)
+
+
+# Dependency to get AIRouter instance
+def get_ai_router() -> AIRouter:
+    """Get AIRouter instance."""
+    return AIRouter()
+
+
+# Dependency to get PromptBuilder instance
+def get_prompt_builder() -> PromptBuilder:
+    """Get PromptBuilder instance."""
+    return PromptBuilder()
+
+
+# Dependency to get ComplianceChecker instance
+def get_compliance_checker() -> ComplianceChecker:
+    """Get ComplianceChecker instance."""
+    return ComplianceChecker()
+
 
 @router.post("/generate", response_model=ContentResponse, status_code=status.HTTP_201_CREATED)
 async def generate_content(
     request: ContentGenerateRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    rag_service: RAGService = Depends(get_rag_service),
+    ai_router: AIRouter = Depends(get_ai_router),
+    prompt_builder: PromptBuilder = Depends(get_prompt_builder),
+    compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
 ):
-    """Generate new marketing content for a campaign."""
-    
+    """Generate new content for a campaign."""
     # Verify campaign ownership
-    campaign_result = await db.execute(
+    result = await db.execute(
         select(Campaign).where(
             Campaign.id == request.campaign_id,
             Campaign.user_id == current_user.id
         )
     )
-    
-    campaign = campaign_result.scalar_one_or_none()
+    campaign = result.scalar_one_or_none()
     
     if not campaign:
         raise HTTPException(
@@ -56,91 +72,85 @@ async def generate_content(
             detail="Campaign not found"
         )
     
-    # Get RAG context
-    rag_context = await rag_service.retrieve_context(
+    # Retrieve context from RAG
+    context = await rag_service.retrieve_context(
+        query=f"{request.content_type} for {campaign.product_name}",
         campaign_id=request.campaign_id,
-        query=f"{request.content_type} {request.marketing_angle}",
-        top_k=5
+        limit=5
     )
     
     # Build prompt
     prompt = prompt_builder.build_content_prompt(
         content_type=request.content_type,
-        marketing_angle=request.marketing_angle,
-        product_info=campaign.intelligence_data or {},
-        context=rag_context,
+        product_info=campaign.product_data or {},
+        context=context,
+        angle=request.angle,
         tone=request.tone,
-        length=request.length,
-        additional_context=request.additional_context
+        length=request.length
     )
     
     # Generate content using AI router
-    generated_text = await ai_router.generate(
+    generated_text = await ai_router.generate_text(
         prompt=prompt,
-        task_type="content_generation",
-        max_tokens=2000
+        max_tokens=request.length or 1000,
+        temperature=0.7
     )
-    
-    # Parse generated content
-    try:
-        content_data = json.loads(generated_text)
-    except json.JSONDecodeError:
-        # If not JSON, wrap in structure
-        content_data = {
-            "content": generated_text,
-            "type": request.content_type,
-            "angle": request.marketing_angle
-        }
     
     # Check compliance
-    compliance_result = compliance_checker.check_content(
-        content=generated_text,
-        content_type=request.content_type,
-        affiliate_network=campaign.affiliate_network
-    )
+    compliance_result = compliance_checker.check_content(generated_text)
     
     # Save to database
-    new_content = GeneratedContent(
+    content = GeneratedContent(
         campaign_id=request.campaign_id,
         content_type=request.content_type,
-        marketing_angle=request.marketing_angle,
-        content_data=content_data,
-        compliance_status=compliance_result["status"],
-        compliance_score=compliance_result["score"],
-        compliance_notes=json.dumps(compliance_result["issues"]),
-        version=1
+        content=generated_text,
+        angle=request.angle,
+        tone=request.tone,
+        compliance_score=compliance_result.get("score", 0.0),
+        compliance_issues=compliance_result.get("issues", []),
+        meta_data={
+            "prompt": prompt,
+            "model": ai_router.last_used_model,
+            "context_sources": [c.get("source") for c in context]
+        }
     )
     
-    db.add(new_content)
+    db.add(content)
     await db.commit()
-    await db.refresh(new_content)
+    await db.refresh(content)
     
-    return new_content
+    return ContentResponse(
+        id=content.id,
+        campaign_id=content.campaign_id,
+        content_type=content.content_type,
+        content=content.content,
+        angle=content.angle,
+        tone=content.tone,
+        compliance_score=content.compliance_score,
+        compliance_issues=content.compliance_issues,
+        created_at=content.created_at,
+        updated_at=content.updated_at
+    )
 
-# ============================================================================
-# LIST GENERATED CONTENT
-# ============================================================================
 
 @router.get("/campaign/{campaign_id}", response_model=List[ContentResponse])
 async def list_campaign_content(
     campaign_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     content_type: str = None,
     skip: int = 0,
-    limit: int = 50,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    limit: int = 50
 ):
     """List all generated content for a campaign."""
-    
     # Verify campaign ownership
-    campaign_result = await db.execute(
+    result = await db.execute(
         select(Campaign).where(
             Campaign.id == campaign_id,
             Campaign.user_id == current_user.id
         )
     )
-    
-    campaign = campaign_result.scalar_one_or_none()
+    campaign = result.scalar_one_or_none()
     
     if not campaign:
         raise HTTPException(
@@ -157,22 +167,36 @@ async def list_campaign_content(
     query = query.offset(skip).limit(limit).order_by(GeneratedContent.created_at.desc())
     
     result = await db.execute(query)
-    content_list = result.scalars().all()
+    contents = result.scalars().all()
     
-    return content_list
+    return [
+        ContentResponse(
+            id=content.id,
+            campaign_id=content.campaign_id,
+            content_type=content.content_type,
+            content=content.content,
+            angle=content.angle,
+            tone=content.tone,
+            compliance_score=content.compliance_score,
+            compliance_issues=content.compliance_issues,
+            created_at=content.created_at,
+            updated_at=content.updated_at
+        )
+        for content in contents
+    ]
 
-# ============================================================================
-# GET SPECIFIC CONTENT
-# ============================================================================
 
-@router.get("/{content_id}", response_model=ContentResponse)
-async def get_content(
+@router.post("/{content_id}/refine", response_model=ContentResponse)
+async def refine_content(
     content_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    request: ContentRefineRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    ai_router: AIRouter = Depends(get_ai_router),
+    compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
 ):
-    """Get specific generated content."""
-    
+    """Refine existing content based on feedback."""
+    # Get content and verify ownership
     result = await db.execute(
         select(GeneratedContent)
         .join(Campaign)
@@ -181,7 +205,6 @@ async def get_content(
             Campaign.user_id == current_user.id
         )
     )
-    
     content = result.scalar_one_or_none()
     
     if not content:
@@ -190,114 +213,58 @@ async def get_content(
             detail="Content not found"
         )
     
-    return content
-
-# ============================================================================
-# REFINE CONTENT
-# ============================================================================
-
-@router.post("/{content_id}/refine", response_model=ContentResponse)
-async def refine_content(
-    content_id: int,
-    request: ContentRefineRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Refine existing content based on user instructions."""
-    
-    # Get original content
-    result = await db.execute(
-        select(GeneratedContent)
-        .join(Campaign)
-        .where(
-            GeneratedContent.id == content_id,
-            Campaign.user_id == current_user.id
-        )
-    )
-    
-    original_content = result.scalar_one_or_none()
-    
-    if not original_content:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Content not found"
-        )
-    
     # Build refinement prompt
-    original_text = json.dumps(original_content.content_data)
-    
-    refinement_prompt = f"""You are refining marketing content based on user feedback.
+    refinement_prompt = f"""Refine the following content based on this feedback: {request.feedback}
 
-Original Content:
-{original_text}
+Original content:
+{content.content}
 
-Refinement Instructions:
-{request.refinement_instructions}
-
-Please provide the refined content in the same JSON format as the original, incorporating the requested changes while maintaining compliance and effectiveness."""
+Provide the refined version:"""
     
     # Generate refined content
-    refined_text = await ai_router.generate(
+    refined_text = await ai_router.generate_text(
         prompt=refinement_prompt,
-        task_type="content_refinement",
-        max_tokens=2000
+        max_tokens=2000,
+        temperature=0.7
     )
-    
-    # Parse refined content
-    try:
-        refined_data = json.loads(refined_text)
-    except json.JSONDecodeError:
-        refined_data = {
-            "content": refined_text,
-            "type": original_content.content_type,
-            "angle": original_content.marketing_angle
-        }
     
     # Check compliance
-    campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == original_content.campaign_id)
-    )
-    campaign = campaign_result.scalar_one()
+    compliance_result = compliance_checker.check_content(refined_text)
     
-    compliance_result = compliance_checker.check_content(
-        content=refined_text,
-        content_type=original_content.content_type,
-        affiliate_network=campaign.affiliate_network
-    )
+    # Update content
+    content.content = refined_text
+    content.compliance_score = compliance_result.get("score", 0.0)
+    content.compliance_issues = compliance_result.get("issues", [])
+    content.updated_at = datetime.utcnow()
     
-    # Create new version
-    new_version = GeneratedContent(
-        campaign_id=original_content.campaign_id,
-        content_type=original_content.content_type,
-        marketing_angle=original_content.marketing_angle,
-        content_data=refined_data,
-        compliance_status=compliance_result["status"],
-        compliance_score=compliance_result["score"],
-        compliance_notes=json.dumps(compliance_result["issues"]),
-        version=original_content.version + 1,
-        parent_content_id=original_content.id
-    )
-    
-    db.add(new_version)
     await db.commit()
-    await db.refresh(new_version)
+    await db.refresh(content)
     
-    return new_version
+    return ContentResponse(
+        id=content.id,
+        campaign_id=content.campaign_id,
+        content_type=content.content_type,
+        content=content.content,
+        angle=content.angle,
+        tone=content.tone,
+        compliance_score=content.compliance_score,
+        compliance_issues=content.compliance_issues,
+        created_at=content.created_at,
+        updated_at=content.updated_at
+    )
 
-# ============================================================================
-# CREATE VARIATIONS
-# ============================================================================
 
 @router.post("/{content_id}/variations", response_model=List[ContentResponse])
 async def create_variations(
     content_id: int,
     request: ContentVariationRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    ai_router: AIRouter = Depends(get_ai_router),
+    compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
 ):
     """Create variations of existing content."""
-    
-    # Get original content
+    # Get content and verify ownership
     result = await db.execute(
         select(GeneratedContent)
         .join(Campaign)
@@ -306,76 +273,52 @@ async def create_variations(
             Campaign.user_id == current_user.id
         )
     )
+    content = result.scalar_one_or_none()
     
-    original_content = result.scalar_one_or_none()
-    
-    if not original_content:
+    if not content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Content not found"
         )
     
-    # Get campaign for compliance checking
-    campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == original_content.campaign_id)
-    )
-    campaign = campaign_result.scalar_one()
-    
     variations = []
-    original_text = json.dumps(original_content.content_data)
     
-    for i in range(request.num_variations):
+    for i in range(request.count):
         # Build variation prompt
-        variation_prompt = f"""Create a variation of this marketing content.
+        variation_prompt = f"""Create a variation of the following content with a different approach but same message:
 
-Original Content:
-{original_text}
+Original content:
+{content.content}
 
-Variation Type: {request.variation_type}
-Variation Number: {i + 1}
-
-Create a unique variation that maintains the core message but differs in {request.variation_type}. Return in the same JSON format."""
+Variation {i+1}:"""
         
         # Generate variation
-        variation_text = await ai_router.generate(
+        variation_text = await ai_router.generate_text(
             prompt=variation_prompt,
-            task_type="content_variation",
-            max_tokens=2000
+            max_tokens=2000,
+            temperature=0.8
         )
-        
-        # Parse variation
-        try:
-            variation_data = json.loads(variation_text)
-        except json.JSONDecodeError:
-            variation_data = {
-                "content": variation_text,
-                "type": original_content.content_type,
-                "angle": original_content.marketing_angle,
-                "variation": i + 1
-            }
         
         # Check compliance
-        compliance_result = compliance_checker.check_content(
+        compliance_result = compliance_checker.check_content(variation_text)
+        
+        # Save variation
+        variation = GeneratedContent(
+            campaign_id=content.campaign_id,
+            content_type=content.content_type,
             content=variation_text,
-            content_type=original_content.content_type,
-            affiliate_network=campaign.affiliate_network
+            angle=content.angle,
+            tone=content.tone,
+            compliance_score=compliance_result.get("score", 0.0),
+            compliance_issues=compliance_result.get("issues", []),
+            meta_data={
+                "original_content_id": content_id,
+                "variation_number": i + 1
+            }
         )
         
-        # Create variation
-        new_variation = GeneratedContent(
-            campaign_id=original_content.campaign_id,
-            content_type=original_content.content_type,
-            marketing_angle=original_content.marketing_angle,
-            content_data=variation_data,
-            compliance_status=compliance_result["status"],
-            compliance_score=compliance_result["score"],
-            compliance_notes=json.dumps(compliance_result["issues"]),
-            version=1,
-            parent_content_id=original_content.id
-        )
-        
-        db.add(new_variation)
-        variations.append(new_variation)
+        db.add(variation)
+        variations.append(variation)
     
     await db.commit()
     
@@ -383,20 +326,31 @@ Create a unique variation that maintains the core message but differs in {reques
     for variation in variations:
         await db.refresh(variation)
     
-    return variations
+    return [
+        ContentResponse(
+            id=var.id,
+            campaign_id=var.campaign_id,
+            content_type=var.content_type,
+            content=var.content,
+            angle=var.angle,
+            tone=var.tone,
+            compliance_score=var.compliance_score,
+            compliance_issues=var.compliance_issues,
+            created_at=var.created_at,
+            updated_at=var.updated_at
+        )
+        for var in variations
+    ]
 
-# ============================================================================
-# DELETE CONTENT
-# ============================================================================
 
-@router.delete("/{content_id}", response_model=MessageResponse)
+@router.delete("/{content_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_content(
     content_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete generated content."""
-    
+    # Get content and verify ownership
     result = await db.execute(
         select(GeneratedContent)
         .join(Campaign)
@@ -405,7 +359,6 @@ async def delete_content(
             Campaign.user_id == current_user.id
         )
     )
-    
     content = result.scalar_one_or_none()
     
     if not content:
@@ -417,4 +370,4 @@ async def delete_content(
     await db.delete(content)
     await db.commit()
     
-    return MessageResponse(message="Content deleted successfully")
+    return None
