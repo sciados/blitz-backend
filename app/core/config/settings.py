@@ -82,17 +82,6 @@ class Settings(BaseSettings):
     AI_DISCOVERY_DATABASE_URL: str
     AI_DISCOVERY_SERVICE_URL: str
 
-    # ============================================================================
-    # EMBEDDING CONFIGURATION
-    # ============================================================================
-
-    EMBEDDING_CONFIG = {
-    "provider": "cohere",
-    "model": "embed-english-v3.0",
-    "dimensions": 1536,
-    "similarity_threshold": 0.7,
-    }
-
     # ==== OPTIONAL/PLATFORMS ====
     # CLICKBANK_DEV_KEY: Optional[str] = None
     # JVZOO_API_KEY: Optional[str] = None
@@ -100,7 +89,6 @@ class Settings(BaseSettings):
     # ===== Validators =====
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
-    @classmethod
     def parse_cors_origins(cls, v) -> List[str]:
         """
         Parse CORS origins from comma-separated string or pass through list.
@@ -114,7 +102,6 @@ class Settings(BaseSettings):
         return []
 
     @field_validator("DATABASE_URL_ASYNC", mode="before")
-    @classmethod
     def validate_async_db_url(cls, v: str) -> str:
         """
         Ensure async database URL uses asyncpg driver.
@@ -129,7 +116,6 @@ class Settings(BaseSettings):
         raise ValueError("DATABASE_URL_ASYNC must be a PostgreSQL URL")
 
     @field_validator("DEBUG", mode="before")
-    @classmethod
     def set_debug_mode(cls, v) -> bool:
         """
         Enable DEBUG automatically in development-like environments.
@@ -174,6 +160,7 @@ def get_settings() -> Settings:
 
 # Global settings instance
 settings = get_settings()
+
 
 # ==== Utility helpers below (optional, but convenient for services) ====
 
@@ -238,3 +225,15 @@ def get_platform_config() -> Dict[str, bool]:
 def get_cors_origins() -> List[str]:
     """Get CORS allowed origins as a list"""
     return settings.cors_origins
+
+
+# ============================================================================
+# EMBEDDING CONFIGURATION
+# ============================================================================
+
+EMBEDDING_CONFIG = {
+    "provider": "cohere",
+    "model": "embed-english-v3.0",
+    "dimensions": 1536,
+    "similarity_threshold": 0.7,
+}
