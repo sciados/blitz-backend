@@ -227,13 +227,5 @@ def get_cors_origins() -> List[str]:
     return settings.cors_origins
 
 
-# ============================================================================
-# EMBEDDING CONFIGURATION
-# ============================================================================
-
-EMBEDDING_CONFIG = {
-    "provider": "cohere",
-    "model": "embed-english-v3.0",
-    "dimensions": 1536,
-    "similarity_threshold": 0.7,
-}
+# Temporary re-exports during refactor; remove after updating imports
+from app.core.config.constants import AI_PROVIDERS, TASK_BUDGETS, EMBEDDING_CONFIG  # noqa: F401
