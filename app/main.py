@@ -25,12 +25,11 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting CampaignForge API...")
     
-    # Create database tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # NOTE: Database tables are now managed by Alembic migrations
+    # No longer using Base.metadata.create_all()
     
-    logger.info("Database tables created successfully")
     logger.info("CampaignForge API started successfully")
+    logger.info("Use 'python migrate.py upgrade' to apply database migrations")
     
     yield
     

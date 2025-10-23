@@ -1,0 +1,44 @@
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+.envrc
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Byte-compiled / cache
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Build
+dist/
+build/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Local data
+*.sqlite
+*.db
+
+# Node (if you later add frontend here)
+node_modules/
+
+# Misc
+.env.local
+EOF
+git add .gitignore
+git commit -m "Add .gitignore"
