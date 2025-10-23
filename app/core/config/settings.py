@@ -82,6 +82,17 @@ class Settings(BaseSettings):
     AI_DISCOVERY_DATABASE_URL: str
     AI_DISCOVERY_SERVICE_URL: str
 
+    # ============================================================================
+    # EMBEDDING CONFIGURATION
+    # ============================================================================
+
+    EMBEDDING_CONFIG = {
+    "provider": "cohere",
+    "model": "embed-english-v3.0",
+    "dimensions": 1536,
+    "similarity_threshold": 0.7,
+    }
+
     # ==== OPTIONAL/PLATFORMS ====
     # CLICKBANK_DEV_KEY: Optional[str] = None
     # JVZOO_API_KEY: Optional[str] = None
