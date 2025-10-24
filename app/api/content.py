@@ -19,7 +19,7 @@ from app.services.ai_router import AIRouter
 from app.services.prompt_builder import PromptBuilder
 from app.services.compliance_checker import ComplianceChecker
 
-router = APIRouter(prefix="/content", tags=["content"])
+router = APIRouter(prefix="/api/content", tags=["content"])
 
 
 # Dependency to get RAGService instance

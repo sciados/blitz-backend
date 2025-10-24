@@ -17,7 +17,7 @@ from app.schemas import (
 from app.services.intelligence_compiler import IntelligenceCompiler
 from app.services.rag import RAGService
 
-router = APIRouter(prefix="/intelligence", tags=["intelligence"])
+router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
 
 
 # Dependency to get IntelligenceCompiler instance
