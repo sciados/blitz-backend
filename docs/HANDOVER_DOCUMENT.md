@@ -1,11 +1,11 @@
 HANDOVER_DOCUMENT.md
-Project: CampaignForge — Modular SaaS for Affiliate Marketers
+Project: Blitz — Modular SaaS for Affiliate Marketers
 Backend: FastAPI + PostgreSQL (Railway)
 Frontend: Next.js (Vercel)
 Date: 2025-10-23
 Executive Summary
 
-CampaignForge is a modular, intelligence-driven SaaS for affiliate marketers to research products, compile market intelligence, and generate compliant promotional content. The backend is built with FastAPI, PostgreSQL, and Alembic for migrations; the frontend will be built with Next.js on Vercel. The system emphasizes a three-stage intelligence pipeline (extraction → AI enhancement → RAG indexing/retrieval), modular services, and cost-optimized AI routing.
+Blitz is a modular, intelligence-driven SaaS for affiliate marketers to research products, compile market intelligence, and generate compliant promotional content. The backend is built with FastAPI, PostgreSQL, and Alembic for migrations; the frontend will be built with Next.js on Vercel. The system emphasizes a three-stage intelligence pipeline (extraction → AI enhancement → RAG indexing/retrieval), modular services, and cost-optimized AI routing.
 
 This document merges the previous handover with all subsequent changes and fixes so you can resume seamlessly in a new chat or environment.
 
@@ -36,6 +36,22 @@ Affiliate networks support (ClickBank, JVZoo, WarriorPlus) by flexible inputs an
 Compliance awareness (FTC guidelines)
 
 2) Files Uploaded by User and Referenced
+
+INTELLIGENCE_SYSTEM_ANALYSIS.md
+
+Blitz-SAAS-Overview-old.md
+
+endpoints.json
+
+Key takeaways:
+
+Three-stage intelligence pipeline defined and followed
+
+RAG system is central to contextual generation
+
+Affiliate network compatibility and compliance-first approach
+
+endpoints.json uses metadata keys that are fine in OpenAPI context
 
 3) Backend Progress — Completed
 
