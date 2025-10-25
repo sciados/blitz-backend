@@ -85,8 +85,8 @@ class DeploymentConfig:
         emergency_production_origins = [
             "https://blitzed.up.railway.app",
             "http://blitzed.up.railway.app",
-            "https://blitz-frontend-6k162ceks-sciados-projects.vercel.app",
-            "http://blitz-frontend-6k162ceks-sciados-projects.vercel.app"
+            "https://blitz-frontend-sciados-projects.vercel.app",
+            "http://blitz-frontend-sciados-projects.vercel.app"
         ]
 
         # Always ensure production domain is included
@@ -101,8 +101,9 @@ class DeploymentConfig:
         # Add production domains if not already included
         production_origins = [
             "https://blitzed.up.railway.app",
-            "https://blitz-frontend-6k162ceks-sciados-projects.vercel.app",
-            "http://blitz-frontend-6k162ceks-sciados-projects.vercel.app"
+            "http://blitzed.up.railway.app",
+            "https://blitz-frontend-sciados-projects.vercel.app",
+            "http://blitz-frontend-sciados-projects.vercel.app"
         ]
 
         # Debug logging for production origins
