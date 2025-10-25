@@ -86,7 +86,9 @@ class DeploymentConfig:
             "https://blitzed.up.railway.app",
             "http://blitzed.up.railway.app",
             "https://blitz-frontend-sciados-projects.vercel.app",
-            "http://blitz-frontend-sciados-projects.vercel.app"
+            "http://blitz-frontend-sciados-projects.vercel.app",
+            "https://blitz-frontend-three.vercel.app",
+            "http://blitz-frontend-three.vercel.app"
         ]
 
         # Always ensure production domain is included
@@ -102,8 +104,10 @@ class DeploymentConfig:
         production_origins = [
             "https://blitzed.up.railway.app",
             "http://blitzed.up.railway.app",
+            "https://blitz-frontend-three.vercel.app",
             "https://blitz-frontend-sciados-projects.vercel.app",
-            "http://blitz-frontend-sciados-projects.vercel.app"
+            "http://blitz-frontend-sciados-projects.vercel.app",
+            "http://blitz-frontend-three.vercel.app"
         ]
 
         # Debug logging for production origins
