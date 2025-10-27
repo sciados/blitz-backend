@@ -10,15 +10,14 @@ import logging
 from app.core.config.settings import settings
 from app.db.session import engine, Base
 from app.api import auth, campaigns, content, intelligence, compliance
-from app.core.middleware.cors_middleware import setup_cors
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============================================================================
+# ====
 # LIFESPAN EVENTS
-# ============================================================================
+# ====
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,9 +38,9 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
     logger.info("Blitz API shut down successfully")
 
-# ============================================================================
+# ====
 # CREATE APP
-# ============================================================================
+# ====
 
 app = FastAPI(
     title="Blitz API",
@@ -50,14 +49,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Centralized CORS
-setup_cors(app)
+# ====
+# CORS MIDDLEWARE - MUST BE BEFORE OTHER MIDDLEWARE
+# ====
 
-# ============================================================================
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://blitz-frontend-three.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# ====
 # MIDDLEWARE
-# ============================================================================
-
-# CORS Middleware
+# ====
 
 # Request Timing Middleware
 @app.middleware("http")
@@ -78,9 +90,9 @@ async def log_requests(request: Request, call_next):
     logger.info(f"Status: {response.status_code}")
     return response
 
-# ============================================================================
+# ====
 # EXCEPTION HANDLERS
-# ============================================================================
+# ====
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -106,9 +118,9 @@ async def general_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# ============================================================================
+# ====
 # ROUTES
-# ============================================================================
+# ====
 
 # Health check
 @app.get("/", tags=["Health"])
@@ -137,9 +149,9 @@ app.include_router(content.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
 
-# ============================================================================
+# ====
 # STARTUP MESSAGE
-# ============================================================================
+# ====
 
 if __name__ == "__main__":
     import uvicorn

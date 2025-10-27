@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
-from passlib.context import CryptContext
 
 from app.db.session import get_db
 from app.db.models import User
@@ -11,15 +10,16 @@ from app.auth import (
     get_password_hash,
     authenticate_user,
     create_access_token,
-    get_current_active_user
+    get_current_active_user,
+    get_user_by_email
 )
 from app.core.config.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# ============================================================================
+# ====
 # REGISTER
-# ============================================================================
+# ====
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
@@ -29,7 +29,6 @@ async def register_user(
     """Register a new user."""
     
     # Check if user already exists
-    from app.auth import get_user_by_email
     existing_user = await get_user_by_email(db, user_data.email)
     
     if existing_user:
@@ -40,14 +39,22 @@ async def register_user(
 
     pwd = user_data.password
     if not isinstance(pwd, str):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be a string.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must be a string."
+        )
 
     # Product policy: 8–128 chars recommended; adjust as needed
     if len(pwd) < 8:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must be at least 8 characters."
+        )
     if len(pwd) > 128:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be 128 characters or fewer.") 
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must be 128 characters or fewer."
+        ) 
     
     # Create new user
     hashed_password = get_password_hash(pwd)
@@ -64,9 +71,9 @@ async def register_user(
     
     return new_user
 
-# ============================================================================
+# ====
 # LOGIN
-# ============================================================================
+# ====
 
 @router.post("/login", response_model=Token)
 async def login(
@@ -93,9 +100,9 @@ async def login(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ============================================================================
+# ====
 # GET CURRENT USER
-# ============================================================================
+# ====
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(

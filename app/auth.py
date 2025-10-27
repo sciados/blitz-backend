@@ -9,17 +9,13 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 # Import your project modules – adjust these paths to match your codebase
-# Example expected locations:
-# - app.db.session.get_db -> yields a SQLAlchemy Session
-# - app.models.user.User -> SQLAlchemy model for users
-# - app.core.config.settings -> pydantic settings with SECRET_KEY, etc.
 try:
     from app.db.session import get_db
 except Exception:
-    # Fallback import path if your project uses a different layout
     from db.session import get_db  # type: ignore
 
 try:
@@ -40,9 +36,9 @@ except Exception:
 
 logger = logging.getLogger("app.auth")
 
-# ------------------------------------------------------------------------------
+# ----
 # Password hashing
-# ------------------------------------------------------------------------------
+# ----
 
 # Use bcrypt_sha256 to avoid the 72-byte input cap of raw bcrypt.
 pwd_context = CryptContext(
@@ -72,9 +68,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-# ------------------------------------------------------------------------------
+# ----
 # JWT Tokens
-# ------------------------------------------------------------------------------
+# ----
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -85,20 +81,22 @@ class TokenPayload(BaseModel):
 
 
 def create_access_token(
-    subject: str | int,
+    data: dict,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
-    if isinstance(subject, int):
-        sub = str(subject)
+    """Create JWT access token"""
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.now(tz=timezone.utc) + expires_delta
     else:
-        sub = subject
-
-    expire = datetime.now(tz=timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode = {"exp": int(expire.timestamp()), "sub": sub}
+        expire = datetime.now(tz=timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=getattr(settings, "ALGORITHM", "HS256")
+        to_encode, 
+        settings.SECRET_KEY, 
+        algorithm=getattr(settings, "ALGORITHM", "HS256")
     )
     return encoded_jwt
 
@@ -121,16 +119,25 @@ def decode_access_token(token: str) -> TokenPayload:
         )
 
 
-# ------------------------------------------------------------------------------
-# User helpers
-# ------------------------------------------------------------------------------
+# ----
+# User helpers - FIXED FOR ASYNC
+# ----
 
-def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    return db.query(User).filter(User.email == email).first()
+async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
+    """Get user by email - async version"""
+    result = await db.execute(select(User).filter(User.email == email))
+    return result.scalar_one_or_none()
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
-    user = get_user_by_email(db, email=email)
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
+    """Get user by ID - async version"""
+    result = await db.execute(select(User).filter(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[User]:
+    """Authenticate user - async version"""
+    user = await get_user_by_email(db, email=email)
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
@@ -138,17 +145,21 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     return user
 
 
-# ------------------------------------------------------------------------------
+# ----
 # FastAPI dependencies for authentication/authorization
-# ------------------------------------------------------------------------------
+# ----
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
+    """Get current user from JWT token"""
     payload = decode_access_token(token)
-    user_id = payload.sub
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user_email = payload.sub
+    
+    # Get user by email (since we store email in the token)
+    user = await get_user_by_email(db, user_email)
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -161,6 +172,7 @@ async def get_current_user(
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> User:
+    """Get current active user"""
     # If you have a field like is_active
     is_active = getattr(current_user, "is_active", True)
     if not is_active:
@@ -168,9 +180,9 @@ async def get_current_active_user(
     return current_user
 
 
-# ------------------------------------------------------------------------------
+# ----
 # Optional schemas commonly used by auth routes (keep here or in schemas.py)
-# ------------------------------------------------------------------------------
+# ----
 
 class RegisterRequest(BaseModel):
     email: EmailStr
