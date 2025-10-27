@@ -28,23 +28,23 @@ try:
 except Exception:
     # Minimal fallback
     class _Settings(BaseModel):
-        SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
-        ALGORITHM: str = "HS256"
-        ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+        JWT_SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
+        JWT_ALGORITHM: str = "HS256"
+        ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     settings = _Settings()  # type: ignore
 
 logger = logging.getLogger("app.auth")
 
 # ----
-# Password hashing - FIXED
+# Password hashing
 # ----
 
 # Use bcrypt with proper configuration
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
-    bcrypt__rounds=12,  # Cost factor for bcrypt
+    bcrypt__rounds=12,
 )
 
 
@@ -53,7 +53,7 @@ def get_password_hash(password: str) -> str:
     if not isinstance(password, str):
         raise TypeError("password must be a string")
 
-    # Guard extremely long values (product policy)
+    # Guard extremely long values (bcrypt limit)
     if len(password) > 72:
         raise ValueError("Password must be 72 characters or fewer.")
     
@@ -105,10 +105,11 @@ def create_access_token(
         )
     
     to_encode.update({"exp": expire})
+    
     encoded_jwt = jwt.encode(
         to_encode, 
-        settings.SECRET_KEY, 
-        algorithm=getattr(settings, "ALGORITHM", "HS256")
+        settings.JWT_SECRET_KEY,  # Use JWT_SECRET_KEY from settings
+        algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
 
@@ -118,8 +119,8 @@ def decode_access_token(token: str) -> TokenPayload:
     try:
         payload = jwt.decode(
             token,
-            settings.SECRET_KEY,
-            algorithms=[getattr(settings, "ALGORITHM", "HS256")],
+            settings.JWT_SECRET_KEY,  # Use JWT_SECRET_KEY from settings
+            algorithms=[settings.JWT_ALGORITHM],
             options={"verify_aud": False},
         )
         return TokenPayload(**payload)
