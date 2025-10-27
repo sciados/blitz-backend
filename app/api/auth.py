@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
+from passlib.context import CryptContext
 
 from app.db.session import get_db
 from app.db.models import User
@@ -36,9 +37,20 @@ async def register_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
+
+    pwd = user_data.password
+    if not isinstance(pwd, str):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be a string.")
+
+    # Product policy: 8–128 chars recommended; adjust as needed
+    if len(pwd) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters.")
+    if len(pwd) > 128:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be 128 characters or fewer.") 
+    
     
     # Create new user
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = get_password_hash(pwd)
     
     new_user = User(
         email=user_data.email,
