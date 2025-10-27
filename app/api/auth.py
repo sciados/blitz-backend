@@ -38,27 +38,37 @@ async def register_user(
         )
 
     pwd = user_data.password
+    
+    # Validate password type
     if not isinstance(pwd, str):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Password must be a string."
         )
 
-    # Product policy: 8–128 chars recommended; adjust as needed
+    # Validate password length (bcrypt has 72 byte limit)
     if len(pwd) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Password must be at least 8 characters."
         )
-    if len(pwd) > 128:
+    
+    if len(pwd) > 72:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Password must be 128 characters or fewer."
-        ) 
+            detail="Password must be 72 characters or fewer."
+        )
+    
+    # Hash password
+    try:
+        hashed_password = get_password_hash(pwd)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     
     # Create new user
-    hashed_password = get_password_hash(pwd)
-    
     new_user = User(
         email=user_data.email,
         full_name=user_data.full_name,

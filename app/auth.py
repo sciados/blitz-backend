@@ -12,7 +12,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-# Import your project modules – adjust these paths to match your codebase
+# Import your project modules
 try:
     from app.db.session import get_db
 except Exception:
@@ -26,7 +26,7 @@ except Exception:
 try:
     from app.core.config.settings import settings
 except Exception:
-    # Minimal fallback – replace with your own config loader
+    # Minimal fallback
     class _Settings(BaseModel):
         SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
         ALGORITHM: str = "HS256"
@@ -37,28 +37,38 @@ except Exception:
 logger = logging.getLogger("app.auth")
 
 # ----
-# Password hashing
+# Password hashing - FIXED
 # ----
 
-# Use bcrypt_sha256 to avoid the 72-byte input cap of raw bcrypt.
+# Use bcrypt with proper configuration
 pwd_context = CryptContext(
-    schemes=["bcrypt_sha256"],
+    schemes=["bcrypt"],
     deprecated="auto",
+    bcrypt__rounds=12,  # Cost factor for bcrypt
 )
 
 
 def get_password_hash(password: str) -> str:
+    """Hash a password using bcrypt"""
     if not isinstance(password, str):
         raise TypeError("password must be a string")
 
-    # Guard extremely long values (product policy; tune as desired)
-    if len(password) > 128:
-        raise ValueError("Password must be 128 characters or fewer.")
+    # Guard extremely long values (product policy)
+    if len(password) > 72:
+        raise ValueError("Password must be 72 characters or fewer.")
+    
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
 
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except Exception as e:
+        logger.error(f"Password hashing failed: {e}")
+        raise ValueError("Failed to hash password")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against a hash"""
     if not isinstance(plain_password, str):
         return False
     try:
@@ -76,7 +86,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 class TokenPayload(BaseModel):
-    sub: str  # user id as string
+    sub: str  # user email or id as string
     exp: int
 
 
@@ -90,7 +100,9 @@ def create_access_token(
     if expires_delta:
         expire = datetime.now(tz=timezone.utc) + expires_delta
     else:
-        expire = datetime.now(tz=timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(tz=timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
@@ -102,6 +114,7 @@ def create_access_token(
 
 
 def decode_access_token(token: str) -> TokenPayload:
+    """Decode and validate JWT token"""
     try:
         payload = jwt.decode(
             token,
@@ -120,7 +133,7 @@ def decode_access_token(token: str) -> TokenPayload:
 
 
 # ----
-# User helpers - FIXED FOR ASYNC
+# User helpers - ASYNC
 # ----
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
@@ -181,7 +194,7 @@ async def get_current_active_user(
 
 
 # ----
-# Optional schemas commonly used by auth routes (keep here or in schemas.py)
+# Optional schemas commonly used by auth routes
 # ----
 
 class RegisterRequest(BaseModel):
