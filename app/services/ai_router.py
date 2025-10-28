@@ -1,222 +1,271 @@
 """
 AI Provider Router
 Dynamic, cost-optimized routing across multiple AI providers
-Implements fallback and monitoring
+Use-case routing, fallback, and basic health-aware selection.
+
+Environment-driven configuration so you can rotate providers at deploy time.
+
+ENV EXAMPLES (Railway):
+  AI_CHAT_FAST="groq:llama-3.1-70b-versatile, openai:gpt-4o-mini, anthropic:claude-3-haiku-20240307"
+  AI_CHAT_QUALITY="openai:gpt-4.1, anthropic:claude-3.5-sonnet-20241022"
+  AI_EMBEDDINGS="cohere:embed-english-v3.0, openai:text-embedding-3-small"
+  AI_VISION="openai:gpt-4o, groq:llama-3.2-vision"
+  AI_IMAGE_GEN="fal:sdxl-turbo, replicate:flux"
+
+Flags in settings.py:
+  AI_COST_OPTIMIZATION: bool
+  AI_FALLBACK_ENABLED: bool
+  AI_CACHE_TTL_SECONDS: int
 """
-import random
+
+from __future__ import annotations
+
+import os
+import time
 import logging
-from typing import Optional, Dict, Any, List, Iterable
+from dataclasses import dataclass
+from typing import List, Optional, Dict, Any
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config.settings import settings
-from app.core.config.constants import AI_PROVIDERS, TASK_BUDGETS
 
 logger = logging.getLogger(__name__)
 
 
+# ------------------------------
+# Data structures
+# ------------------------------
+
+@dataclass
+class ProviderSpec:
+    name: str          # "openai", "anthropic", "cohere", "groq", "fal", "replicate", etc.
+    model: str         # e.g., "gpt-4o-mini"
+    cost_in: float     # $ per 1K input tokens (approx)
+    cost_out: float    # $ per 1K output tokens (approx)
+    ctx: int           # context limit
+    tags: List[str]    # ["fast", "quality", "vision", "embeddings"]
+    weight: int = 1    # priority weight
+
+
+# Minimal built-in cost/context defaults (extend as needed).
+# These are approximate and should be updated as providers change pricing.
+_DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
+    ("openai", "gpt-4o-mini"): {"in": 0.15, "out": 0.60, "ctx": 128_000, "tags": ["fast", "vision"]},
+    ("openai", "gpt-4.1"): {"in": 5.00, "out": 15.00, "ctx": 128_000, "tags": ["quality"]},
+    ("openai", "text-embedding-3-small"): {"in": 0.02, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
+
+    ("anthropic", "claude-3-haiku-20240307"): {"in": 0.25, "out": 1.25, "ctx": 200_000, "tags": ["fast"]},
+    ("anthropic", "claude-3.5-sonnet-20241022"): {"in": 3.00, "out": 15.00, "ctx": 200_000, "tags": ["quality"]},
+
+    ("groq", "llama-3.1-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
+    ("groq", "llama-3.2-vision"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["vision"]},
+
+    ("cohere", "embed-english-v3.0"): {"in": 0.10, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
+
+    ("fal", "sdxl-turbo"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+    ("replicate", "flux"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+}
+
+
+# Map use cases to ENV variable names
+_USECASE_ENV_MAP: Dict[str, str] = {
+    "chat_fast": "AI_CHAT_FAST",
+    "chat_quality": "AI_CHAT_QUALITY",
+    "embeddings": "AI_EMBEDDINGS",
+    "vision": "AI_VISION",
+    "image_gen": "AI_IMAGE_GEN",
+}
+
+
 class AIRouter:
-    """Routes AI requests to cost-optimized providers with fallback"""
+    """
+    Environment-driven AI router:
+      - Choose provider list by use case via env vars.
+      - Sort by health and cost.
+      - Fallback to next provider on error.
+      - Budget-aware if AI_COST_OPTIMIZATION is enabled.
+    """
 
-    def __init__(self):
-        # Keep raw provider definitions from constants
-        self.providers_def = AI_PROVIDERS
-        self.task_budgets = TASK_BUDGETS
-        self.fallback_enabled = settings.AI_FALLBACK_ENABLED
-        self.cost_optimization = settings.AI_COST_OPTIMIZATION
+    def __init__(self, health_cache_ttl: Optional[int] = None):
+        self.health_cache_ttl = health_cache_ttl or int(getattr(settings, "AI_CACHE_TTL_SECONDS", 300))
+        self.fallback_enabled = bool(getattr(settings, "AI_FALLBACK_ENABLED", True))
+        self.cost_optimization = bool(getattr(settings, "AI_COST_OPTIMIZATION", True))
+        self.health: Dict[tuple[str, str], tuple[bool, float]] = {}  # (name, model) -> (ok, ts)
 
-    def _resolve_providers(self, tier: str) -> List[Dict[str, Any]]:
+    # ------------- parsing and specs -------------
+
+    def _parse_env_list(self, key: str) -> List[tuple[str, str]]:
         """
-        Resolve provider definitions by reading actual API keys from settings
-        and returning only providers that have valid keys configured.
+        Parse env var like "openai:gpt-4o-mini, anthropic:claude-3-haiku-20240307"
+        into [("openai","gpt-4o-mini"), ("anthropic","claude-3-haiku-20240307")]
         """
-        defs: List[Dict[str, Any]] = self.providers_def.get(tier, [])
-        resolved: List[Dict[str, Any]] = []
-        for p in defs:
-            # constants use key_env to reference the settings attribute
-            key_env = p.get("key_env")
-            api_key = getattr(settings, key_env, None) if key_env else None
-            if api_key:
-                resolved.append({
-                    "name": p["name"],
-                    "key": api_key,
-                    "cost_per_1k": p.get("cost_per_1k", 0.001),
-                })
-        return resolved
+        raw = os.getenv(key, "")
+        items: List[tuple[str, str]] = []
+        for part in [p.strip() for p in raw.split(",") if p.strip()]:
+            if ":" not in part:
+                continue
+            prov, model = part.split(":", 1)
+            items.append((prov.strip(), model.strip()))
+        return items
 
-    def select_provider(
-        self,
-        tier: str = "budget",
-        task_type: Optional[str] = None,
-        require_grounding: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Select the best AI provider based on tier and requirements
+    def _make_specs(self, pairs: List[tuple[str, str]], use_case: str) -> List[ProviderSpec]:
+        specs: List[ProviderSpec] = []
+        for prov, model in pairs:
+            meta = _DEFAULTS.get((prov, model), {"in": 0.0, "out": 0.0, "ctx": 128_000, "tags": [use_case]})
+            specs.append(ProviderSpec(
+                name=prov,
+                model=model,
+                cost_in=meta["in"],
+                cost_out=meta["out"],
+                ctx=meta["ctx"],
+                tags=meta["tags"],
+                weight=1,
+            ))
+        return specs
 
-        Args:
-            tier: Provider tier (ultra_cheap, budget, standard, premium)
-            task_type: Optional task type for budget checking
-            require_grounding: If True, prefer providers good at RAG
+    # ------------- selection helpers -------------
 
-        Returns:
-            Dict with provider info: {name, key, cost_per_1k}
-        """
-        # Override tier if grounding required
-        if require_grounding:
-            tier = "standard"  # e.g., Cohere tends to be better for RAG
-
-        # Resolve providers for tier
-        valid_providers = self._resolve_providers(tier)
-
-        # Fallback to budget if none found for the requested tier
-        if not valid_providers and tier != "budget":
-            logger.warning(f"No providers available for tier '{tier}', falling back to 'budget'")
-            valid_providers = self._resolve_providers("budget")
-
-        if not valid_providers:
-            raise ValueError(f"No valid API keys configured for tier: {tier}")
-
-        # Select provider (random for lightweight load balancing)
-        provider = random.choice(valid_providers)
-
-        logger.info(f"Selected provider: {provider['name']} (tier: {tier})")
-        return provider
-
-    def check_budget(self, task_type: str, estimated_tokens: int) -> bool:
-        """
-        Check if task is within budget
-
-        Args:
-            task_type: Type of task
-            estimated_tokens: Estimated token count
-
-        Returns:
-            True if within budget
-        """
-        if not self.cost_optimization:
+    def _within_budget(self, spec: ProviderSpec, prompt_tokens: int, gen_tokens: int, budget_usd: Optional[float]) -> bool:
+        if budget_usd is None or not self.cost_optimization:
             return True
+        est = (spec.cost_in * (prompt_tokens / 1000.0)) + (spec.cost_out * (gen_tokens / 1000.0))
+        return est <= budget_usd
 
-        budget = self.task_budgets.get(task_type, 0.01)
-        # This rough estimate should be replaced with per-provider costs if needed
-        estimated_cost = (estimated_tokens / 1000) * 0.001
+    def _healthy(self, spec: ProviderSpec) -> bool:
+        key = (spec.name, spec.model)
+        ok, ts = self.health.get(key, (True, 0.0))
+        if not ok and (time.time() - ts) > self.health_cache_ttl:
+            return True
+        return ok
 
-        if estimated_cost > budget:
-            logger.warning(
-                f"Task {task_type} estimated cost ${estimated_cost:.4f} "
-                f"exceeds budget ${budget:.4f}"
+    def report_failure(self, spec: ProviderSpec):
+        self.health[(spec.name, spec.model)] = (False, time.time())
+
+    def report_success(self, spec: ProviderSpec):
+        self.health[(spec.name, spec.model)] = (True, time.time())
+
+    # ------------- public API -------------
+
+    def pick(
+        self,
+        use_case: str,
+        prompt_tokens: int = 1000,
+        gen_tokens: int = 500,
+        budget_usd: Optional[float] = None,
+    ) -> ProviderSpec:
+        """
+        Pick the best provider for the given use case.
+        """
+        env_key = _USECASE_ENV_MAP.get(use_case)
+        if not env_key:
+            raise ValueError(f"Unknown use case: {use_case}")
+
+        pairs = self._parse_env_list(env_key)
+        if not pairs:
+            raise RuntimeError(
+                f"No providers configured in env for use case '{use_case}'. "
+                f"Set {env_key} on Railway."
             )
-            return False
 
-        return True
+        specs = self._make_specs(pairs, use_case)
+        # Filter unhealthy
+        specs = [s for s in specs if self._healthy(s)]
+        if not specs:
+            # If all unhealthy, ignore health filter once
+            specs = self._make_specs(pairs, use_case)
 
-    def get_fallback_chain(self, initial_tier: str) -> List[str]:
-        """
-        Get fallback tier chain
+        # Sort by total cost (in + out), then weight (desc)
+        specs.sort(key=lambda s: (s.cost_in + s.cost_out, -s.weight))
 
-        Args:
-            initial_tier: Starting tier
+        # Respect budget if provided
+        for s in specs:
+            if self._within_budget(s, prompt_tokens, gen_tokens, budget_usd):
+                logger.info(f"[AIRouter] Picked provider {s.name}:{s.model} for {use_case}")
+                return s
 
-        Returns:
-            List of tiers to try in order
-        """
-        if not self.fallback_enabled:
-            return [initial_tier]
+        # If budget excludes all, pick the cheapest anyway
+        chosen = specs[0]
+        logger.info(f"[AIRouter] Budget excluded all; picking cheapest {chosen.name}:{chosen.model} for {use_case}")
+        return chosen
 
-        tier_order = ["ultra_cheap", "budget", "standard", "premium"]
-
-        try:
-            start_idx = tier_order.index(initial_tier)
-            return tier_order[start_idx:]
-        except ValueError:
-            return tier_order
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
     async def call_with_fallback(
         self,
-        tier: str,
-        task_type: str,
+        use_case: str,
         call_func,
-        **kwargs
+        prompt_tokens: int = 1000,
+        gen_tokens: int = 500,
+        budget_usd: Optional[float] = None,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
-        Call AI provider with automatic fallback
+        Call a provider for a use case with automatic fallback.
 
-        Args:
-            tier: Initial tier to try
-            task_type: Task type for budget checking
-            call_func: Async function to call provider
-            **kwargs: Arguments to pass to call_func
-
-        Returns:
-            Response dict with result and metadata
+        call_func signature:
+          await call_func(spec: ProviderSpec, **kwargs) -> Dict|Any
         """
-        fallback_chain = self.get_fallback_chain(tier)
-        last_error = None
+        last_error: Optional[Exception] = None
 
-        for current_tier in fallback_chain:
+        pairs = self._parse_env_list(_USECASE_ENV_MAP.get(use_case, ""))
+        if not pairs:
+            raise RuntimeError(f"No providers configured for use case '{use_case}'")
+
+        # Build ordered list once to keep stable fallback order
+        ordered_specs = self._make_specs(pairs, use_case)
+        # Prefer healthy first
+        ordered_specs = sorted(
+            ordered_specs,
+            key=lambda s: (0 if self._healthy(s) else 1, s.cost_in + s.cost_out)
+        )
+
+        for spec in ordered_specs:
+            # Skip if over budget (optional)
+            if not self._within_budget(spec, prompt_tokens, gen_tokens, budget_usd):
+                continue
+
             try:
-                provider = self.select_provider(
-                    tier=current_tier,
-                    task_type=task_type,
-                    require_grounding=kwargs.get("require_grounding", False)
-                )
-
-                logger.info(f"Attempting {provider['name']} for {task_type}")
-
-                result = await call_func(provider=provider, **kwargs)
-
+                logger.info(f"[AIRouter] Attempt {spec.name}:{spec.model} for {use_case}")
+                result = await call_func(spec=spec, **kwargs)
+                self.report_success(spec)
                 return {
                     "success": True,
                     "result": result,
-                    "provider": provider["name"],
-                    "tier": current_tier,
-                    "cost_per_1k": provider["cost_per_1k"]
+                    "provider": spec.name,
+                    "model": spec.model,
+                    "use_case": use_case,
+                    "estimated_cost_usd": (spec.cost_in * (prompt_tokens / 1000.0)) + (spec.cost_out * (gen_tokens / 1000.0)),
                 }
-
             except Exception as e:
                 last_error = e
-                # provider may be undefined if select_provider failed before assignment
-                prov_name = provider["name"] if "provider" in locals() and provider else "unknown"
-                logger.warning(
-                    f"Provider {prov_name} failed: {e}. "
-                    f"Trying next in fallback chain..."
-                )
+                self.report_failure(spec)
+                logger.warning(f"[AIRouter] Provider {spec.name}:{spec.model} failed: {e}")
+                if not self.fallback_enabled:
+                    break
                 continue
 
-        # All providers failed
-        logger.error(f"All providers failed for {task_type}: {last_error}")
-        raise Exception(f"All AI providers failed: {last_error}")
+        logger.error(f"[AIRouter] All providers failed for {use_case}: {last_error}")
+        raise Exception(f"All AI providers failed for {use_case}: {last_error}")
 
+    # Backwards-compatible helper
     def estimate_cost(
         self,
         tokens_in: int,
         tokens_out: int,
-        provider_name: str
+        provider_name: str,
+        model: Optional[str] = None,
     ) -> float:
         """
-        Estimate cost for a completed request
-
-        Args:
-            tokens_in: Input tokens
-            tokens_out: Output tokens
-            provider_name: Provider used
-
-        Returns:
-            Estimated cost in USD
+        Estimate cost; if model provided and known, use its split rates.
         """
-        # Find provider cost (search all tiers)
-        for tier_providers in self.providers_def.values():
-            for p in tier_providers:
-                if p["name"] == provider_name:
-                    cost_per_1k = p.get("cost_per_1k", 0.001)
-                    total_tokens = tokens_in + tokens_out
-                    return (total_tokens / 1000) * cost_per_1k
-
-        # Default fallback
-        return (tokens_in + tokens_out) / 1000 * 0.001
+        if model:
+            meta = _DEFAULTS.get((provider_name, model))
+            if meta:
+                return (meta["in"] * (tokens_in / 1000.0)) + (meta["out"] * (tokens_out / 1000.0))
+        # Fallback average
+        blended = 0.001
+        total_tokens = tokens_in + tokens_out
+        return (total_tokens / 1000.0) * blended
 
 
 # Global router instance
