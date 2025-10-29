@@ -21,27 +21,42 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  // Load theme from localStorage on mount
+  // Load theme from localStorage or system preference on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme;
+    const savedTheme = (typeof window !== "undefined" &&
+      localStorage.getItem("theme")) as Theme | null;
     if (savedTheme) {
       setThemeState(savedTheme);
     } else {
       // Check system preference
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
+      const prefersDark =
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches;
       setThemeState(prefersDark ? "dark" : "light");
     }
     setMounted(true);
   }, []);
 
-  // Apply theme to document
+  // Apply theme to document root: data-theme and Tailwind 'dark' class
   useEffect(() => {
-    if (mounted) {
-      document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(theme);
+    if (!mounted) return;
+
+    // Set data-theme attribute for CSS variable rules
+    document.documentElement.setAttribute("data-theme", theme);
+
+    // Ensure Tailwind dark utilities work (darkMode: "class")
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    }
+
+    try {
       localStorage.setItem("theme", theme);
+    } catch {
+      // ignore storage errors in privacy-mode
     }
   }, [theme, mounted]);
 

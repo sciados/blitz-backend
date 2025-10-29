@@ -1,34 +1,51 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* globals.css (add these variables near the top) */
 
+/* Light theme */
 :root {
-  /* Light theme colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
+  --card-bg: #ffffff;
+  --card-border: transparent;
   --text-primary: #111827;
   --text-secondary: #6b7280;
   --border-color: #e5e7eb;
   --hover-bg: #f3f4f6;
   --accent-primary: #3b82f6;
-  --accent-secondary: #8b5cf6;
+  --accent-secondary: #2563eb;
 }
 
-.dark {
-  /* Dark theme colors */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #2a2a2a;
-  --text-primary: #ffffff;
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #1f2937; /* sidebar / panels */
+  --bg-secondary: #0b0f12; /* page background (near-black) */
+  --card-bg: #111827; /* slightly lighter than background */
+  --card-border: #2b3036; /* subtle border for contrast */
+  --text-primary: #f9fafb;
   --text-secondary: #9ca3af;
-  --border-color: #374151;
-  --hover-bg: #2a2a2a;
+  --border-color: #2b3036;
+  --hover-bg: #162029;
   --accent-primary: #3b82f6;
-  --accent-secondary: #8b5cf6;
+  --accent-secondary: #2563eb;
 }
 
+/* Global background & text */
+html,
+body {
+  height: 100%;
+}
 body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial;
+}
+
+/* Card */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
