@@ -1,43 +1,54 @@
 "use client";
-import { getToken, getRoleFromToken } from "src/lib/auth";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, ReactNode } from "react";
-import { Layout } from "./Layout";
 
-type AuthGateProps = {
-  children: ReactNode;
-  requiredRole?: "admin" | "user";
-  helpContent?: ReactNode;
-};
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getToken, getRoleFromToken } from "src/lib/auth";
+import { Layout } from "./Layout"; // ← Named import
+
+interface AuthGateProps {
+  children: React.ReactNode;
+  requiredRole?: "user" | "admin";
+  helpContent?: {
+    title: string;
+    description: string;
+    tips: string[];
+  };
+}
 
 export function AuthGate({
   children,
-  requiredRole,
+  requiredRole = "user",
   helpContent,
 }: AuthGateProps) {
-  const r = useRouter();
-  const [ok, setOk] = useState(false);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     const token = getToken();
+
     if (!token) {
-      r.replace("/login");
+      router.push("/login");
       return;
     }
 
-    // If a specific role is required, check it
-    if (requiredRole) {
-      const role = getRoleFromToken();
-      if (role !== requiredRole) {
-        r.replace("/dashboard");
-        return;
-      }
+    const role = getRoleFromToken();
+
+    // Check role authorization
+    if (requiredRole === "admin" && role !== "admin") {
+      router.push("/dashboard"); // Redirect non-admins to user dashboard
+      return;
     }
 
-    setOk(true);
-  }, [r, requiredRole]);
+    setIsAuthorized(true);
+  }, [router, requiredRole]);
 
-  if (!ok) return null;
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return <Layout helpContent={helpContent}>{children}</Layout>;
 }

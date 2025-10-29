@@ -6,9 +6,15 @@ import { api } from "src/lib/appClient";
 import { useTheme } from "src/contexts/ThemeContext";
 import Link from "next/link";
 
+type HelpContent = {
+  title: string;
+  description: string;
+  tips: string[];
+};
+
 type LayoutProps = {
   children: ReactNode;
-  helpContent?: ReactNode;
+  helpContent?: HelpContent; // ← Changed from ReactNode
 };
 
 type MenuItem = {
@@ -258,7 +264,36 @@ export function Layout({ children, helpContent }: LayoutProps) {
                 </button>
               </div>
               <div className="space-y-4 text-[var(--text-secondary)]">
-                {helpContent || (
+                {helpContent ? (
+                  <div className="text-sm space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                        {helpContent.title}
+                      </h4>
+                      <p className="text-[var(--text-secondary)] mb-3">
+                        {helpContent.description}
+                      </p>
+                    </div>
+                    {helpContent.tips && helpContent.tips.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-[var(--text-primary)] mb-2">
+                          Tips:
+                        </h5>
+                        <ul className="space-y-2">
+                          {helpContent.tips.map((tip, index) => (
+                            <li
+                              key={index}
+                              className="flex items-start space-x-2"
+                            >
+                              <span className="text-blue-500 mt-0.5">•</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <div className="text-sm">
                     <p className="mb-2">
                       No help content available for this page.

@@ -1,34 +1,34 @@
-import axios from "axios";
-import { getToken, clearToken } from "./auth";
-
-// const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://blitzed.up.railway.app";
-const baseURL = "https://blitzed.up.railway.app";
-
-// TEMP: log what the client is using at runtime (remove after verifying)
-if (typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
-    console.log("Blitz API baseURL:", baseURL);
-}
+// src/lib/appClient.ts
+import axios from 'axios';
+import { getToken } from 'src/lib/auth';
 
 export const api = axios.create({
-    baseURL,
-    withCredentials: false
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    withCredentials: false,
 });
 
+// Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-    const t = getToken();
-    if (t) config.headers.Authorization = `Bearer ${t}`;
+    const token = getToken();
+    if (token) {
+        config.headers = config.headers ?? {};
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
 });
 
+// Response interceptor to handle 401 errors
 api.interceptors.response.use(
-    (r) => r,
-    (err) => {
-        const status = err?.response?.status;
-        if (status === 401) {
-            clearToken();
-            if (typeof window !== "undefined") window.location.href = "/login";
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Clear token and redirect to login
+            localStorage.removeItem('token');
+            window.location.href = '/login';
         }
-        return Promise.reject(err);
+        return Promise.reject(error);
     }
 );
+
+// Also export as apiClient for compatibility
+export const apiClient = api;

@@ -1,29 +1,50 @@
-const KEY = "blitz_token";
+// src/lib/auth.ts
 
-export function setToken(token: string) {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(KEY, token);
-}
+export const getToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('token');
+};
 
-export function getToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(KEY);
-}
+export const setToken = (token: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('token', token);
+};
 
-export function clearToken() {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(KEY);
-}
+export const removeToken = (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('token');
+};
 
-export function getRoleFromToken(): string | null {
+export const clearToken = (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('token');
+};
+
+export const getRoleFromToken = (): string | null => {
     const token = getToken();
     if (!token) return null;
+
     try {
-        const [, payloadB64] = token.split(".");
-        if (!payloadB64) return null;
-        const json = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
-        return json?.role?.toLowerCase() || null;
-    } catch {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.role || 'user';
+    } catch (error) {
+        console.error('Error decoding token:', error);
         return null;
     }
-}
+};
+
+export const getUserFromToken = (): { email: string; role: string } | null => {
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return {
+            email: payload.sub || payload.email,
+            role: payload.role || 'user',
+        };
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        return null;
+    }
+};
