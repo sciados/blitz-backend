@@ -2,35 +2,16 @@
 import { AuthGate } from "src/components/AuthGate";
 import Link from "next/link";
 
-const helpContent = (
-  <div className="space-y-4 text-sm">
-    <div>
-      <h4 className="font-semibold mb-2">Admin Dashboard</h4>
-      <p className="text-gray-600">
-        This is your central hub for managing the Blitz platform.
-      </p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Quick Actions</h4>
-      <ul className="list-disc list-inside text-gray-600 space-y-1">
-        <li>Configure AI model routing</li>
-        <li>Manage user accounts</li>
-        <li>Monitor system health</li>
-        <li>Review compliance alerts</li>
-      </ul>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Need Help?</h4>
-      <p className="text-gray-600">
-        Check the{" "}
-        <a href="/docs" className="text-blue-600 underline">
-          documentation
-        </a>{" "}
-        or contact support.
-      </p>
-    </div>
-  </div>
-);
+const helpContent = {
+  title: "Content Generation",
+  description: "Generate AI-powered content for your campaigns.",
+  tips: [
+    "Select content type (email, ad, social post)",
+    "Customize tone and brand voice",
+    "Save generated content to campaigns",
+    "Regenerate if results don't match expectations",
+  ],
+};
 
 export default function AdminDashboardPage() {
   return (

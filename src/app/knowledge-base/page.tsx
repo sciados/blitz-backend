@@ -8,6 +8,17 @@ export default function KnowledgeBasePage() {
   const [campaignId, setCampaignId] = useState<number | "">("");
   const [content, setContent] = useState("");
 
+  const helpContent = {
+    title: "Content Generation",
+    description: "Generate AI-powered content for your campaigns.",
+    tips: [
+      "Select content type (email, ad, social post)",
+      "Customize tone and brand voice",
+      "Save generated content to campaigns",
+      "Regenerate if results don't match expectations",
+    ],
+  };
+
   async function add(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -23,7 +34,7 @@ export default function KnowledgeBasePage() {
   }
 
   return (
-    <AuthGate>
+    <AuthGate requiredRole="user" helpContent={helpContent}>
       <div className="p-6 space-y-3">
         <h1 className="text-2xl font-semibold">Knowledge Base</h1>
         <form onSubmit={add} className="grid gap-3 md:grid-cols-3">

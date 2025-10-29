@@ -8,6 +8,17 @@ export default function IntelligencePage() {
   const [campaignId, setCampaignId] = useState<number | "">("");
   const [deepResearch, setDeepResearch] = useState(false);
 
+  const helpContent = {
+    title: "Content Generation",
+    description: "Generate AI-powered content for your campaigns.",
+    tips: [
+      "Select content type (email, ad, social post)",
+      "Customize tone and brand voice",
+      "Save generated content to campaigns",
+      "Regenerate if results don't match expectations",
+    ],
+  };
+
   async function compile(e: React.FormEvent) {
     e.preventDefault();
     if (campaignId === "") return;
@@ -25,7 +36,7 @@ export default function IntelligencePage() {
   }
 
   return (
-    <AuthGate>
+    <AuthGate requiredRole="user" helpContent={helpContent}>
       <div className="p-6 space-y-4">
         <h1 className="text-2xl font-semibold">Intelligence</h1>
         <form onSubmit={compile} className="flex gap-3 items-end">

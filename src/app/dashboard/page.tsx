@@ -2,49 +2,20 @@
 import { AuthGate } from "src/components/AuthGate";
 import Link from "next/link";
 
-const helpContent = (
-  <div className="space-y-4 text-sm">
-    <div>
-      <h4 className="font-semibold mb-2">Getting Started</h4>
-      <p className="text-gray-600">
-        Welcome to Blitz! Start by creating your first campaign or generating
-        content.
-      </p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Quick Tips</h4>
-      <ul className="list-disc list-inside text-gray-600 space-y-1">
-        <li>Use the sidebar to navigate features</li>
-        <li>Check compliance before publishing</li>
-        <li>Monitor analytics for insights</li>
-      </ul>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Resources</h4>
-      <ul className="space-y-1">
-        <li>
-          <a href="/docs" className="text-blue-600 underline">
-            Documentation
-          </a>
-        </li>
-        <li>
-          <a href="/tutorials" className="text-blue-600 underline">
-            Video Tutorials
-          </a>
-        </li>
-        <li>
-          <a href="/support" className="text-blue-600 underline">
-            Contact Support
-          </a>
-        </li>
-      </ul>
-    </div>
-  </div>
-);
+const helpContent = {
+  title: "Content Generation",
+  description: "Generate AI-powered content for your campaigns.",
+  tips: [
+    "Select content type (email, ad, social post)",
+    "Customize tone and brand voice",
+    "Save generated content to campaigns",
+    "Regenerate if results don't match expectations",
+  ],
+};
 
 export default function DashboardPage() {
   return (
-    <AuthGate helpContent={helpContent}>
+    <AuthGate requiredRole="user" helpContent={helpContent}>
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
