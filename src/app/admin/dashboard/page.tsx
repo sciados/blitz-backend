@@ -2,9 +2,39 @@
 import { AuthGate } from "src/components/AuthGate";
 import Link from "next/link";
 
+const helpContent = (
+  <div className="space-y-4 text-sm">
+    <div>
+      <h4 className="font-semibold mb-2">Admin Dashboard</h4>
+      <p className="text-gray-600">
+        This is your central hub for managing the Blitz platform.
+      </p>
+    </div>
+    <div>
+      <h4 className="font-semibold mb-2">Quick Actions</h4>
+      <ul className="list-disc list-inside text-gray-600 space-y-1">
+        <li>Configure AI model routing</li>
+        <li>Manage user accounts</li>
+        <li>Monitor system health</li>
+        <li>Review compliance alerts</li>
+      </ul>
+    </div>
+    <div>
+      <h4 className="font-semibold mb-2">Need Help?</h4>
+      <p className="text-gray-600">
+        Check the{" "}
+        <a href="/docs" className="text-blue-600 underline">
+          documentation
+        </a>{" "}
+        or contact support.
+      </p>
+    </div>
+  </div>
+);
+
 export default function AdminDashboardPage() {
   return (
-    <AuthGate requiredRole="admin">
+    <AuthGate requiredRole="admin" helpContent={helpContent}>
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
@@ -17,7 +47,7 @@ export default function AdminDashboardPage() {
           {/* AI Router Config */}
           <Link
             href="/admin/ai_router"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -33,7 +63,7 @@ export default function AdminDashboardPage() {
           {/* User Management */}
           <Link
             href="/admin/users"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -49,7 +79,7 @@ export default function AdminDashboardPage() {
           {/* System Settings */}
           <Link
             href="/admin/settings"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -65,7 +95,7 @@ export default function AdminDashboardPage() {
           {/* Analytics */}
           <Link
             href="/admin/analytics"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -81,7 +111,7 @@ export default function AdminDashboardPage() {
           {/* Compliance */}
           <Link
             href="/admin/compliance"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
@@ -97,7 +127,7 @@ export default function AdminDashboardPage() {
           {/* API Keys */}
           <Link
             href="/admin/api-keys"
-            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow"
+            className="block p-6 border rounded-lg hover:shadow-lg transition-shadow bg-white"
           >
             <div className="flex items-center space-x-3 mb-2">
               <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -115,19 +145,19 @@ export default function AdminDashboardPage() {
         <div className="border-t pt-6">
           <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-white border rounded-lg">
               <p className="text-sm text-gray-600">Total Users</p>
               <p className="text-2xl font-bold">—</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-white border rounded-lg">
               <p className="text-sm text-gray-600">Active Campaigns</p>
               <p className="text-2xl font-bold">—</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-white border rounded-lg">
               <p className="text-sm text-gray-600">API Calls Today</p>
               <p className="text-2xl font-bold">—</p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-4 bg-white border rounded-lg">
               <p className="text-sm text-gray-600">System Health</p>
               <p className="text-2xl font-bold text-green-600">✓</p>
             </div>
