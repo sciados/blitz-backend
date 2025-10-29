@@ -9,6 +9,12 @@ type LayoutProps = {
   helpContent?: ReactNode;
 };
 
+type MenuItem = {
+  href: string;
+  label: string;
+  icon: string;
+};
+
 export function Layout({ children, helpContent }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -25,7 +31,7 @@ export function Layout({ children, helpContent }: LayoutProps) {
   };
 
   // Dynamic menu based on role
-  const menuItems = isAdmin
+  const menuItems: MenuItem[] = isAdmin
     ? [
         { href: "/admin/dashboard", label: "Dashboard", icon: "🏠" },
         { href: "/admin/ai_router", label: "AI Router", icon: "🤖" },
@@ -157,7 +163,7 @@ export function Layout({ children, helpContent }: LayoutProps) {
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={item.href as any}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
                         ? "bg-blue-50 text-blue-600 font-semibold"
