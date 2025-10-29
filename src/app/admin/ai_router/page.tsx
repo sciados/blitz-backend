@@ -1,114 +1,97 @@
+// src/app/admin/ai_router/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
 import { AuthGate } from "src/components/AuthGate";
+import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 
-type Config = {
-  chat_fast?: string[];
-  chat_quality?: string[];
-  embeddings?: string[];
-  vision?: string[];
-  image_gen?: string[];
+// Change from JSX to object
+const helpContent = {
+  title: "AI Router Configuration",
+  description:
+    "Configure default AI models for different use cases across the platform.",
+  tips: [
+    "Use provider:model format (e.g., openai:gpt-4, anthropic:claude-3-opus)",
+    "Separate multiple models with commas for fallback support",
+    "Changes apply immediately to all new requests",
+    "Test your configuration before saving to production",
+  ],
 };
 
-const helpContent = (
-  <div className="space-y-4 text-sm">
-    <div>
-      <h4 className="font-semibold mb-2">AI Router Configuration</h4>
-      <p className="text-gray-600">
-        Configure which AI models are used for different use cases across the
-        platform.
-      </p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Format</h4>
-      <p className="text-gray-600 mb-2">
-        Enter models as comma-separated values in the format:
-      </p>
-      <code className="block bg-gray-100 p-2 rounded text-xs">
-        provider:model-name
-      </code>
-      <p className="text-gray-600 mt-2">
-        Example:{" "}
-        <code className="bg-gray-100 px-1 rounded">
-          groq:llama-3.1-70b-versatile, openai:gpt-4o-mini
-        </code>
-      </p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Priority</h4>
-      <p className="text-gray-600">
-        Models are tried left-to-right. If the first model fails, the system
-        falls back to the next.
-      </p>
-    </div>
-    <div>
-      <h4 className="font-semibold mb-2">Use Cases</h4>
-      <ul className="list-disc list-inside text-gray-600 space-y-1">
-        <li>
-          <strong>chat_fast:</strong> Quick responses
-        </li>
-        <li>
-          <strong>chat_quality:</strong> High-quality content
-        </li>
-        <li>
-          <strong>embeddings:</strong> Vector search
-        </li>
-        <li>
-          <strong>vision:</strong> Image analysis
-        </li>
-        <li>
-          <strong>image_gen:</strong> Image generation
-        </li>
-      </ul>
-    </div>
-  </div>
-);
-
-export default function AIRouterAdminPage() {
-  const [config, setConfig] = useState<Config>({});
-  const [loading, setLoading] = useState(false);
+export default function AIRouterPage() {
+  const [config, setConfig] = useState({
+    content_generation: "",
+    compliance_check: "",
+    intelligence_query: "",
+    summarization: "",
+  });
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.get("/api/admin/ai-router/config");
-        setConfig(res.data.config || {});
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    fetchConfig();
   }, []);
 
-  const updateField = (key: keyof Config, value: string) => {
-    const arr = value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    setConfig((prev) => ({ ...prev, [key]: arr }));
+  const fetchConfig = async () => {
+    try {
+      const res = await api.get("/api/admin/ai-router/config");
+      const data = res.data;
+
+      // Convert arrays to comma-separated strings for display
+      setConfig({
+        content_generation: Array.isArray(data.content_generation)
+          ? data.content_generation.join(", ")
+          : data.content_generation || "",
+        compliance_check: Array.isArray(data.compliance_check)
+          ? data.compliance_check.join(", ")
+          : data.compliance_check || "",
+        intelligence_query: Array.isArray(data.intelligence_query)
+          ? data.intelligence_query.join(", ")
+          : data.intelligence_query || "",
+        summarization: Array.isArray(data.summarization)
+          ? data.summarization.join(", ")
+          : data.summarization || "",
+      });
+    } catch (err) {
+      console.error("Failed to fetch AI Router config:", err);
+      setMessage("Failed to load configuration");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const asCSV = (arr?: string[]) => (arr || []).join(", ");
-
-  const save = async () => {
+  const handleSave = async () => {
     setSaving(true);
-    setError(null);
-    setSuccess(false);
+    setMessage("");
+
     try {
-      await api.put("/api/admin/ai-router/config", config);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (e: any) {
-      setError(e.message);
+      // Convert comma-separated strings to arrays
+      const payload = {
+        content_generation: config.content_generation
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        compliance_check: config.compliance_check
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        intelligence_query: config.intelligence_query
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        summarization: config.summarization
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      };
+
+      await api.put("/api/admin/ai-router/config", payload);
+      setMessage("Configuration saved successfully!");
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err: any) {
+      console.error("Failed to save AI Router config:", err);
+      setMessage(err.response?.data?.detail || "Failed to save configuration");
     } finally {
       setSaving(false);
     }
@@ -125,55 +108,104 @@ export default function AIRouterAdminPage() {
   return (
     <AuthGate requiredRole="admin" helpContent={helpContent}>
       <div className="p-6 max-w-4xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">AI Router Configuration</h1>
-          <p className="text-gray-600 mt-2">
-            Configure AI model routing and fallback priorities for different use
-            cases
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-6">
+          AI Router Configuration
+        </h1>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700">
-            Configuration saved successfully!
-          </div>
-        )}
-
-        <div className="bg-white border rounded-lg p-6 space-y-6">
-          {[
-            "chat_fast",
-            "chat_quality",
-            "embeddings",
-            "vision",
-            "image_gen",
-          ].map((k) => (
-            <div key={k}>
-              <label className="block font-semibold mb-2 capitalize">
-                {k.replace("_", " ")}
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. groq:llama-3.1-70b-versatile, openai:gpt-4o-mini"
-                value={asCSV((config as any)[k])}
-                onChange={(e) => updateField(k as keyof Config, e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          ))}
-
-          <button
-            onClick={save}
-            disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        {message && (
+          <div
+            className={`mb-4 p-4 rounded-lg ${
+              message.includes("success")
+                ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+                : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
+            }`}
           >
-            {saving ? "Saving…" : "Save Configuration"}
-          </button>
+            {message}
+          </div>
+        )}
+
+        <div className="bg-[var(--bg-primary)] rounded-lg shadow p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
+              Content Generation
+            </label>
+            <input
+              type="text"
+              value={config.content_generation}
+              onChange={(e) =>
+                setConfig({ ...config, content_generation: e.target.value })
+              }
+              placeholder="openai:gpt-4, anthropic:claude-3-opus"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Comma-separated list of provider:model pairs
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
+              Compliance Check
+            </label>
+            <input
+              type="text"
+              value={config.compliance_check}
+              onChange={(e) =>
+                setConfig({ ...config, compliance_check: e.target.value })
+              }
+              placeholder="openai:gpt-4-turbo"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Models for compliance checking
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
+              Intelligence Query (RAG)
+            </label>
+            <input
+              type="text"
+              value={config.intelligence_query}
+              onChange={(e) =>
+                setConfig({ ...config, intelligence_query: e.target.value })
+              }
+              placeholder="openai:gpt-4, anthropic:claude-3-sonnet"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Models for RAG and knowledge queries
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
+              Summarization
+            </label>
+            <input
+              type="text"
+              value={config.summarization}
+              onChange={(e) =>
+                setConfig({ ...config, summarization: e.target.value })
+              }
+              placeholder="openai:gpt-4-turbo, anthropic:claude-3-haiku"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Models for summarization tasks
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? "Saving..." : "Save Configuration"}
+            </button>
+          </div>
         </div>
       </div>
     </AuthGate>
