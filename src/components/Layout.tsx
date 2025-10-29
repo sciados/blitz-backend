@@ -1,7 +1,9 @@
 "use client";
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { clearToken, getRoleFromToken } from "src/lib/auth";
+import { api } from "src/lib/appClient";
+import { useTheme } from "src/contexts/ThemeContext";
 import Link from "next/link";
 
 type LayoutProps = {
@@ -15,22 +17,42 @@ type MenuItem = {
   icon: string;
 };
 
+type UserInfo = {
+  email: string;
+  role: string;
+};
+
 export function Layout({ children, helpContent }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme } = useTheme();
   const role = getRoleFromToken();
   const isAdmin = role === "admin";
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
+  // Fetch user info on mount
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const res = await api.get("/api/auth/me");
+        setUserInfo(res.data);
+      } catch (err) {
+        console.error("Failed to fetch user info:", err);
+        setUserInfo({ email: "User", role: role || "user" });
+      }
+    };
+    fetchUserInfo();
+  }, [role]);
 
   const handleLogout = () => {
     clearToken();
     router.push("/login");
   };
 
-  // Dynamic menu based on role
   const menuItems: MenuItem[] = isAdmin
     ? [
         { href: "/admin/dashboard", label: "Dashboard", icon: "🏠" },
@@ -52,18 +74,18 @@ export function Layout({ children, helpContent }: LayoutProps) {
       ];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[var(--bg-secondary)]">
       {/* Header */}
-      <header className="h-16 border-b bg-white flex items-center justify-between px-4 sticky top-0 z-50">
+      <header className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)] flex items-center justify-between px-4 sticky top-0 z-50">
         {/* Left: Menu Toggle + Logo */}
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded"
+            className="p-2 hover:bg-[var(--hover-bg)] rounded"
             aria-label="Toggle menu"
           >
             <svg
-              className="w-6 h-6"
+              className="w-6 h-6 text-[var(--text-primary)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -78,83 +100,102 @@ export function Layout({ children, helpContent }: LayoutProps) {
           </button>
           <Link href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">B</span>
               </div>
-              <span className="font-bold text-xl">Blitz</span>
+              <span className="font-bold text-xl text-[var(--text-primary)]">
+                Blitz
+              </span>
             </div>
           </Link>
         </div>
 
-        {/* Right: Profile Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold">
-                {role?.charAt(0).toUpperCase()}
+        {/* Right: User Info + Profile Dropdown */}
+        <div className="flex items-center space-x-4">
+          {userInfo && (
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                {userInfo.email}
+              </span>
+              <span className="text-xs text-[var(--text-secondary)] capitalize">
+                {userInfo.role}
               </span>
             </div>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-
-          {profileOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setProfileOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-20">
-                <div className="p-3 border-b">
-                  <p className="text-sm font-semibold capitalize">{role}</p>
-                  <p className="text-xs text-gray-500">Role</p>
-                </div>
-                <Link
-                  href="/profile"
-                  className="block px-4 py-2 text-sm hover:bg-gray-100"
-                  onClick={() => setProfileOpen(false)}
-                >
-                  Profile
-                </Link>
-                <Link
-                  href="/settings"
-                  className="block px-4 py-2 text-sm hover:bg-gray-100"
-                  onClick={() => setProfileOpen(false)}
-                >
-                  Settings
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 border-t"
-                >
-                  Logout
-                </button>
-              </div>
-            </>
           )}
+
+          <div className="relative">
+            <button
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center space-x-2 p-2 hover:bg-[var(--hover-bg)] rounded-lg"
+            >
+              <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-full flex items-center justify-center">
+                <span className="text-sm font-semibold text-white">
+                  {userInfo?.email?.charAt(0).toUpperCase() || "U"}
+                </span>
+              </div>
+              <svg
+                className="w-4 h-4 text-[var(--text-primary)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {profileOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setProfileOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-64 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg shadow-lg z-20">
+                  <div className="p-3 border-b border-[var(--border-color)]">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                      {userInfo?.email || "Loading..."}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)] capitalize">
+                      {userInfo?.role || "user"}
+                    </p>
+                  </div>
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-[var(--hover-bg)] border-t border-[var(--border-color)]"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Navigation */}
+        {/* Left Sidebar */}
         <aside
           className={`${
             leftSidebarOpen ? "w-64" : "w-0"
-          } transition-all duration-300 border-r bg-white overflow-y-auto`}
+          } transition-all duration-300 border-r border-[var(--border-color)] bg-[var(--bg-primary)] overflow-y-auto`}
         >
           {leftSidebarOpen && (
             <nav className="p-4 space-y-1">
@@ -166,8 +207,8 @@ export function Layout({ children, helpContent }: LayoutProps) {
                     href={item.href as any}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-blue-50 text-blue-600 font-semibold"
-                        : "hover:bg-gray-100 text-gray-700"
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
+                        : "hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
                     }`}
                   >
                     <span className="text-xl">{item.icon}</span>
@@ -180,25 +221,29 @@ export function Layout({ children, helpContent }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
+          {children}
+        </main>
 
-        {/* Right Sidebar - Context Help */}
+        {/* Right Sidebar */}
         <aside
           className={`${
             rightSidebarOpen ? "w-80" : "w-0"
-          } transition-all duration-300 border-l bg-white overflow-y-auto`}
+          } transition-all duration-300 border-l border-[var(--border-color)] bg-[var(--bg-primary)] overflow-y-auto`}
         >
           {rightSidebarOpen && (
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg">Help</h3>
+                <h3 className="font-semibold text-lg text-[var(--text-primary)]">
+                  Help
+                </h3>
                 <button
                   onClick={() => setRightSidebarOpen(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-[var(--hover-bg)] rounded"
                   aria-label="Close help"
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-5 h-5 text-[var(--text-primary)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -212,9 +257,9 @@ export function Layout({ children, helpContent }: LayoutProps) {
                   </svg>
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 text-[var(--text-secondary)]">
                 {helpContent || (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm">
                     <p className="mb-2">
                       No help content available for this page.
                     </p>
@@ -222,7 +267,7 @@ export function Layout({ children, helpContent }: LayoutProps) {
                       Need assistance? Contact{" "}
                       <a
                         href="mailto:support@blitz.com"
-                        className="text-blue-600 underline"
+                        className="text-blue-600 dark:text-blue-400 underline"
                       >
                         support@blitz.com
                       </a>
@@ -234,15 +279,14 @@ export function Layout({ children, helpContent }: LayoutProps) {
           )}
         </aside>
 
-        {/* Toggle Right Sidebar Button (when closed) */}
         {!rightSidebarOpen && (
           <button
             onClick={() => setRightSidebarOpen(true)}
-            className="fixed right-0 top-1/2 -translate-y-1/2 bg-white border border-r-0 rounded-l-lg p-2 shadow-lg hover:bg-gray-50"
+            className="fixed right-0 top-1/2 -translate-y-1/2 bg-[var(--bg-primary)] border border-r-0 border-[var(--border-color)] rounded-l-lg p-2 shadow-lg hover:bg-[var(--hover-bg)]"
             aria-label="Open help"
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 text-[var(--text-primary)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

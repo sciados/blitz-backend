@@ -1,12 +1,9 @@
+import { ThemeProvider } from "src/contexts/ThemeContext";
 import "./globals.css";
-import type { Metadata } from "next";
-import { QueryProvider } from "src/lib/queryClient";
-import { Toaster } from "sonner";
-import { AuthGate } from "src/components/AuthGate";
 
-export const metadata: Metadata = {
-  title: "Blitz",
-  description: "AI-Powered SaaS for Affiliate Marketers",
+export const metadata = {
+  title: "Blitz SaaS",
+  description: "Affiliate Marketing Platform",
 };
 
 export default function RootLayout({
@@ -15,12 +12,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <QueryProvider>
-          <Toaster richColors />
-          {children}
-        </QueryProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
