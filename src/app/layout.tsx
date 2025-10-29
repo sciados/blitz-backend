@@ -1,10 +1,7 @@
+// app/layout.tsx
+import "src/app/globals.css";
 import { ThemeProvider } from "src/contexts/ThemeContext";
-import "./globals.css";
-
-export const metadata = {
-  title: "Blitz SaaS",
-  description: "Affiliate Marketing Platform",
-};
+import { Layout } from "src/components/Layout";
 
 export default function RootLayout({
   children,
@@ -12,9 +9,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <Layout>{children}</Layout>
+        </ThemeProvider>
       </body>
     </html>
   );
