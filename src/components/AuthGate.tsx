@@ -1,9 +1,14 @@
 "use client";
-import { getToken } from "src/lib/auth";
+import { getToken, getRoleFromToken } from "src/lib/auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export function AuthGate({ children }: { children: React.ReactNode }) {
+type AuthGateProps = {
+  children: React.ReactNode;
+  requiredRole?: "admin" | "user";
+};
+
+export function AuthGate({ children, requiredRole }: AuthGateProps) {
   const r = useRouter();
   const [ok, setOk] = useState(false);
 
@@ -11,10 +16,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     const token = getToken();
     if (!token) {
       r.replace("/login");
-    } else {
-      setOk(true);
+      return;
     }
-  }, [r]);
+
+    // If a specific role is required, check it
+    if (requiredRole) {
+      const role = getRoleFromToken();
+      if (role !== requiredRole) {
+        r.replace("/dashboard"); // or show 403
+        return;
+      }
+    }
+
+    setOk(true);
+  }, [r, requiredRole]);
 
   if (!ok) return null;
   return <div className="min-h-screen">{children}</div>;

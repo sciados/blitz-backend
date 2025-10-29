@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "src/lib/appClient";
-import { setToken } from "src/lib/auth";
+import { setToken, getRoleFromToken } from "src/lib/auth";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -18,7 +18,14 @@ export default function LoginPage() {
       const { data } = await api.post("/api/auth/login", { email, password });
       setToken(data.access_token);
       toast.success("Logged in");
-      r.push("/dashboard");
+
+      // Role-based redirect - Option 3
+      const role = getRoleFromToken();
+      if (role === "admin") {
+        r.push("/admin/dashboard");
+      } else {
+        r.push("/dashboard");
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail ?? "Login failed");
     } finally {
