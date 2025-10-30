@@ -8,16 +8,6 @@ import { Campaign } from "src/lib/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-const helpContent = {
-  title: "Campaigns",
-  description: "Manage your affiliate marketing campaigns",
-  tips: [
-    "Create campaigns to organize your content",
-    "Track performance across different channels",
-    "Link content and compliance checks to campaigns",
-  ],
-};
-
 export default function CampaignsPage() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -64,7 +54,7 @@ export default function CampaignsPage() {
   };
 
   return (
-    <AuthGate requiredRole="user" helpContent={helpContent}>
+    <AuthGate requiredRole="user">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">

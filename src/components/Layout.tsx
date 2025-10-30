@@ -5,17 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { clearToken, getRoleFromToken } from "src/lib/auth";
 import { api } from "src/lib/appClient";
 import { useTheme } from "src/contexts/ThemeContext";
+import { getHelpContent } from "src/config/helpContent";
 import Link from "next/link";
-
-type HelpContent = {
-  title: string;
-  description: string;
-  tips: string[];
-};
 
 type LayoutProps = {
   children: ReactNode;
-  helpContent?: HelpContent;
 };
 
 type MenuItem = {
@@ -29,7 +23,7 @@ type UserInfo = {
   role: string;
 };
 
-export default function Layout({ children, helpContent }: LayoutProps) {
+export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme } = useTheme();
@@ -40,6 +34,9 @@ export default function Layout({ children, helpContent }: LayoutProps) {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+
+  // Get help content based on current pathname
+  const helpContent = getHelpContent(pathname);
 
   // Fetch user info on mount
   useEffect(() => {
@@ -278,27 +275,106 @@ export default function Layout({ children, helpContent }: LayoutProps) {
               <div className="space-y-4 text-[var(--text-secondary)]">
                 {helpContent ? (
                   <div className="text-sm space-y-4">
+                    {/* Title and Description */}
                     <div>
-                      <h4 className="font-semibold text-[var(--text-primary)] mb-2">
+                      <h4 className="font-semibold text-lg text-[var(--text-primary)] mb-2">
                         {helpContent.title}
                       </h4>
-                      <p className="text-[var(--text-secondary)] mb-3">
+                      <p className="text-[var(--text-secondary)] leading-relaxed">
                         {helpContent.description}
                       </p>
                     </div>
+
+                    {/* Steps Section */}
+                    {helpContent.steps && helpContent.steps.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-[var(--text-primary)] mb-3 flex items-center space-x-2">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                            />
+                          </svg>
+                          <span>Steps to Complete</span>
+                        </h5>
+                        <div className="space-y-3">
+                          {helpContent.steps.map((step) => (
+                            <div
+                              key={step.number}
+                              className="flex items-start space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                            >
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                                {step.number}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h6 className="font-semibold text-[var(--text-primary)] mb-1">
+                                  {step.title}
+                                </h6>
+                                <p className="text-[var(--text-secondary)] text-xs leading-relaxed">
+                                  {step.description}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tips Section */}
                     {helpContent.tips && helpContent.tips.length > 0 && (
                       <div>
-                        <h5 className="font-semibold text-[var(--text-primary)] mb-2">
-                          Tips:
+                        <h5 className="font-semibold text-[var(--text-primary)] mb-2 flex items-center space-x-2">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                            />
+                          </svg>
+                          <span>Pro Tips</span>
                         </h5>
                         <ul className="space-y-2">
                           {helpContent.tips.map((tip, index) => (
                             <li
                               key={index}
-                              className="flex items-start space-x-2"
+                              className="flex items-start space-x-2 text-[var(--text-secondary)]"
                             >
-                              <span className="text-blue-500 mt-0.5">•</span>
-                              <span>{tip}</span>
+                              <span className="text-blue-500 mt-0.5 font-bold">•</span>
+                              <span className="leading-relaxed">{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Links Section */}
+                    {helpContent.links && helpContent.links.length > 0 && (
+                      <div>
+                        <h5 className="font-semibold text-[var(--text-primary)] mb-2">
+                          Related Resources
+                        </h5>
+                        <ul className="space-y-2">
+                          {helpContent.links.map((link, index) => (
+                            <li key={index}>
+                              <a
+                                href={link.href}
+                                className="text-blue-600 dark:text-blue-400 hover:underline text-xs"
+                              >
+                                {link.label} →
+                              </a>
                             </li>
                           ))}
                         </ul>

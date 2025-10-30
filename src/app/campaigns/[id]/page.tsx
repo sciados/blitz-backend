@@ -9,16 +9,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { EditCampaignModal } from "src/components/EditCampaignModal";
 
-const helpContent = {
-  title: "Campaign Details",
-  description: "View and manage your campaign",
-  tips: [
-    "Edit campaign details to update information",
-    "Change campaign status to control workflow",
-    "Generate content and intelligence for this campaign",
-  ],
-};
-
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -101,7 +91,7 @@ export default function CampaignDetailPage() {
 
   if (isLoading) {
     return (
-      <AuthGate requiredRole="user" helpContent={helpContent}>
+      <AuthGate requiredRole="user">
         <div className="p-6">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
@@ -114,7 +104,7 @@ export default function CampaignDetailPage() {
 
   if (error || !campaign) {
     return (
-      <AuthGate requiredRole="user" helpContent={helpContent}>
+      <AuthGate requiredRole="user">
         <div className="p-6">
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
             <h3 className="font-semibold mb-1">Campaign not found</h3>
@@ -134,7 +124,7 @@ export default function CampaignDetailPage() {
   }
 
   return (
-    <AuthGate requiredRole="user" helpContent={helpContent}>
+    <AuthGate requiredRole="user">
       <div className="p-6 max-w-5xl">
         {/* Header */}
         <div className="mb-6">

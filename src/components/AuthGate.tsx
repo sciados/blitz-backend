@@ -8,11 +8,6 @@ import { getToken, getRoleFromToken } from "src/lib/auth";
 interface AuthGateProps {
   children: React.ReactNode;
   requiredRole?: "user" | "admin";
-  helpContent?: {
-    title: string;
-    description: string;
-    tips: string[];
-  };
 }
 
 export function AuthGate({ children, requiredRole = "user" }: AuthGateProps) {
