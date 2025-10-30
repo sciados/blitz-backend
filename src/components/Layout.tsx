@@ -1,3 +1,4 @@
+// src/components/Layout.tsx
 "use client";
 import { useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -14,7 +15,7 @@ type HelpContent = {
 
 type LayoutProps = {
   children: ReactNode;
-  helpContent?: HelpContent; // ← Changed from ReactNode
+  helpContent?: HelpContent;
 };
 
 type MenuItem = {
@@ -28,7 +29,7 @@ type UserInfo = {
   role: string;
 };
 
-export function Layout({ children, helpContent }: LayoutProps) {
+export default function Layout({ children, helpContent }: LayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme } = useTheme();
@@ -42,16 +43,20 @@ export function Layout({ children, helpContent }: LayoutProps) {
 
   // Fetch user info on mount
   useEffect(() => {
+    let mounted = true;
     const fetchUserInfo = async () => {
       try {
         const res = await api.get("/api/auth/me");
-        setUserInfo(res.data);
+        if (mounted) setUserInfo(res.data);
       } catch (err) {
         console.error("Failed to fetch user info:", err);
-        setUserInfo({ email: "User", role: role || "user" });
+        if (mounted) setUserInfo({ email: "User", role: role || "user" });
       }
     };
     fetchUserInfo();
+    return () => {
+      mounted = false;
+    };
   }, [role]);
 
   const handleLogout = () => {
@@ -78,6 +83,12 @@ export function Layout({ children, helpContent }: LayoutProps) {
         { href: "/analytics", label: "Analytics", icon: "📈" },
         { href: "/settings", label: "Settings", icon: "⚙️" },
       ];
+
+  if (typeof window !== "undefined") {
+    // debug log to verify single render — remove after verification
+    // eslint-disable-next-line no-console
+    console.debug("[Layout] render");
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--bg-secondary)]">

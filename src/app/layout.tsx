@@ -1,7 +1,7 @@
 // app/layout.tsx
 import "src/app/globals.css";
 import { ThemeProvider } from "src/contexts/ThemeContext";
-import { Layout } from "src/components/Layout";
+import Layout from "src/components/Layout"; // default import
 
 export default function RootLayout({
   children,
