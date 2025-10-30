@@ -1,5 +1,6 @@
 C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\(auth)\login\page.tsx
 C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\(auth)\register\page.tsx
+C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\admin\ai_router\page.tsx
 C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\campaigns\[id]\page.tsx
 C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\campaigns\page.tsx
 C:\Users\shaun\OneDrive\Documents\GitHub\blitz-frontend\src\app\compliance\page.tsx

@@ -73,6 +73,9 @@ class CampaignBase(BaseModel):
     name: str
     product_url: HttpUrl
     affiliate_network: str
+    keywords: Optional[List[str]] = []
+    product_description: Optional[str] = None
+    product_type: Optional[str] = None
     target_audience: Optional[str] = None
     marketing_angles: Optional[List[MarketingAngle]] = []
 
@@ -82,6 +85,9 @@ class CampaignCreate(CampaignBase):
 class CampaignUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[CampaignStatus] = None
+    keywords: Optional[List[str]] = None
+    product_description: Optional[str] = None
+    product_type: Optional[str] = None
     target_audience: Optional[str] = None
     marketing_angles: Optional[List[MarketingAngle]] = None
 

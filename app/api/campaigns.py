@@ -34,6 +34,9 @@ async def create_campaign(
         name=campaign_data.name,
         product_url=str(campaign_data.product_url),
         affiliate_network=campaign_data.affiliate_network,
+        keywords=campaign_data.keywords,
+        product_description=campaign_data.product_description,
+        product_type=campaign_data.product_type,
         target_audience=campaign_data.target_audience,
         marketing_angles=campaign_data.marketing_angles,
         status="draft"
