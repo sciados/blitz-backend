@@ -10,7 +10,24 @@ export type Campaign = {
     name: string;
     product_url: string;
     affiliate_network: string;
+    keywords?: string[];
+    product_description?: string;
+    product_type?: string;
+    target_audience?: string;
+    marketing_angles?: string[];
     status: "draft" | "active" | "paused" | "completed";
+    intelligence_data?: any;
     created_at: string;
     updated_at: string;
+};
+
+export type CampaignCreate = {
+    name: string;
+    product_url: string;
+    affiliate_network: string;
+    keywords?: string[];
+    product_description?: string;
+    product_type?: string;
+    target_audience?: string;
+    marketing_angles?: string[];
 };
