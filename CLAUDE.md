@@ -98,13 +98,113 @@ Copy `.env.local.example` to `.env.local` and set:
 - **Campaign Type**: `id`, `name`, `product_url`, `affiliate_network`, `status`, `created_at`, `updated_at`
 - Campaign status values: `"draft" | "active" | "paused" | "completed"`
 
+### Context-Sensitive Help System
+
+**CRITICAL: Every new page MUST have help content added to `src/config/helpContent.ts`**
+
+The right sidebar displays context-sensitive help that automatically detects the current page and shows relevant guidance.
+
+#### Adding Help Content for New Pages
+
+1. **Open** `src/config/helpContent.ts`
+2. **Add** a new entry to the `helpContent` object with the route path as the key
+3. **Include** all required fields: `title`, `description`, `steps`, and `tips`
+
+**Template:**
+```typescript
+"/your-new-page": {
+  title: "Page Title",
+  description: "Brief description of what this page does and its purpose.",
+  steps: [
+    {
+      number: 1,
+      title: "First Step Title",
+      description: "Detailed explanation of what the user needs to do in this step.",
+    },
+    {
+      number: 2,
+      title: "Second Step Title",
+      description: "Detailed explanation of the next step.",
+    },
+    // Add 3-6 steps for complete guidance
+  ],
+  tips: [
+    "Pro tip about using this feature effectively",
+    "Best practice or helpful hint",
+    "Common gotcha or important reminder",
+    "Another useful tip",
+  ],
+  links: [ // Optional
+    {
+      label: "Related Documentation",
+      href: "/link-to-docs",
+    },
+  ],
+},
+```
+
+#### Help Content Guidelines
+
+- **Steps**: 3-6 numbered steps that guide users through the complete workflow
+- **Tips**: 3-5 actionable pro tips and best practices
+- **Description**: 1-2 sentences explaining the page purpose
+- **Language**: Use imperative voice ("Click...", "Review...", "Select...")
+- **Completeness**: Steps should cover the entire user journey on that page
+
+#### Dynamic Routes
+
+For dynamic routes like `/campaigns/[id]`, use the pattern syntax:
+```typescript
+"/campaigns/[id]": {
+  title: "Campaign Details",
+  // ... help content
+},
+```
+
+The `getHelpContent()` function in the config handles pattern matching automatically.
+
 ### Page Pattern
 
-Most pages follow this pattern:
-1. Wrap content with `AuthGate` component, specifying `requiredRole`
-2. Optionally provide `helpContent` object for right sidebar contextual help
+Every new page MUST follow this pattern:
+1. Wrap content with `AuthGate` component, specifying `requiredRole` ("user" or "admin")
+2. **IMMEDIATELY add help content** to `src/config/helpContent.ts` (this is automatic - no prop needed)
 3. Use `api` client from `src/lib/appClient.ts` for backend calls
 4. Style with Tailwind classes and CSS variable references (`var(--text-primary)`, etc.)
+5. Use React Query (`useQuery`, `useMutation`) for data fetching
+6. Use `toast` from `sonner` for user notifications
+
+**Example:**
+```tsx
+"use client";
+import { AuthGate } from "src/components/AuthGate";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "src/lib/appClient";
+
+export default function YourPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["yourData"],
+    queryFn: async () => (await api.get("/api/your-endpoint")).data,
+  });
+
+  return (
+    <AuthGate requiredRole="user">
+      <div className="p-6">
+        {/* Your page content */}
+      </div>
+    </AuthGate>
+  );
+}
+```
+
+**Then immediately add to `src/config/helpContent.ts`:**
+```typescript
+"/your-page": {
+  title: "Your Page Title",
+  description: "What this page does...",
+  steps: [...],
+  tips: [...],
+},
+```
 
 ## Backend Integration
 
@@ -172,6 +272,9 @@ Backend CORS allows:
 - **Route Groups**: Auth pages use Next.js route groups `(auth)` for organization without affecting URLs
 - **Typed Routes**: Enabled via `experimental: { typedRoutes: true }` in `next.config.js`
 - **Type Alignment**: Keep frontend types in `src/lib/types.ts` aligned with backend schemas in `app/schemas.py`
+- **Help Content Required**: EVERY new page must have help content added to `src/config/helpContent.ts` with steps and tips
+- **React Query**: Use for all data fetching (`useQuery`) and mutations (`useMutation`) - provider already configured
+- **Toast Notifications**: Use `toast` from `sonner` for all user feedback messages
 
 ## CampaignForge Reference
 
