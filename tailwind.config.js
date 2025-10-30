@@ -2,13 +2,13 @@
 module.exports = {
     darkMode: 'class',
     content: [
-        './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-        './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-        './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+        './app/**/*.{js,ts,jsx,tsx,mdx}',
+        './pages/**/*.{js,ts,jsx,tsx,mdx}',
+        './components/**/*.{js,ts,jsx,tsx,mdx}',
+        './src/**/*.{js,ts,jsx,tsx,mdx}',
     ],
     theme: {
         extend: {
-            // Map convenient names to your CSS variables (optional)
             colors: {
                 primary: 'var(--accent-primary)',
                 'bg-primary': 'var(--bg-primary)',
@@ -22,12 +22,5 @@ module.exports = {
             },
         },
     },
-    // Safelist classes that are generated dynamically or used with CSS variables
-    // (uncomment and add entries if you use arbitrary classes that Tailwind can't statically detect)
-    // safelist: [
-    //   'bg-[var(--card-bg)]',
-    //   'text-[var(--text-primary)]',
-    //   'text-[var(--text-secondary)]',
-    // ],
     plugins: [],
 };
