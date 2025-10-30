@@ -347,30 +347,299 @@ export default function CampaignDetailPage() {
               </div>
             </div>
 
-            {/* Quick Actions */}
+            {/* Workflow Steps */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Quick Actions
+                Campaign Workflow
               </h3>
-              <div className="space-y-2">
-                <button
-                  className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition"
-                  onClick={() => toast.info("Content generation coming soon!")}
-                >
-                  Generate Content
-                </button>
-                <button
-                  className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition"
-                  onClick={() => toast.info("Intelligence compilation coming soon!")}
-                >
-                  Compile Intelligence
-                </button>
-                <button
-                  className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm transition"
-                  onClick={() => toast.info("Compliance check coming soon!")}
-                >
-                  Check Compliance
-                </button>
+              <div className="space-y-3">
+                {/* Step 1: Create Campaign (Always Complete) */}
+                <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center">
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-green-900 dark:text-green-300 text-sm">
+                      Step 1: Create Campaign
+                    </div>
+                    <div className="text-xs text-green-700 dark:text-green-400 mt-0.5">
+                      ✓ Completed
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2: Compile Intelligence */}
+                {(() => {
+                  const isCompleted = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
+                  const isActive = true; // Always available after campaign creation
+
+                  return (
+                    <div
+                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
+                        isCompleted
+                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                          : isActive
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
+                      }`}
+                    >
+                      <div
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          isCompleted
+                            ? "bg-green-600"
+                            : isActive
+                            ? "bg-blue-600"
+                            : "bg-gray-400"
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          "2"
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`font-semibold text-sm ${
+                            isCompleted
+                              ? "text-green-900 dark:text-green-300"
+                              : isActive
+                              ? "text-blue-900 dark:text-blue-300"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          Step 2: Compile Intelligence
+                        </div>
+                        <div
+                          className={`text-xs mt-0.5 ${
+                            isCompleted
+                              ? "text-green-700 dark:text-green-400"
+                              : isActive
+                              ? "text-blue-700 dark:text-blue-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {isCompleted ? "✓ Completed" : "Ready to start"}
+                        </div>
+                        {isActive && !isCompleted && (
+                          <button
+                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
+                            onClick={() => toast.info("Intelligence compilation coming soon!")}
+                          >
+                            Compile Intelligence
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Step 3: Generate Content */}
+                {(() => {
+                  const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
+                  const isCompleted = false; // TODO: Check if content exists
+                  const isActive = step2Complete;
+
+                  return (
+                    <div
+                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
+                        isCompleted
+                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                          : isActive
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
+                      }`}
+                    >
+                      <div
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          isCompleted
+                            ? "bg-green-600"
+                            : isActive
+                            ? "bg-blue-600"
+                            : "bg-gray-400"
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          "3"
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`font-semibold text-sm ${
+                            isCompleted
+                              ? "text-green-900 dark:text-green-300"
+                              : isActive
+                              ? "text-blue-900 dark:text-blue-300"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          Step 3: Generate Content
+                        </div>
+                        <div
+                          className={`text-xs mt-0.5 ${
+                            isCompleted
+                              ? "text-green-700 dark:text-green-400"
+                              : isActive
+                              ? "text-blue-700 dark:text-blue-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {isCompleted
+                            ? "✓ Completed"
+                            : isActive
+                            ? "Ready to start"
+                            : "Complete Step 2 first"}
+                        </div>
+                        {isActive && !isCompleted && (
+                          <button
+                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
+                            onClick={() => toast.info("Content generation coming soon!")}
+                          >
+                            Generate Content
+                          </button>
+                        )}
+                        {!isActive && (
+                          <button
+                            disabled
+                            className="mt-2 w-full px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded text-xs font-medium cursor-not-allowed"
+                          >
+                            Generate Content
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Step 4: Check Compliance */}
+                {(() => {
+                  const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
+                  const step3Complete = false; // TODO: Check if content exists
+                  const isCompleted = false; // TODO: Check if compliance check exists
+                  const isActive = step2Complete && step3Complete;
+
+                  return (
+                    <div
+                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
+                        isCompleted
+                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                          : isActive
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
+                      }`}
+                    >
+                      <div
+                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          isCompleted
+                            ? "bg-green-600"
+                            : isActive
+                            ? "bg-blue-600"
+                            : "bg-gray-400"
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          "4"
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`font-semibold text-sm ${
+                            isCompleted
+                              ? "text-green-900 dark:text-green-300"
+                              : isActive
+                              ? "text-blue-900 dark:text-blue-300"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          Step 4: Check Compliance
+                        </div>
+                        <div
+                          className={`text-xs mt-0.5 ${
+                            isCompleted
+                              ? "text-green-700 dark:text-green-400"
+                              : isActive
+                              ? "text-blue-700 dark:text-blue-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {isCompleted
+                            ? "✓ Completed"
+                            : isActive
+                            ? "Ready to start"
+                            : "Complete Step 3 first"}
+                        </div>
+                        {isActive && !isCompleted && (
+                          <button
+                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
+                            onClick={() => toast.info("Compliance check coming soon!")}
+                          >
+                            Check Compliance
+                          </button>
+                        )}
+                        {!isActive && (
+                          <button
+                            disabled
+                            className="mt-2 w-full px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded text-xs font-medium cursor-not-allowed"
+                          >
+                            Check Compliance
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
