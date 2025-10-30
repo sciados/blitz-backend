@@ -2,22 +2,11 @@
 import { AuthGate } from "src/components/AuthGate";
 import { useTheme } from "src/contexts/ThemeContext";
 
-const helpContent = {
-  title: "Content Generation",
-  description: "Generate AI-powered content for your campaigns.",
-  tips: [
-    "Select content type (email, ad, social post)",
-    "Customize tone and brand voice",
-    "Save generated content to campaigns",
-    "Regenerate if results don't match expectations",
-  ],
-};
-
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <AuthGate requiredRole="user" helpContent={helpContent}>
+    <AuthGate requiredRole="user">
       <div className="p-6 max-w-4xl">
         <h1 className="text-3xl font-bold mb-2 text-[var(--text-primary)]">
           Settings

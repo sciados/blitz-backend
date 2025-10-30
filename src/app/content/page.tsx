@@ -11,17 +11,6 @@ export default function ContentPage() {
   const [tone, setTone] = useState("professional");
   const [length, setLength] = useState("medium");
 
-  const helpContent = {
-    title: "Content Generation",
-    description: "Generate AI-powered content for your campaigns.",
-    tips: [
-      "Select content type (email, ad, social post)",
-      "Customize tone and brand voice",
-      "Save generated content to campaigns",
-      "Regenerate if results don't match expectations",
-    ],
-  };
-
   async function generate(e: React.FormEvent) {
     e.preventDefault();
     try {
@@ -40,7 +29,7 @@ export default function ContentPage() {
   }
 
   return (
-    <AuthGate requiredRole="user" helpContent={helpContent}>
+    <AuthGate requiredRole="user">
       <div className="p-6 space-y-4">
         <h1 className="text-2xl font-semibold">Content</h1>
         <form

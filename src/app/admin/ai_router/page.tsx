@@ -5,19 +5,6 @@ import { AuthGate } from "src/components/AuthGate";
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 
-// Change from JSX to object
-const helpContent = {
-  title: "AI Router Configuration",
-  description:
-    "Configure default AI models for different use cases across the platform.",
-  tips: [
-    "Use provider:model format (e.g., openai:gpt-4, anthropic:claude-3-opus)",
-    "Separate multiple models with commas for fallback support",
-    "Changes apply immediately to all new requests",
-    "Test your configuration before saving to production",
-  ],
-};
-
 export default function AIRouterPage() {
   const [config, setConfig] = useState({
     content_generation: "",
@@ -99,14 +86,14 @@ export default function AIRouterPage() {
 
   if (loading) {
     return (
-      <AuthGate requiredRole="admin" helpContent={helpContent}>
+      <AuthGate requiredRole="admin">
         <div className="p-6">Loading AI Router config…</div>
       </AuthGate>
     );
   }
 
   return (
-    <AuthGate requiredRole="admin" helpContent={helpContent}>
+    <AuthGate requiredRole="admin">
       <div className="p-6 max-w-4xl">
         <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-6">
           AI Router Configuration

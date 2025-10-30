@@ -2,20 +2,9 @@
 import { AuthGate } from "src/components/AuthGate";
 import Link from "next/link";
 
-const helpContent = {
-  title: "Content Generation",
-  description: "Generate AI-powered content for your campaigns.",
-  tips: [
-    "Select content type (email, ad, social post)",
-    "Customize tone and brand voice",
-    "Save generated content to campaigns",
-    "Regenerate if results don't match expectations",
-  ],
-};
-
 export default function AdminDashboardPage() {
   return (
-    <AuthGate requiredRole="admin" helpContent={helpContent}>
+    <AuthGate requiredRole="admin">
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
