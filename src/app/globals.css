@@ -1,54 +1,83 @@
-/* globals.css (add these variables near the top) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Light theme */
+/* Theme variables */
 :root {
-  --bg-primary: #ffffff;
+  /* Sidebar + page shell */
+  --bg-primary: #1f2937; /* dark slate (used for sidebar & page shell) */
+  /* Canvas (set same as sidebar so page matches) */
+  --bg-secondary: var(--bg-primary);
+
+  /* Cards: light shade so they stand out a little */
+  --card-bg: #0b1220; /* slightly lighter than background (dark theme) */
+  --card-bg-light: #ffffff; /* light mode card color */
+  --card-border: rgba(255, 255, 255, 0.04);
+
+  --text-primary: #e6eef3;
+  --text-secondary: #9aa6b2;
+
+  --accent-primary: #4f9ef5;
+  --accent-secondary: #7bd389;
+
+  --hover-bg: rgba(255, 255, 255, 0.03);
+  --border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Light theme (override) */
+[data-theme="light"] {
+  --bg-primary: #f3f6f9;
   --bg-secondary: #f9fafb;
-  --card-bg: #ffffff;
-  --card-border: transparent;
+  --card-bg: var(--card-bg-light);
+  --card-border: #e5e7eb;
   --text-primary: #111827;
   --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
   --hover-bg: #f3f4f6;
-  --accent-primary: #3b82f6;
-  --accent-secondary: #2563eb;
+  --border-color: #e5e7eb;
 }
 
-/* Dark theme */
+/* Dark theme (override if you toggle data-theme="dark") */
 [data-theme="dark"] {
-  --bg-primary: #1f2937; /* sidebar / panels */
-  --bg-secondary: #0b0f12; /* page background (near-black) */
-  --card-bg: #111827; /* slightly lighter than background */
-  --card-border: #2b3036; /* subtle border for contrast */
-  --text-primary: #f9fafb;
+  --bg-primary: #111827; /* sidebar & page shell */
+  --bg-secondary: var(--bg-primary); /* match sidebar */
+  --card-bg: #0b1220; /* cards slightly lighter than shell */
+  --card-border: #1f2937;
+  --text-primary: #e6eef3;
   --text-secondary: #9ca3af;
-  --border-color: #2b3036;
   --hover-bg: #162029;
-  --accent-primary: #3b82f6;
-  --accent-secondary: #2563eb;
+  --border-color: #1f2937;
 }
 
-/* Global background & text */
+/* Global layout */
 html,
-body {
+body,
+#__next {
   height: 100%;
 }
 body {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
-/* Card */
+/* Centralized card helper - use this class or the Card component below */
 .card {
-  background-color: var(--card-bg);
+  background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 0.5rem; /* rounded-lg */
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    transform 0.12s ease;
+}
+
+/* Utility for light cards on dark theme if you need slightly brighter cards */
+.card--elevated {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* small shadow helper mapped to tailwind extend (optional) */
+.shadow-card-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }

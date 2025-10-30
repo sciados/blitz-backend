@@ -91,7 +91,8 @@ export default function Layout({ children, helpContent }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-secondary)]">
+    // Use the same background for the shell and page canvas so the main page matches the sidebar
+    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)] flex items-center justify-between px-4 sticky top-0 z-50">
         {/* Left: Menu Toggle + Logo */}
@@ -238,7 +239,7 @@ export default function Layout({ children, helpContent }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
+        <main className="flex-1 overflow-y-auto bg-[var(--bg-primary)]">
           {children}
         </main>
 
