@@ -1,5 +1,15 @@
 // Centralized help content configuration for all pages
 // This provides context-sensitive help in the right sidebar
+//
+// ⚠️ IMPORTANT: Every new page MUST have help content added here!
+//
+// When creating a new page:
+// 1. Add a new entry to the helpContent object below
+// 2. Use the page route as the key (e.g., "/your-page")
+// 3. Include: title, description, steps (3-6), and tips (3-5)
+// 4. For dynamic routes, use pattern syntax (e.g., "/campaigns/[id]")
+//
+// See CLAUDE.md for complete documentation and templates
 
 export type HelpContent = {
   title: string;
