@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { Campaign } from "src/lib/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const helpContent = {
   title: "Campaigns",
@@ -18,6 +19,7 @@ const helpContent = {
 };
 
 export default function CampaignsPage() {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,62 +137,27 @@ export default function CampaignsPage() {
         ) : (
           <div className="grid gap-4">
             {campaigns.map((campaign) => (
-              <Link
+              <div
                 key={campaign.id}
-                href={`/campaigns/${campaign.id}`}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition p-6 block"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition p-6 relative"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {campaign.name}
-                      </h3>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          campaign.status
-                        )}`}
-                      >
-                        {campaign.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="flex items-center space-x-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                <Link href={`/campaigns/${campaign.id}`} className="block">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                          {campaign.name}
+                        </h3>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            campaign.status
+                          )}`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                          />
-                        </svg>
-                        <span className="truncate">{campaign.product_url}</span>
+                          {campaign.status}
+                        </span>
                       </div>
 
-                      <div className="flex items-center space-x-2">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span>{campaign.affiliate_network}</span>
-                      </div>
-
-                      {campaign.product_type && (
+                      <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                         <div className="flex items-center space-x-2">
                           <svg
                             className="w-4 h-4"
@@ -202,49 +169,109 @@ export default function CampaignsPage() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
                             />
                           </svg>
-                          <span>{campaign.product_type}</span>
+                          <span className="truncate">{campaign.product_url}</span>
                         </div>
-                      )}
 
-                      {campaign.keywords && campaign.keywords.length > 0 && (
-                        <div className="flex items-center space-x-2 flex-wrap mt-2">
-                          {campaign.keywords.slice(0, 3).map((keyword, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded"
-                            >
-                              {keyword}
-                            </span>
-                          ))}
-                          {campaign.keywords.length > 3 && (
-                            <span className="text-xs text-gray-500">
-                              +{campaign.keywords.length - 3} more
-                            </span>
-                          )}
+                        <div className="flex items-center space-x-2">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
+                          </svg>
+                          <span>{campaign.affiliate_network}</span>
                         </div>
-                      )}
+
+                        {campaign.product_type && (
+                          <div className="flex items-center space-x-2">
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                              />
+                            </svg>
+                            <span>{campaign.product_type}</span>
+                          </div>
+                        )}
+
+                        {campaign.keywords && campaign.keywords.length > 0 && (
+                          <div className="flex items-center space-x-2 flex-wrap mt-2">
+                            {campaign.keywords.slice(0, 3).map((keyword, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                            {campaign.keywords.length > 3 && (
+                              <span className="text-xs text-gray-500">
+                                +{campaign.keywords.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right ml-4">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Created
+                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {new Date(campaign.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="text-right ml-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Created
+                  {campaign.product_description && (
+                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                      {campaign.product_description}
                     </p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                      {new Date(campaign.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
+                  )}
+                </Link>
 
-                {campaign.product_description && (
-                  <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                    {campaign.product_description}
-                  </p>
-                )}
-              </Link>
+                {/* Edit Button - Bottom Right */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/campaigns/${campaign.id}`);
+                  }}
+                  className="absolute bottom-4 right-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition flex items-center space-x-1.5"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  <span>Edit</span>
+                </button>
+              </div>
             ))}
           </div>
         )}
