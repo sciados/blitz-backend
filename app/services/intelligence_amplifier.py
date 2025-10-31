@@ -52,15 +52,26 @@ class IntelligenceAmplifier:
             ai_chat_quality = os.getenv("AI_CHAT_QUALITY", "NOT_SET")
             logger.info(f"[DEBUG] AI_CHAT_QUALITY env var: {ai_chat_quality[:50]}...")
 
-            # Use AI Router for intelligence analysis with automatic fallback
-            result = await self.ai_router.call_with_fallback(
-                use_case="chat_quality",
-                call_func=self._call_provider,
-                prompt_tokens=len(prompt) // 4,  # Rough estimate
-                gen_tokens=4096,
-                budget_usd=0.10,  # Max $0.10 per analysis
-                prompt=prompt
-            )
+            # FALLBACK: If router not configured, use Groq directly (FREE!)
+            if ai_chat_quality == "NOT_SET":
+                logger.warning("⚠️ AI Router not configured, using Groq directly as fallback")
+                response_text = await self._call_groq_direct(prompt)
+                result = {
+                    "result": response_text,
+                    "provider": "groq",
+                    "model": "llama-3.1-70b-versatile",
+                    "estimated_cost_usd": 0.0
+                }
+            else:
+                # Use AI Router for intelligence analysis with automatic fallback
+                result = await self.ai_router.call_with_fallback(
+                    use_case="chat_quality",
+                    call_func=self._call_provider,
+                    prompt_tokens=len(prompt) // 4,  # Rough estimate
+                    gen_tokens=4096,
+                    budget_usd=0.10,  # Max $0.10 per analysis
+                    prompt=prompt
+                )
 
             # Extract response text based on provider
             response_text = result["result"]
@@ -110,6 +121,36 @@ class IntelligenceAmplifier:
 
         except Exception as e:
             logger.error(f"❌ Intelligence amplification failed: {str(e)}")
+            raise
+
+    async def _call_groq_direct(self, prompt: str) -> str:
+        """
+        Direct Groq fallback when router not configured (FREE!)
+
+        Args:
+            prompt: Prompt text
+
+        Returns:
+            Response text from Groq
+        """
+        try:
+            client = openai.AsyncOpenAI(
+                api_key=settings.GROQ_API_KEY,
+                base_url="https://api.groq.com/openai/v1"
+            )
+
+            response = await client.chat.completions.create(
+                model="llama-3.1-70b-versatile",
+                max_tokens=4096,
+                temperature=0,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            logger.info("✅ Groq direct call successful (FREE!)")
+            return response.choices[0].message.content.strip()
+
+        except Exception as e:
+            logger.error(f"Groq direct call failed: {e}")
             raise
 
     async def _call_provider(self, spec, prompt: str) -> str:
