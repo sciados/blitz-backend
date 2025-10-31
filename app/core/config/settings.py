@@ -145,6 +145,14 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.ENVIRONMENT.lower() in ["development", "dev", "local"]
 
+    @property
+    def r2_endpoint_url(self) -> str:
+        """
+        Generate Cloudflare R2 endpoint URL from account ID.
+        Format: https://{account_id}.r2.cloudflarestorage.com
+        """
+        return f"https://{self.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
     class Config:
         env_file = ".env"
         case_sensitive = True
