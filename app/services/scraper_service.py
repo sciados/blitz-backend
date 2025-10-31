@@ -94,29 +94,43 @@ class SalesPageScraper:
 
     async def _fetch_html(self, url: str) -> Optional[str]:
         """Fetch HTML with retries and exponential backoff"""
-        for attempt in range(self.max_retries):
-            try:
-                async with httpx.AsyncClient(
-                    timeout=self.timeout,
-                    follow_redirects=True,
-                    # Allow HTTP redirects (some sales pages redirect HTTPS → HTTP)
-                    # This is needed for sites that redirect to non-standard ports
-                    verify=False  # Disable SSL verification for problematic sites
-                ) as client:
-                    response = await client.get(url, headers=self.headers)
-                    response.raise_for_status()
+        urls_to_try = [url]
 
-                    # If we got redirected, log it
-                    if len(response.history) > 0:
-                        final_url = str(response.url)
-                        logger.info(f"✓ Followed redirects: {url} → {final_url}")
+        # If URL doesn't end with /, also try with trailing slash
+        # (Some sites redirect without trailing slash but work fine with it)
+        if not url.endswith('/'):
+            urls_to_try.append(url + '/')
 
-                    return response.text
-            except Exception as e:
-                if attempt == self.max_retries - 1:
-                    logger.error(f"Failed to fetch {url} after {self.max_retries} attempts: {e}")
-                    return None
-                await asyncio.sleep(2 ** attempt)
+        for url_variant in urls_to_try:
+            for attempt in range(self.max_retries):
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=self.timeout,
+                        follow_redirects=True,
+                        # Allow HTTP redirects (some sales pages redirect HTTPS → HTTP)
+                        # This is needed for sites that redirect to non-standard ports
+                        verify=False  # Disable SSL verification for problematic sites
+                    ) as client:
+                        response = await client.get(url_variant, headers=self.headers)
+                        response.raise_for_status()
+
+                        # If we got redirected, log it
+                        if len(response.history) > 0:
+                            final_url = str(response.url)
+                            logger.info(f"✓ Followed redirects: {url_variant} → {final_url}")
+
+                        if url_variant != url:
+                            logger.info(f"✓ URL variant worked: {url} → {url_variant}")
+
+                        return response.text
+                except Exception as e:
+                    if attempt == self.max_retries - 1:
+                        logger.warning(f"Failed to fetch {url_variant} after {self.max_retries} attempts: {e}")
+                        # Don't return None yet, try next URL variant
+                        break
+                    await asyncio.sleep(2 ** attempt)
+
+        logger.error(f"Failed to fetch {url} with all variants")
         return None
 
     def _extract_metadata(self, html: str, url: str) -> Dict[str, Any]:
