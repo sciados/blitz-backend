@@ -98,10 +98,19 @@ class SalesPageScraper:
             try:
                 async with httpx.AsyncClient(
                     timeout=self.timeout,
-                    follow_redirects=True
+                    follow_redirects=True,
+                    # Allow HTTP redirects (some sales pages redirect HTTPS → HTTP)
+                    # This is needed for sites that redirect to non-standard ports
+                    verify=False  # Disable SSL verification for problematic sites
                 ) as client:
                     response = await client.get(url, headers=self.headers)
                     response.raise_for_status()
+
+                    # If we got redirected, log it
+                    if len(response.history) > 0:
+                        final_url = str(response.url)
+                        logger.info(f"✓ Followed redirects: {url} → {final_url}")
+
                     return response.text
             except Exception as e:
                 if attempt == self.max_retries - 1:
