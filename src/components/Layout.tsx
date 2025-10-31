@@ -24,6 +24,7 @@ type UserInfo = {
 };
 
 export default function Layout({ children }: LayoutProps) {
+  // All hooks must be called at the top level, before any conditional returns
   const router = useRouter();
   const pathname = usePathname();
   const { theme } = useTheme();
@@ -37,11 +38,6 @@ export default function Layout({ children }: LayoutProps) {
 
   // Check if current page is an auth page (login, register)
   const isAuthPage = pathname === '/login' || pathname === '/register';
-
-  // If auth page, render children without layout chrome
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
 
   // Get help content based on current pathname
   const helpContent = getHelpContent(pathname);
@@ -109,6 +105,12 @@ export default function Layout({ children }: LayoutProps) {
     // debug log to verify single render — remove after verification
     // eslint-disable-next-line no-console
     console.debug("[Layout] render");
+  }
+
+  // If auth page, render children without layout chrome
+  // This comes AFTER all hooks to avoid violating Rules of Hooks
+  if (isAuthPage) {
+    return <>{children}</>;
   }
 
   return (
