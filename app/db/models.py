@@ -54,8 +54,9 @@ class ProductIntelligence(Base):
     #   "analysis": {...}          # Confidence scores, recommendations
     # }
 
-    # RAG embedding (OpenAI text-embedding-3-large: 3072 dimensions)
-    intelligence_embedding = Column(Vector(3072), nullable=True)
+    # RAG embedding (OpenAI text-embedding-3-large: 2000 dimensions)
+    # Note: PostgreSQL vector indexes have a 2000 dimension limit
+    intelligence_embedding = Column(Vector(2000), nullable=True)
 
     # Metadata
     compiled_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

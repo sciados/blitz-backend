@@ -19,13 +19,14 @@ depends_on = None
 
 def upgrade() -> None:
     # Create product_intelligence table
+    # Note: Using 2000 dimensions (PostgreSQL vector index limit for both HNSW and IVFFlat)
     op.create_table(
         'product_intelligence',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('product_url', sa.Text(), nullable=False),
         sa.Column('url_hash', sa.String(length=64), nullable=False),
         sa.Column('intelligence_data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('intelligence_embedding', Vector(3072), nullable=True),
+        sa.Column('intelligence_embedding', Vector(2000), nullable=True),
         sa.Column('compiled_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('compilation_version', sa.String(length=20), server_default='1.0', nullable=False),
