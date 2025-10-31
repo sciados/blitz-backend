@@ -2,7 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, KnowledgeBase
@@ -15,9 +16,34 @@ from app.schemas import (
     RAGQueryResponse
 )
 from app.services.intelligence_compiler import IntelligenceCompiler
+from app.services.intelligence_compiler_service import IntelligenceCompilerService
 from app.services.rag import RAGService
 
 router = APIRouter(prefix="/api/intelligence", tags=["intelligence"])
+
+
+# New request/response models for v2 API
+class CompileIntelligenceRequest(BaseModel):
+    """Request model for intelligence compilation"""
+    deep_scrape: bool = True
+    scrape_images: bool = True
+    max_images: int = 10
+    enable_rag: bool = True
+    force_recompile: bool = False
+
+
+class CompileIntelligenceResponse(BaseModel):
+    """Response model for intelligence compilation"""
+    success: bool
+    campaign_id: int
+    status: str
+    was_cached: bool
+    product_intelligence_id: Optional[int] = None
+    intelligence_summary: Optional[Dict[str, Any]] = None
+    processing_time_ms: Optional[int] = None
+    costs: Optional[Dict[str, float]] = None
+    cache_info: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 
 # Dependency to get IntelligenceCompiler instance
@@ -26,10 +52,141 @@ def get_intelligence_compiler(db: AsyncSession = Depends(get_db)) -> Intelligenc
     return IntelligenceCompiler(db)
 
 
+# Dependency to get new IntelligenceCompilerService instance
+def get_intelligence_compiler_service(db: AsyncSession = Depends(get_db)) -> IntelligenceCompilerService:
+    """Get IntelligenceCompilerService instance with database session."""
+    return IntelligenceCompilerService(db)
+
+
 # Dependency to get RAGService instance
 def get_rag_service(db: AsyncSession = Depends(get_db)) -> RAGService:
     """Get RAGService instance with database session."""
     return RAGService(db)
+
+
+@router.post("/campaigns/{campaign_id}/compile", response_model=CompileIntelligenceResponse)
+async def compile_campaign_intelligence(
+    campaign_id: int,
+    request: CompileIntelligenceRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    compiler: IntelligenceCompilerService = Depends(get_intelligence_compiler_service)
+):
+    """
+    Compile intelligence for a campaign (v2 with global sharing)
+
+    This endpoint:
+    1. Checks if intelligence already exists for the product URL (cache hit)
+    2. If cached, links campaign to existing intelligence (instant, $0 cost)
+    3. If not cached, performs full 3-step compilation:
+       - Step 1: Scrape sales page with image download and R2 upload
+       - Step 2: Amplify intelligence with Claude 3.5 Sonnet
+       - Step 3: Generate embeddings with OpenAI text-embedding-3-large
+    """
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Compile intelligence with global sharing
+    compilation_result = await compiler.compile_for_campaign(
+        campaign_id=campaign_id,
+        options={
+            'deep_scrape': request.deep_scrape,
+            'scrape_images': request.scrape_images,
+            'max_images': request.max_images,
+            'enable_rag': request.enable_rag,
+            'force_recompile': request.force_recompile
+        }
+    )
+
+    return CompileIntelligenceResponse(**compilation_result)
+
+
+@router.get("/campaigns/{campaign_id}/intelligence")
+async def get_campaign_intelligence_data(
+    campaign_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    compiler: IntelligenceCompilerService = Depends(get_intelligence_compiler_service)
+):
+    """
+    Get compiled intelligence data for a campaign
+
+    Returns the full intelligence JSON structure with:
+    - Product details (features, benefits, pain points)
+    - Market intelligence (target audience, positioning)
+    - Marketing intelligence (hooks, angles, testimonials)
+    - Images with classifications
+    - Analysis and recommendations
+    """
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = await compiler.get_intelligence_for_campaign(campaign_id)
+
+    if not intelligence_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Intelligence not yet compiled for this campaign"
+        )
+
+    return intelligence_data
+
+
+@router.get("/campaigns/{campaign_id}/compile-progress")
+async def get_compilation_progress(
+    campaign_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    compiler: IntelligenceCompilerService = Depends(get_intelligence_compiler_service)
+):
+    """
+    Get current compilation progress for a campaign
+
+    Returns progress status for tracking during compilation
+    (in production, this would use Redis or a task queue for real-time updates)
+    """
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    progress = await compiler.get_compilation_progress(campaign_id)
+    return progress
 
 
 @router.post("/compile", response_model=IntelligenceResponse)
