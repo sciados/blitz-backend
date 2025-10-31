@@ -39,10 +39,12 @@ def upgrade() -> None:
     op.create_index('ix_product_intelligence_url_hash', 'product_intelligence', ['url_hash'], unique=True)
     op.create_index('ix_product_intelligence_compiled_at', 'product_intelligence', ['compiled_at'])
 
-    # Create HNSW vector index for fast similarity search (better than IVFFlat)
+    # Create IVFFlat vector index for fast similarity search
+    # Note: HNSW has a 2000 dimension limit, but text-embedding-3-large uses 3072 dimensions
+    # IVFFlat supports unlimited dimensions
     op.execute(
         'CREATE INDEX ix_product_intelligence_embedding ON product_intelligence '
-        'USING hnsw (intelligence_embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)'
+        'USING ivfflat (intelligence_embedding vector_cosine_ops) WITH (lists = 100)'
     )
 
     # Add product_intelligence_id foreign key to campaigns table
