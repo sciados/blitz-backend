@@ -307,9 +307,9 @@ class SalesPageScraper:
             r2_key = f"intelligence/{product_intelligence_id}/images/{index}_{classification['type']}{file_extension}"
 
             # Upload to R2
-            r2_url = await self.r2_storage.upload_file(
-                file_data=image_data,
-                file_name=r2_key,
+            stored_key, r2_url = await self.r2_storage.upload_file(
+                file_bytes=image_data,
+                key=r2_key,
                 content_type=f"image/{file_extension.lstrip('.')}"
             )
 
@@ -317,7 +317,7 @@ class SalesPageScraper:
                 'success': True,
                 'original_url': image_url,
                 'r2_url': r2_url,
-                'r2_key': r2_key,
+                'r2_key': stored_key,
                 'classification': classification,
                 'dimensions': {
                     'width': img_metadata.get('width'),
