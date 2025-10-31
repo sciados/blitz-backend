@@ -236,12 +236,30 @@ class IntelligenceCompilerService:
         self,
         url_hash: str
     ) -> Optional[ProductIntelligence]:
-        """Check if intelligence already exists for this URL"""
+        """Check if intelligence already exists for this URL and is complete"""
         stmt = select(ProductIntelligence).where(
             ProductIntelligence.url_hash == url_hash
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        intelligence = result.scalar_one_or_none()
+
+        # Validate that intelligence is complete before treating as cache hit
+        if intelligence:
+            # Check if intelligence_data exists and has required fields
+            if not intelligence.intelligence_data:
+                logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - intelligence_data is null")
+                return None
+
+            # Check if intelligence_data has key sections
+            required_sections = ['product', 'market', 'marketing']
+            data = intelligence.intelligence_data
+            if not all(section in data for section in required_sections):
+                logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - missing required sections")
+                return None
+
+            logger.info(f"✓ Found valid cached intelligence (ID: {intelligence.id})")
+
+        return intelligence
 
     async def _link_campaign_to_intelligence(
         self,
