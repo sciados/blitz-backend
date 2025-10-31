@@ -1,27 +1,29 @@
 """
 Intelligence Amplifier Service
-Uses Claude 3.5 Sonnet to extract comprehensive marketing intelligence
+Uses AI Router with automatic fallback to extract comprehensive marketing intelligence
 Replaces CampaignForge's 6 separate enhancers with a single unified analysis
 """
 import json
 import logging
 from typing import Dict, Any
 from datetime import datetime
-import anthropic
 from app.core.config.settings import settings
+from app.services.ai_router import ai_router
+import anthropic
+import openai
 
 logger = logging.getLogger(__name__)
 
 
 class IntelligenceAmplifier:
     """
-    Unified intelligence amplifier using Claude 3.5 Sonnet
+    Unified intelligence amplifier using AI Router with fallback
     Extracts product, market, and marketing intelligence in a single pass
     """
 
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        self.model = "claude-3-5-sonnet-20241022"
+        self.ai_router = ai_router
+        # Clients will be created dynamically based on selected provider
 
     async def amplify_intelligence(self, scraped_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -40,21 +42,23 @@ class IntelligenceAmplifier:
             Comprehensive intelligence dictionary with product, market, and marketing data
         """
         try:
-            logger.info("🧠 Amplifying intelligence with Claude 3.5 Sonnet...")
+            logger.info("🧠 Amplifying intelligence with AI Router (auto-fallback enabled)...")
 
             # Prepare prompt
             prompt = self._build_intelligence_prompt(scraped_data)
 
-            # Call Claude
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                temperature=0,  # Deterministic for consistent analysis
-                messages=[{"role": "user", "content": prompt}]
+            # Use AI Router for intelligence analysis with automatic fallback
+            result = await self.ai_router.call_with_fallback(
+                use_case="chat_quality",
+                call_func=self._call_provider,
+                prompt_tokens=len(prompt) // 4,  # Rough estimate
+                gen_tokens=4096,
+                budget_usd=0.10,  # Max $0.10 per analysis
+                prompt=prompt
             )
 
-            # Parse response
-            response_text = response.content[0].text.strip()
+            # Extract response text based on provider
+            response_text = result["result"]
 
             # Remove markdown code blocks if present
             if response_text.startswith('```'):
@@ -67,7 +71,8 @@ class IntelligenceAmplifier:
 
             # Add metadata
             intelligence['amplified_at'] = datetime.utcnow().isoformat()
-            intelligence['model'] = self.model
+            intelligence['model'] = f"{result['provider']}:{result['model']}"
+            intelligence['estimated_cost_usd'] = result.get('estimated_cost_usd', 0)
 
             # Add scraped sales page data
             intelligence['sales_page'] = {
@@ -100,6 +105,64 @@ class IntelligenceAmplifier:
 
         except Exception as e:
             logger.error(f"❌ Intelligence amplification failed: {str(e)}")
+            raise
+
+    async def _call_provider(self, spec, prompt: str) -> str:
+        """
+        Call AI provider based on spec (works with Anthropic, OpenAI-compatible, Groq, etc.)
+
+        Args:
+            spec: ProviderSpec from AI Router
+            prompt: Prompt text
+
+        Returns:
+            Response text from provider
+        """
+        try:
+            if spec.name == "anthropic":
+                # Anthropic Claude
+                client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+                response = await client.messages.create(
+                    model=spec.model,
+                    max_tokens=4096,
+                    temperature=0,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.content[0].text.strip()
+
+            elif spec.name in ["openai", "groq", "together", "deepseek"]:
+                # OpenAI-compatible providers (Groq, Together, DeepSeek, etc.)
+                api_key_map = {
+                    "openai": settings.OPENAI_API_KEY,
+                    "groq": settings.GROQ_API_KEY,
+                    "together": settings.TOGETHER_API_KEY,
+                    "deepseek": settings.DEEPSEEK_API_KEY,
+                }
+
+                base_url_map = {
+                    "groq": "https://api.groq.com/openai/v1",
+                    "together": "https://api.together.xyz/v1",
+                    "deepseek": "https://api.deepseek.com",
+                }
+
+                client = openai.AsyncOpenAI(
+                    api_key=api_key_map.get(spec.name),
+                    base_url=base_url_map.get(spec.name)
+                )
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    max_tokens=4096,
+                    temperature=0,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response.choices[0].message.content.strip()
+
+            else:
+                raise ValueError(f"Unsupported provider: {spec.name}")
+
+        except Exception as e:
+            logger.error(f"Provider {spec.name} call failed: {e}")
             raise
 
     def _build_intelligence_prompt(self, scraped_data: Dict[str, Any]) -> str:
