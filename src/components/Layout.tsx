@@ -35,6 +35,14 @@ export default function Layout({ children }: LayoutProps) {
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
+  // Check if current page is an auth page (login, register)
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+
+  // If auth page, render children without layout chrome
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
+
   // Get help content based on current pathname
   const helpContent = getHelpContent(pathname);
 
