@@ -17,6 +17,7 @@ export default function CampaignDetailPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
 
   // Fetch campaign
   const { data: campaign, isLoading, error } = useQuery<Campaign>({
@@ -72,6 +73,44 @@ export default function CampaignDetailPage() {
 
   const handleStatusChange = (newStatus: string) => {
     updateStatusMutation.mutate(newStatus);
+  };
+
+  const handleCompileIntelligence = async () => {
+    setIsCompiling(true);
+    try {
+      const response = await api.post(`/api/intelligence/campaigns/${id}/compile`, {
+        deep_scrape: true,
+        scrape_images: true,
+        max_images: 10,
+        enable_rag: true,
+        force_recompile: false
+      });
+
+      const result = response.data;
+
+      // Show success message with cache info
+      if (result.was_cached) {
+        toast.success(
+          `Intelligence compiled instantly! (Using cached data from ${new Date(result.cache_info.originally_compiled_at).toLocaleDateString()})`
+        );
+      } else {
+        toast.success(
+          `Intelligence compiled successfully in ${Math.round(result.processing_time_ms / 1000)}s! Cost: $${result.costs.total.toFixed(4)}`
+        );
+      }
+
+      // Refresh campaign data
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+    } catch (error: any) {
+      console.error("Compilation error:", error);
+      toast.error(
+        error.response?.data?.detail ||
+        error.response?.data?.error ||
+        "Failed to compile intelligence"
+      );
+    } finally {
+      setIsCompiling(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -382,7 +421,9 @@ export default function CampaignDetailPage() {
 
                 {/* Step 2: Compile Intelligence */}
                 {(() => {
-                  const isCompleted = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
+                  const isCompleted =
+                    (campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0) ||
+                    campaign.product_intelligence_id;
                   const isActive = true; // Always available after campaign creation
 
                   return (
@@ -447,10 +488,11 @@ export default function CampaignDetailPage() {
                         </div>
                         {isActive && !isCompleted && (
                           <button
-                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
-                            onClick={() => toast.info("Intelligence compilation coming soon!")}
+                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={handleCompileIntelligence}
+                            disabled={isCompiling}
                           >
-                            Compile Intelligence
+                            {isCompiling ? "Compiling..." : "Compile Intelligence"}
                           </button>
                         )}
                       </div>

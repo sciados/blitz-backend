@@ -16,6 +16,7 @@ export type Campaign = {
     target_audience?: string;
     marketing_angles?: string[];
     status: "draft" | "active" | "paused" | "completed";
+    product_intelligence_id?: number | null;
     intelligence_data?: any;
     created_at: string;
     updated_at: string;
