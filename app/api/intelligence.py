@@ -35,9 +35,9 @@ class CompileIntelligenceRequest(BaseModel):
 class CompileIntelligenceResponse(BaseModel):
     """Response model for intelligence compilation"""
     success: bool
-    campaign_id: int
-    status: str
-    was_cached: bool
+    campaign_id: Optional[int] = None
+    status: Optional[str] = None
+    was_cached: Optional[bool] = None
     product_intelligence_id: Optional[int] = None
     intelligence_summary: Optional[Dict[str, Any]] = None
     processing_time_ms: Optional[int] = None
