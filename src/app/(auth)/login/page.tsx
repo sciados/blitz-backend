@@ -4,17 +4,16 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "src/lib/appClient";
 import { setToken } from "src/lib/auth";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     try {
@@ -25,9 +24,10 @@ export default function LoginPage() {
 
       const { access_token } = response.data;
       setToken(access_token);
+      toast.success("Welcome back!");
       router.push("/dashboard"); // Redirect after login
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Login failed. Please try again.");
+      toast.error(err.response?.data?.detail || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -42,12 +42,6 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">
           Login to Blitz
         </h1>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
 
         <label
           htmlFor="email"
@@ -90,6 +84,16 @@ export default function LoginPage() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
+
+        <p className="text-sm text-center mt-4 text-[var(--text-secondary)]">
+          Don't have an account?{" "}
+          <a
+            href="/register"
+            className="text-blue-600 hover:text-blue-700 underline font-medium"
+          >
+            Create account
+          </a>
+        </p>
       </form>
     </div>
   );

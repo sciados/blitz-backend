@@ -30,49 +30,78 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen grid place-items-center p-6">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-secondary)] px-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm space-y-4 border rounded-lg p-6"
+        className="max-w-md w-full bg-[var(--bg-primary)] p-8 rounded-lg shadow-md"
       >
-        <h1 className="text-2xl font-semibold">Register</h1>
-        <div className="space-y-1">
-          <label className="text-sm">Full Name</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm">Email</label>
-          <input
-            type="email"
-            className="w-full border rounded px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm">Password</label>
-          <input
-            type="password"
-            className="w-full border rounded px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button
-          disabled={loading}
-          className="w-full bg-black text-white py-2 rounded"
+        <h1 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">
+          Create your account
+        </h1>
+
+        <label
+          htmlFor="fullName"
+          className="block mb-1 text-[var(--text-primary)] font-semibold"
         >
-          {loading ? "..." : "Create account"}
+          Full Name
+        </label>
+        <input
+          id="fullName"
+          type="text"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="w-full mb-4 px-4 py-2 border border-[var(--border-color)] rounded bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="John Doe"
+        />
+
+        <label
+          htmlFor="email"
+          className="block mb-1 text-[var(--text-primary)] font-semibold"
+        >
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full mb-4 px-4 py-2 border border-[var(--border-color)] rounded bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="you@example.com"
+        />
+
+        <label
+          htmlFor="password"
+          className="block mb-1 text-[var(--text-primary)] font-semibold"
+        >
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-6 px-4 py-2 border border-[var(--border-color)] rounded bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="At least 8 characters"
+        />
+
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-3 font-semibold rounded bg-blue-600 text-white hover:bg-blue-700 transition ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+        >
+          {loading ? "Creating account..." : "Create account"}
         </button>
-        <p className="text-sm">
+
+        <p className="text-sm text-center mt-4 text-[var(--text-secondary)]">
           Already have an account?{" "}
-          <a className="underline" href="/login">
+          <a
+            href="/login"
+            className="text-blue-600 hover:text-blue-700 underline font-medium"
+          >
             Login
           </a>
         </p>
