@@ -38,16 +38,32 @@ export default function Layout({ children }: LayoutProps) {
   // Get help content based on current pathname
   const helpContent = getHelpContent(pathname);
 
-  // Fetch user info on mount
+  // Fetch user info on mount (only if token exists)
   useEffect(() => {
     let mounted = true;
     const fetchUserInfo = async () => {
+      // Check if token exists before making API call
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+      if (!token) {
+        // No token, set default user info from token parsing
+        if (mounted && role) {
+          setUserInfo({ email: "User", role: role });
+        }
+        return;
+      }
+
       try {
         const res = await api.get("/api/auth/me");
         if (mounted) setUserInfo(res.data);
       } catch (err) {
-        console.error("Failed to fetch user info:", err);
-        if (mounted) setUserInfo({ email: "User", role: role || "user" });
+        // Only log error if we actually have a token (prevents noise on login page)
+        if (token) {
+          console.error("Failed to fetch user info:", err);
+        }
+        if (mounted && role) {
+          setUserInfo({ email: "User", role: role });
+        }
       }
     };
     fetchUserInfo();
