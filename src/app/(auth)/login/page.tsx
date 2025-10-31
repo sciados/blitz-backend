@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "src/lib/appClient";
-import { setToken } from "src/lib/auth";
+import { setToken, getRoleFromToken } from "src/lib/auth";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -24,8 +24,13 @@ export default function LoginPage() {
 
       const { access_token } = response.data;
       setToken(access_token);
+
+      // Get user role from token and redirect accordingly
+      const role = getRoleFromToken();
+      const redirectPath = role === "admin" ? "/admin/dashboard" : "/dashboard";
+
       toast.success("Welcome back!");
-      router.push("/dashboard"); // Redirect after login
+      router.push(redirectPath);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Login failed. Please try again.");
     } finally {
