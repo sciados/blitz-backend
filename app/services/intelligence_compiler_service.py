@@ -71,9 +71,9 @@ class IntelligenceCompilerService:
             url_hash = self._generate_url_hash(campaign.product_url)
 
             # Step 3: Check for existing intelligence
-            existing_intelligence = await self._find_existing_intelligence(url_hash)
+            existing_intelligence, is_complete = await self._find_existing_intelligence(url_hash)
 
-            if existing_intelligence and not options.get('force_recompile'):
+            if existing_intelligence and is_complete and not options.get('force_recompile'):
                 # CACHE HIT: Reuse existing intelligence
                 logger.info(f"✨ Cache HIT! Reusing existing intelligence (ID: {existing_intelligence.id})")
 
@@ -102,13 +102,17 @@ class IntelligenceCompilerService:
                     }
                 }
 
-            # CACHE MISS: Compile new intelligence
-            logger.info(f"🆕 Cache MISS. Starting full compilation...")
+            # CACHE MISS or INCOMPLETE: Compile (or recompile) intelligence
+            if existing_intelligence and not is_complete:
+                logger.info(f"🔄 Found incomplete intelligence (ID: {existing_intelligence.id}). Recompiling...")
+            else:
+                logger.info(f"🆕 Cache MISS. Starting full compilation...")
 
             result = await self._compile_new_intelligence(
                 campaign,
                 url_hash,
-                options
+                options,
+                existing_intelligence_id=existing_intelligence.id if existing_intelligence else None
             )
 
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -128,10 +132,14 @@ class IntelligenceCompilerService:
         self,
         campaign: Campaign,
         url_hash: str,
-        options: Dict[str, Any]
+        options: Dict[str, Any],
+        existing_intelligence_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
-        Perform full 3-step compilation for new intelligence
+        Perform full 3-step compilation for new or incomplete intelligence
+
+        Args:
+            existing_intelligence_id: If provided, UPDATE this record instead of INSERT
 
         Returns:
             Compilation result with costs
@@ -146,14 +154,23 @@ class IntelligenceCompilerService:
         # Step 1: Scrape Sales Page
         logger.info("📄 Step 1/3: Scraping sales page...")
 
-        # Create ProductIntelligence record first (need ID for image storage)
-        product_intelligence = ProductIntelligence(
-            product_url=campaign.product_url,
-            url_hash=url_hash,
-            compilation_version="1.0"
-        )
-        self.db.add(product_intelligence)
-        await self.db.flush()  # Get ID without committing
+        # Get or create ProductIntelligence record (need ID for image storage)
+        if existing_intelligence_id:
+            # Reuse existing incomplete record
+            stmt = select(ProductIntelligence).where(ProductIntelligence.id == existing_intelligence_id)
+            result = await self.db.execute(stmt)
+            product_intelligence = result.scalar_one()
+            logger.info(f"↻ Reusing existing intelligence record (ID: {product_intelligence.id})")
+        else:
+            # Create new record
+            product_intelligence = ProductIntelligence(
+                product_url=campaign.product_url,
+                url_hash=url_hash,
+                compilation_version="1.0"
+            )
+            self.db.add(product_intelligence)
+            await self.db.flush()  # Get ID without committing
+            logger.info(f"✓ Created new intelligence record (ID: {product_intelligence.id})")
 
         scraped_data = await self.scraper.scrape_sales_page(
             url=campaign.product_url,
@@ -235,31 +252,37 @@ class IntelligenceCompilerService:
     async def _find_existing_intelligence(
         self,
         url_hash: str
-    ) -> Optional[ProductIntelligence]:
-        """Check if intelligence already exists for this URL and is complete"""
+    ) -> tuple[Optional[ProductIntelligence], bool]:
+        """
+        Check if intelligence already exists for this URL and validate completeness
+
+        Returns:
+            Tuple of (intelligence_record, is_complete)
+        """
         stmt = select(ProductIntelligence).where(
             ProductIntelligence.url_hash == url_hash
         )
         result = await self.db.execute(stmt)
         intelligence = result.scalar_one_or_none()
 
-        # Validate that intelligence is complete before treating as cache hit
-        if intelligence:
-            # Check if intelligence_data exists and has required fields
-            if not intelligence.intelligence_data:
-                logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - intelligence_data is null")
-                return None
+        if not intelligence:
+            return (None, False)
 
-            # Check if intelligence_data has key sections
-            required_sections = ['product', 'market', 'marketing']
-            data = intelligence.intelligence_data
-            if not all(section in data for section in required_sections):
-                logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - missing required sections")
-                return None
+        # Validate that intelligence is complete
+        # Check if intelligence_data exists and has required fields
+        if not intelligence.intelligence_data:
+            logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - intelligence_data is null")
+            return (intelligence, False)
 
-            logger.info(f"✓ Found valid cached intelligence (ID: {intelligence.id})")
+        # Check if intelligence_data has key sections
+        required_sections = ['product', 'market', 'marketing']
+        data = intelligence.intelligence_data
+        if not all(section in data for section in required_sections):
+            logger.warning(f"Found incomplete intelligence (ID: {intelligence.id}) - missing required sections")
+            return (intelligence, False)
 
-        return intelligence
+        logger.info(f"✓ Found valid cached intelligence (ID: {intelligence.id})")
+        return (intelligence, True)
 
     async def _link_campaign_to_intelligence(
         self,
