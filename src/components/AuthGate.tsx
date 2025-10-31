@@ -24,11 +24,17 @@ export function AuthGate({ children, requiredRole = "user" }: AuthGateProps) {
 
     const role = getRoleFromToken();
 
+    // Debug logging to see what role is detected
+    console.log("[AuthGate] Required role:", requiredRole);
+    console.log("[AuthGate] User role from token:", role);
+
     if (requiredRole === "admin" && role !== "admin") {
+      console.log("[AuthGate] Access denied - redirecting to /dashboard");
       router.push("/dashboard");
       return;
     }
 
+    console.log("[AuthGate] Access granted");
     setIsAuthorized(true);
   }, [router, requiredRole]);
 
