@@ -28,11 +28,16 @@ async def create_campaign(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new campaign."""
-    
+
+    # Normalize product URL: add trailing slash to avoid 301 redirects during scraping
+    product_url = str(campaign_data.product_url)
+    if not product_url.endswith('/'):
+        product_url = product_url + '/'
+
     new_campaign = Campaign(
         user_id=current_user.id,
         name=campaign_data.name,
-        product_url=str(campaign_data.product_url),
+        product_url=product_url,
         affiliate_network=campaign_data.affiliate_network,
         keywords=campaign_data.keywords,
         product_description=campaign_data.product_description,
@@ -131,6 +136,13 @@ async def update_campaign(
     
     # Update fields
     update_data = campaign_update.dict(exclude_unset=True)
+
+    # Normalize product_url if it's being updated
+    if 'product_url' in update_data and update_data['product_url']:
+        url = str(update_data['product_url'])
+        if not url.endswith('/'):
+            update_data['product_url'] = url + '/'
+
     for field, value in update_data.items():
         setattr(campaign, field, value)
     

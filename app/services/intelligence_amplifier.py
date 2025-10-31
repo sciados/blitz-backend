@@ -47,6 +47,11 @@ class IntelligenceAmplifier:
             # Prepare prompt
             prompt = self._build_intelligence_prompt(scraped_data)
 
+            # Debug: Check if env vars are set
+            import os
+            ai_chat_quality = os.getenv("AI_CHAT_QUALITY", "NOT_SET")
+            logger.info(f"[DEBUG] AI_CHAT_QUALITY env var: {ai_chat_quality[:50]}...")
+
             # Use AI Router for intelligence analysis with automatic fallback
             result = await self.ai_router.call_with_fallback(
                 use_case="chat_quality",

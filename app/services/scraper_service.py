@@ -49,6 +49,11 @@ class SalesPageScraper:
             Dictionary with scraped data, images, and metadata
         """
         try:
+            # Normalize URL: ensure trailing slash to avoid 301 redirects
+            if not url.endswith('/'):
+                url = url + '/'
+                logger.info(f"✓ Added trailing slash: {url}")
+
             logger.info(f"🔍 Scraping sales page: {url}")
 
             # Step 1: Fetch HTML
