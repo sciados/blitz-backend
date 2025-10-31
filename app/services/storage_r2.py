@@ -3,6 +3,7 @@ Cloudflare R2 Storage Service
 Handles image and video uploads to R2
 """
 import boto3
+import asyncio
 from botocore.exceptions import ClientError
 from app.core.config.settings import settings
 import logging
@@ -26,7 +27,7 @@ class R2StorageService:
         self.bucket = settings.CLOUDFLARE_R2_BUCKET_NAME
         self.public_url = settings.CLOUDFLARE_R2_PUBLIC_URL
 
-    def upload_file(
+    async def upload_file(
         self,
         file_bytes: bytes,
         key: str,
@@ -35,13 +36,13 @@ class R2StorageService:
     ) -> tuple[str, str]:
         """
         Upload a file to R2
-        
+
         Args:
             file_bytes: File content as bytes
             key: R2 object key (path)
             content_type: MIME type
             meta_data: Optional meta_data dict
-            
+
         Returns:
             Tuple of (r2_key, public_url)
         """
@@ -49,21 +50,26 @@ class R2StorageService:
             extra_args = {
                 "ContentType": content_type,
             }
-            
+
             if meta_data:
-                extra_args["meta_data"] = {k: str(v) for k, v in meta_data.items()}
-            
-            self.client.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=file_bytes,
-                **extra_args
+                extra_args["Metadata"] = {k: str(v) for k, v in meta_data.items()}
+
+            # Use asyncio to run sync boto3 operation (like CampaignForge)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    Body=file_bytes,
+                    **extra_args
+                )
             )
-            
+
             public_url = f"{self.public_url}/{key}"
             logger.info(f"✅ Uploaded to R2: {key}")
             return key, public_url
-            
+
         except ClientError as e:
             logger.error(f"❌ R2 upload failed: {e}")
             raise
