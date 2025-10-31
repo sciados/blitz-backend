@@ -88,14 +88,21 @@ export default function CampaignDetailPage() {
 
       const result = response.data;
 
+      // Check if compilation failed
+      if (!result.success) {
+        throw new Error(result.error || "Intelligence compilation failed");
+      }
+
       // Show success message with cache info
       if (result.was_cached) {
         toast.success(
           `Intelligence compiled instantly! (Using cached data from ${new Date(result.cache_info.originally_compiled_at).toLocaleDateString()})`
         );
       } else {
+        const timeInSeconds = result.processing_time_ms ? Math.round(result.processing_time_ms / 1000) : 0;
+        const cost = result.costs?.total ? result.costs.total.toFixed(4) : "0.00";
         toast.success(
-          `Intelligence compiled successfully in ${Math.round(result.processing_time_ms / 1000)}s! Cost: $${result.costs.total.toFixed(4)}`
+          `Intelligence compiled successfully in ${timeInSeconds}s! Cost: $${cost}`
         );
       }
 
@@ -104,8 +111,9 @@ export default function CampaignDetailPage() {
     } catch (error: any) {
       console.error("Compilation error:", error);
       toast.error(
-        error.response?.data?.detail ||
         error.response?.data?.error ||
+        error.response?.data?.detail ||
+        error.message ||
         "Failed to compile intelligence"
       );
     } finally {
