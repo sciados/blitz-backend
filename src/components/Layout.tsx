@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { clearToken, getRoleFromToken } from "src/lib/auth";
+import { clearToken, getRoleFromToken, getUserFromToken } from "src/lib/auth";
 import { api } from "src/lib/appClient";
 import { useTheme } from "src/contexts/ThemeContext";
 import { getHelpContent } from "src/config/helpContent";
@@ -272,7 +272,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Right Sidebar */}
         <aside
           className={`${
-            rightSidebarOpen ? "w-84" : "w-0"
+            rightSidebarOpen ? "w-80" : "w-0"
           } transition-all duration-300 border-l border-[var(--border-color)] bg-[var(--bg-sidebar-help)] overflow-y-auto`}
         >
           {rightSidebarOpen && (

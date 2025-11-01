@@ -33,7 +33,20 @@ export const getRoleFromToken = (): string | null => {
     }
 };
 
-export const getUserFromToken = (): { email: string; role: string } | null => {
+export const getNameFromToken = (): string | null => {
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.full_name || 'user';
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        return null;
+    }
+};
+
+export const getUserFromToken = (): { email: string; name: string; role: string } | null => {
     const token = getToken();
     if (!token) return null;
 
@@ -41,6 +54,7 @@ export const getUserFromToken = (): { email: string; role: string } | null => {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return {
             email: payload.sub || payload.email,
+            name: payload.full_name || 'user',
             role: payload.role || 'user',
         };
     } catch (error) {
