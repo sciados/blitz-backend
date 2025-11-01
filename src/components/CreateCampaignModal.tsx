@@ -4,12 +4,13 @@ import { useState } from "react";
 import { z } from "zod";
 import { api } from "src/lib/appClient";
 import { CampaignCreate } from "src/lib/types";
+import { ProductLibrarySelectionModal } from "./ProductLibrarySelectionModal";
 
-// Zod validation schema
+// Zod validation schema - URL now optional
 const campaignSchema = z.object({
   name: z.string().min(3, "Campaign name must be at least 3 characters"),
-  product_url: z.string().url("Please enter a valid URL"),
-  affiliate_network: z.string().min(1, "Please select an affiliate network"),
+  product_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  affiliate_network: z.string().optional().or(z.literal("")),
   keywords: z.string().optional(),
   product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
   product_type: z.string().optional(),
@@ -42,6 +43,7 @@ export function CreateCampaignModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showProductLibrary, setShowProductLibrary] = useState(false);
 
   const affiliateNetworks = [
     "ClickBank",
@@ -79,6 +81,25 @@ export function CreateCampaignModal({
         delete newErrors[name];
         return newErrors;
       });
+    }
+  };
+
+  const handleProductSelect = async (productId: number) => {
+    try {
+      // Fetch product details
+      const response = await api.get(`/api/products/${productId}`);
+      const product = response.data;
+
+      // Auto-fill form with product data
+      setFormData((prev) => ({
+        ...prev,
+        product_url: product.product_url || "",
+        affiliate_network: product.affiliate_network || "",
+      }));
+
+      setShowProductLibrary(false);
+    } catch (err) {
+      console.error("Failed to fetch product details:", err);
     }
   };
 
@@ -209,12 +230,21 @@ export function CreateCampaignModal({
 
           {/* Sales Page URL */}
           <div>
-            <label
-              htmlFor="product_url"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Sales Page URL <span className="text-red-500">*</span>
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label
+                htmlFor="product_url"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Sales Page URL <span className="text-gray-400">(Optional)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowProductLibrary(true)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Browse Library
+              </button>
+            </div>
             <input
               type="url"
               id="product_url"
@@ -224,11 +254,14 @@ export function CreateCampaignModal({
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
                 errors.product_url ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="https://example.com/product"
+              placeholder="https://example.com/product (or browse library)"
             />
             {errors.product_url && (
               <p className="mt-1 text-sm text-red-600">{errors.product_url}</p>
             )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              You can add a URL now or choose from the product library later
+            </p>
           </div>
 
           {/* Affiliate Network */}
@@ -237,7 +270,7 @@ export function CreateCampaignModal({
               htmlFor="affiliate_network"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Affiliate Platform <span className="text-red-500">*</span>
+              Affiliate Platform <span className="text-gray-400">(Optional)</span>
             </label>
             <select
               id="affiliate_network"
@@ -398,6 +431,15 @@ export function CreateCampaignModal({
           </div>
         </form>
       </div>
+
+      {/* Product Library Selection Modal */}
+      {showProductLibrary && (
+        <ProductLibrarySelectionModal
+          isOpen={showProductLibrary}
+          onClose={() => setShowProductLibrary(false)}
+          onSelect={handleProductSelect}
+        />
+      )}
     </div>
   );
 }

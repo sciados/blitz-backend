@@ -1,0 +1,139 @@
+"use client";
+
+import { ProductLibraryItem } from "src/lib/types";
+import { useState } from "react";
+import { ProductDetailsModal } from "./ProductDetailsModal";
+
+interface ProductCardProps {
+  product: ProductLibraryItem;
+  onSelect?: (productId: number) => void;
+  showSelectButton?: boolean;
+}
+
+export function ProductCard({ product, onSelect, showSelectButton = false }: ProductCardProps) {
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  return (
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 flex flex-col">
+        {/* Thumbnail */}
+        <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-t-lg overflow-hidden">
+          {product.thumbnail_image_url ? (
+            <img
+              src={product.thumbnail_image_url}
+              alt={product.product_name || "Product"}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <svg
+                className="w-20 h-20 text-white opacity-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                />
+              </svg>
+            </div>
+          )}
+
+          {/* Category Badge */}
+          {product.product_category && (
+            <div className="absolute top-2 left-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/90 dark:bg-gray-900/90 text-gray-900 dark:text-white backdrop-blur-sm">
+                {product.product_category}
+              </span>
+            </div>
+          )}
+
+          {/* Times Used Badge */}
+          <div className="absolute top-2 right-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500 text-white backdrop-blur-sm">
+              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              {product.times_used}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 flex-1 flex flex-col">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+            {product.product_name || "Unknown Product"}
+          </h3>
+
+          {/* Metadata */}
+          <div className="space-y-2 mb-4 flex-1">
+            {product.affiliate_network && (
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>{product.affiliate_network}</span>
+              </div>
+            )}
+
+            {product.commission_rate && (
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium text-green-600 dark:text-green-400">{product.commission_rate}</span>
+              </div>
+            )}
+
+            <div className="flex items-center text-xs text-gray-500 dark:text-gray-500">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Added {formatDate(product.compiled_at)}</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex space-x-2 mt-auto">
+            <button
+              onClick={() => setShowDetailsModal(true)}
+              className="flex-1 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+            >
+              View Details
+            </button>
+
+            {showSelectButton && onSelect && (
+              <button
+                onClick={() => onSelect(product.id)}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+              >
+                Select
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Details Modal */}
+      {showDetailsModal && (
+        <ProductDetailsModal
+          productId={product.id}
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          onSelect={onSelect}
+        />
+      )}
+    </>
+  );
+}
