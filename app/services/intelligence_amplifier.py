@@ -171,8 +171,31 @@ class IntelligenceAmplifier:
                 return response.choices[0].message.content.strip()
 
             except Exception as xai_error:
-                logger.error(f"Both Groq and XAI failed. Groq: {groq_error}, XAI: {xai_error}")
-                raise Exception(f"All free/cheap providers failed. Please check API keys or add Anthropic credits.")
+                logger.warning(f"XAI failed ({xai_error}), trying DeepSeek...")
+
+                # Fallback to DeepSeek - very cheap ($0.0007)
+                try:
+                    client = openai.AsyncOpenAI(
+                        api_key=settings.DEEPSEEK_API_KEY,
+                        base_url="https://api.deepseek.com"
+                    )
+
+                    response = await client.chat.completions.create(
+                        model="deepseek-chat",
+                        max_tokens=4096,
+                        temperature=0,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+
+                    logger.info("✅ DeepSeek call successful (~$0.0007)")
+                    return response.choices[0].message.content.strip()
+
+                except Exception as deepseek_error:
+                    logger.error(f"All providers failed:")
+                    logger.error(f"  - Groq: {groq_error}")
+                    logger.error(f"  - XAI: {xai_error}")
+                    logger.error(f"  - DeepSeek: {deepseek_error}")
+                    raise Exception(f"All free/cheap providers failed. Please check API keys or add Anthropic credits.")
 
     async def _call_provider(self, spec, prompt: str) -> str:
         """
