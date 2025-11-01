@@ -46,6 +46,8 @@ export type ProductLibraryItem = {
     thumbnail_image_url: string | null;
     affiliate_network: string | null;
     commission_rate: string | null;
+    product_description: string | null;
+    is_recurring: boolean;
     times_used: number;
     compiled_at: string;
     last_accessed_at: string | null;

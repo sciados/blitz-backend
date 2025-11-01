@@ -76,6 +76,13 @@ export function ProductCard({ product, onSelect, showSelectButton = false }: Pro
             {product.product_name || "Unknown Product"}
           </h3>
 
+          {/* Product Description */}
+          {product.product_description && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+              {product.product_description}
+            </p>
+          )}
+
           {/* Metadata */}
           <div className="space-y-2 mb-4 flex-1">
             {product.affiliate_network && (
@@ -88,11 +95,21 @@ export function ProductCard({ product, onSelect, showSelectButton = false }: Pro
             )}
 
             {product.commission_rate && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="font-medium text-green-600 dark:text-green-400">{product.commission_rate}</span>
+              <div className="flex items-start text-sm">
+                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-semibold text-green-600 dark:text-green-400">{product.commission_rate}</span>
+                </div>
+                {product.is_recurring && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                    Recurring
+                  </span>
+                )}
               </div>
             )}
 
