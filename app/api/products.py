@@ -54,6 +54,8 @@ class ProductLibraryItem(BaseModel):
     thumbnail_image_url: Optional[str]
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
+    product_description: Optional[str] = None  # Summary for affiliate decision-making
+    is_recurring: bool = False  # Recurring commission indicator
     times_used: int
     compiled_at: str
     last_accessed_at: Optional[str]
@@ -88,6 +90,32 @@ class ProductLibraryStats(BaseModel):
     most_popular_category: Optional[str]
     newest_product: Optional[ProductLibraryItem]
     most_used_product: Optional[ProductLibraryItem]
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def extract_product_summary(intelligence_data: Optional[Dict[str, Any]]) -> tuple[Optional[str], bool]:
+    """Extract product description and recurring status from intelligence_data"""
+    if not intelligence_data:
+        return None, False
+
+    # Extract description from various possible locations
+    description = None
+    if intelligence_data.get("product", {}).get("description"):
+        description = intelligence_data["product"]["description"]
+    elif intelligence_data.get("sales_page", {}).get("headline"):
+        description = intelligence_data["sales_page"]["headline"]
+
+    # Truncate description to 150 characters for card display
+    if description and len(description) > 150:
+        description = description[:147] + "..."
+
+    # Extract is_recurring from submission metadata
+    is_recurring = intelligence_data.get("submission", {}).get("is_recurring", False)
+
+    return description, is_recurring
 
 
 # ============================================================================
@@ -136,20 +164,25 @@ async def list_products(
     result = await db.execute(query)
     products = result.scalars().all()
 
-    return [
-        ProductLibraryItem(
+    # Build response with extracted description and recurring status
+    product_items = []
+    for p in products:
+        description, is_recurring = extract_product_summary(p.intelligence_data)
+        product_items.append(ProductLibraryItem(
             id=p.id,
             product_name=p.product_name,
             product_category=p.product_category,
             thumbnail_image_url=p.thumbnail_image_url,
             affiliate_network=p.affiliate_network,
             commission_rate=p.commission_rate,
+            product_description=description,
+            is_recurring=is_recurring,
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
-        )
-        for p in products
-    ]
+        ))
+
+    return product_items
 
 
 # ============================================================================
@@ -233,20 +266,25 @@ async def search_products(
     result = await db.execute(query)
     products = result.scalars().all()
 
-    return [
-        ProductLibraryItem(
+    # Build response with extracted description and recurring status
+    product_items = []
+    for p in products:
+        description, is_recurring = extract_product_summary(p.intelligence_data)
+        product_items.append(ProductLibraryItem(
             id=p.id,
             product_name=p.product_name,
             product_category=p.product_category,
             thumbnail_image_url=p.thumbnail_image_url,
             affiliate_network=p.affiliate_network,
             commission_rate=p.commission_rate,
+            product_description=description,
+            is_recurring=is_recurring,
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
-        )
-        for p in products
-    ]
+        ))
+
+    return product_items
 
 
 # ============================================================================
@@ -323,33 +361,47 @@ async def get_library_stats(
     )
     most_used = most_used_result.scalar_one_or_none()
 
-    # Build response
-    return ProductLibraryStats(
-        total_products=total_products,
-        total_categories=total_categories,
-        most_popular_category=most_popular_category,
-        newest_product=ProductLibraryItem(
+    # Build response with extracted description and recurring status
+    newest_item = None
+    if newest:
+        desc, is_rec = extract_product_summary(newest.intelligence_data)
+        newest_item = ProductLibraryItem(
             id=newest.id,
             product_name=newest.product_name,
             product_category=newest.product_category,
             thumbnail_image_url=newest.thumbnail_image_url,
             affiliate_network=newest.affiliate_network,
             commission_rate=newest.commission_rate,
+            product_description=desc,
+            is_recurring=is_rec,
             times_used=newest.times_used,
             compiled_at=newest.compiled_at.isoformat() if newest.compiled_at else "",
             last_accessed_at=newest.last_accessed_at.isoformat() if newest.last_accessed_at else None
-        ) if newest else None,
-        most_used_product=ProductLibraryItem(
+        )
+
+    most_used_item = None
+    if most_used:
+        desc, is_rec = extract_product_summary(most_used.intelligence_data)
+        most_used_item = ProductLibraryItem(
             id=most_used.id,
             product_name=most_used.product_name,
             product_category=most_used.product_category,
             thumbnail_image_url=most_used.thumbnail_image_url,
             affiliate_network=most_used.affiliate_network,
             commission_rate=most_used.commission_rate,
+            product_description=desc,
+            is_recurring=is_rec,
             times_used=most_used.times_used,
             compiled_at=most_used.compiled_at.isoformat() if most_used.compiled_at else "",
             last_accessed_at=most_used.last_accessed_at.isoformat() if most_used.last_accessed_at else None
-        ) if most_used else None
+        )
+
+    return ProductLibraryStats(
+        total_products=total_products,
+        total_categories=total_categories,
+        most_popular_category=most_popular_category,
+        newest_product=newest_item,
+        most_used_product=most_used_item
     )
 
 
