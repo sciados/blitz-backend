@@ -19,6 +19,11 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), server_default="user", nullable=False, index=True)
+
+    # User type for two-sided marketplace
+    # "product_creator" (free, adds products) | "affiliate_marketer" (paid, uses products)
+    user_type = Column(String(50), server_default="affiliate_marketer", nullable=False, index=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -33,7 +38,7 @@ class ProductIntelligence(Base):
     """
     Shared intelligence for unique product URLs.
     Multiple campaigns can reference the same intelligence to avoid redundant compilation.
-    This enables global intelligence sharing across all users.
+    This enables global intelligence sharing across all users in the public product library.
     """
     __tablename__ = "product_intelligence"
 
@@ -43,7 +48,14 @@ class ProductIntelligence(Base):
     product_url = Column(Text, unique=True, nullable=False, index=True)
     url_hash = Column(String(64), unique=True, nullable=False, index=True)  # SHA-256 for fast lookup
 
-    # Intelligence data (structured JSON from Claude analysis)
+    # Product library metadata (extracted from intelligence_data)
+    product_name = Column(String(255), nullable=True, index=True)  # For search/display
+    product_category = Column(String(100), nullable=True, index=True)  # health, wealth, relationships, etc.
+    thumbnail_image_url = Column(Text, nullable=True)  # First product image from R2
+    affiliate_network = Column(String(100), nullable=True)  # ClickBank, CJ, ShareASale, etc.
+    commission_rate = Column(String(50), nullable=True)  # "50%", "$37/sale", etc.
+
+    # Intelligence data (structured JSON from Claude analysis + RAG research)
     intelligence_data = Column(JSONB, nullable=True)
     # Expected structure:
     # {
@@ -52,7 +64,8 @@ class ProductIntelligence(Base):
     #   "product": {...},          # Product features, benefits, pain points
     #   "market": {...},           # Target audience, positioning, pricing
     #   "marketing": {...},        # Hooks, angles, testimonials, CTAs
-    #   "analysis": {...}          # Confidence scores, recommendations
+    #   "analysis": {...},         # Confidence scores, recommendations
+    #   "research": {...}          # RAG research data (new)
     # }
 
     # RAG embedding (OpenAI text-embedding-3-large: 2000 dimensions)
@@ -64,9 +77,10 @@ class ProductIntelligence(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
     compilation_version = Column(String(20), server_default="1.0", nullable=False)
 
-    # Usage tracking
-    reference_count = Column(Integer, server_default="0", nullable=False)  # How many campaigns use this
+    # Public library tracking
+    times_used = Column(Integer, server_default="0", nullable=False, index=True)  # How many campaigns use this (for sorting by popularity)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
+    is_public = Column(String(20), server_default="true", nullable=False, index=True)  # Show in public library (for future moderation)
 
     # Relationships
     campaigns = relationship("Campaign", back_populates="product_intelligence")
@@ -76,13 +90,21 @@ class ProductIntelligence(Base):
 # ============================================================================
 
 class Campaign(Base):
+    """
+    User's marketing campaign.
+    Can be created without a product URL initially, then linked to product library.
+    """
     __tablename__ = "campaigns"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    product_url = Column(Text, nullable=False)
-    affiliate_network = Column(String(100), nullable=False)
+
+    # Product URL (nullable - campaign can be created before product is chosen)
+    product_url = Column(Text, nullable=True)
+    affiliate_network = Column(String(100), nullable=True)
+
+    # Campaign settings
     keywords = Column(ARRAY(String), nullable=True)
     product_description = Column(Text, nullable=True)
     product_type = Column(String(100), nullable=True)
@@ -90,7 +112,7 @@ class Campaign(Base):
     marketing_angles = Column(ARRAY(String), nullable=True)
     status = Column(String(50), server_default="draft", nullable=False, index=True)
 
-    # Link to shared intelligence (nullable for backwards compatibility)
+    # Link to shared product intelligence (set when product is chosen/compiled)
     product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Legacy: Direct intelligence storage (deprecated, kept for migration)

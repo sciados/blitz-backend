@@ -54,6 +54,7 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     role: str
+    user_type: str  # product_creator | affiliate_marketer
     created_at: datetime
 
     class Config:
@@ -72,8 +73,8 @@ class TokenData(BaseModel):
 
 class CampaignBase(BaseModel):
     name: str
-    product_url: HttpUrl
-    affiliate_network: str
+    product_url: Optional[HttpUrl] = None  # Optional - can create campaign before choosing product
+    affiliate_network: Optional[str] = None
     keywords: Optional[List[str]] = []
     product_description: Optional[str] = None
     product_type: Optional[str] = None
@@ -81,10 +82,13 @@ class CampaignBase(BaseModel):
     marketing_angles: Optional[List[MarketingAngle]] = []
 
 class CampaignCreate(CampaignBase):
+    """Create campaign with optional product URL (can be added later)"""
     pass
 
 class CampaignUpdate(BaseModel):
     name: Optional[str] = None
+    product_url: Optional[HttpUrl] = None
+    affiliate_network: Optional[str] = None
     status: Optional[CampaignStatus] = None
     keywords: Optional[List[str]] = None
     product_description: Optional[str] = None
@@ -96,10 +100,11 @@ class CampaignResponse(CampaignBase):
     id: int
     user_id: int
     status: CampaignStatus
+    product_intelligence_id: Optional[int] = None  # Link to product library
     intelligence_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 

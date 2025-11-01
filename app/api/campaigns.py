@@ -2,10 +2,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List
+from typing import List, Optional, Dict, Any
+import hashlib
 
 from app.db.session import get_db
-from app.db.models import User, Campaign, GeneratedContent
+from app.db.models import User, Campaign, GeneratedContent, ProductIntelligence
 from app.schemas import (
     CampaignCreate,
     CampaignUpdate,
@@ -27,12 +28,19 @@ async def create_campaign(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new campaign."""
+    """
+    Create a new campaign.
 
-    # Normalize product URL: add trailing slash to avoid 301 redirects during scraping
-    product_url = str(campaign_data.product_url)
-    if not product_url.endswith('/'):
-        product_url = product_url + '/'
+    Campaign can be created without a product URL initially.
+    User can add URL later via check-url endpoint or browse product library.
+    """
+
+    # Normalize product URL if provided: add trailing slash to avoid 301 redirects during scraping
+    product_url = None
+    if campaign_data.product_url:
+        product_url = str(campaign_data.product_url)
+        if not product_url.endswith('/'):
+            product_url = product_url + '/'
 
     new_campaign = Campaign(
         user_id=current_user.id,
@@ -46,11 +54,11 @@ async def create_campaign(
         marketing_angles=campaign_data.marketing_angles,
         status="draft"
     )
-    
+
     db.add(new_campaign)
     await db.commit()
     await db.refresh(new_campaign)
-    
+
     return new_campaign
 
 # ============================================================================
@@ -210,8 +218,168 @@ async def update_campaign(
     
     await db.commit()
     await db.refresh(campaign)
-    
+
     return campaign
+
+# ============================================================================
+# CHECK URL IN PRODUCT LIBRARY
+# ============================================================================
+
+@router.post("/{campaign_id}/check-url")
+async def check_product_url(
+    campaign_id: int,
+    product_url: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Check if a product URL exists in the public library.
+
+    If found, automatically links the campaign to existing intelligence.
+    If not found, returns exists=False so user can compile new intelligence.
+
+    Request body: {"product_url": "https://example.com/product"}
+
+    Response:
+    - exists: true/false
+    - product_intelligence_id: ID if found
+    - product_name: Name if found
+    - message: Status message
+    """
+
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Normalize URL
+    normalized_url = product_url.strip()
+    if not normalized_url.endswith('/'):
+        normalized_url = normalized_url + '/'
+
+    # Generate URL hash for lookup
+    url_hash = hashlib.sha256(normalized_url.encode()).hexdigest()
+
+    # Check if product exists in library
+    intel_result = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.url_hash == url_hash
+        )
+    )
+
+    intelligence = intel_result.scalar_one_or_none()
+
+    if intelligence:
+        # Product exists - link campaign to existing intelligence
+        campaign.product_url = normalized_url
+        campaign.product_intelligence_id = intelligence.id
+
+        # Increment usage counter
+        intelligence.times_used += 1
+        intelligence.last_accessed_at = func.now()
+
+        await db.commit()
+
+        return {
+            "exists": True,
+            "product_intelligence_id": intelligence.id,
+            "product_name": intelligence.product_name,
+            "product_category": intelligence.product_category,
+            "message": "Product found in library! Intelligence linked to campaign.",
+            "intelligence_compiled": True  # Frontend can mark step as complete
+        }
+    else:
+        # Product doesn't exist - user needs to compile intelligence
+        campaign.product_url = normalized_url
+        await db.commit()
+
+        return {
+            "exists": False,
+            "product_intelligence_id": None,
+            "message": "Product not found in library. Please compile intelligence.",
+            "intelligence_compiled": False  # Frontend shows compile button
+        }
+
+# ============================================================================
+# LINK CAMPAIGN TO EXISTING PRODUCT
+# ============================================================================
+
+@router.patch("/{campaign_id}/link-product")
+async def link_campaign_to_product(
+    campaign_id: int,
+    product_intelligence_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Link a campaign to an existing product from the public library.
+
+    Used when user browses the product library and selects an existing product
+    instead of entering a new URL.
+
+    Request body: {"product_intelligence_id": 123}
+    """
+
+    # Verify campaign ownership
+    campaign_result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+
+    campaign = campaign_result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Verify product exists in library
+    intel_result = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.id == product_intelligence_id
+        )
+    )
+
+    intelligence = intel_result.scalar_one_or_none()
+
+    if not intelligence:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found in library"
+        )
+
+    # Link campaign to product
+    campaign.product_intelligence_id = product_intelligence_id
+    campaign.product_url = intelligence.product_url
+    campaign.affiliate_network = intelligence.affiliate_network
+
+    # Increment usage counter
+    intelligence.times_used += 1
+    intelligence.last_accessed_at = func.now()
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Campaign linked to product successfully",
+        "product_name": intelligence.product_name,
+        "product_category": intelligence.product_category,
+        "intelligence_compiled": True
+    }
 
 # ============================================================================
 # DELETE CAMPAIGN

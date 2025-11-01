@@ -9,7 +9,7 @@ import logging
 
 from app.core.config.settings import settings
 from app.db.session import engine, Base
-from app.api import auth, campaigns, content, intelligence, compliance
+from app.api import auth, campaigns, content, intelligence, compliance, products
 from app.api.admin import ai_router as admin_ai_router
 
 # Configure logging
@@ -145,6 +145,7 @@ async def health_check():
 # Include routers
 app.include_router(auth.router)
 app.include_router(campaigns.router)
+app.include_router(products.router)
 app.include_router(content.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)

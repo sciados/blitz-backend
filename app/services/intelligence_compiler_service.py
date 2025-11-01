@@ -97,7 +97,7 @@ class IntelligenceCompilerService:
                     },
                     'cache_info': {
                         'originally_compiled_at': existing_intelligence.compiled_at.isoformat(),
-                        'times_reused': existing_intelligence.reference_count,
+                        'times_reused': existing_intelligence.times_used,
                         'compilation_version': existing_intelligence.compilation_version
                     }
                 }
@@ -218,6 +218,14 @@ class IntelligenceCompilerService:
         product_intelligence.intelligence_data = amplified_intelligence
         product_intelligence.compiled_at = datetime.utcnow()
 
+        # Extract and save product metadata for library display
+        self._extract_and_save_product_metadata(
+            product_intelligence,
+            amplified_intelligence,
+            scraped_data,
+            campaign
+        )
+
         # Link campaign to intelligence
         await self._link_campaign_to_intelligence(campaign, product_intelligence)
 
@@ -293,13 +301,13 @@ class IntelligenceCompilerService:
         campaign.product_intelligence_id = intelligence.id
 
         # Update intelligence usage metrics
-        intelligence.reference_count += 1
+        intelligence.times_used += 1
         intelligence.last_accessed_at = datetime.utcnow()
 
         await self.db.commit()
 
         logger.info(f"🔗 Linked campaign {campaign.id} to intelligence {intelligence.id}")
-        logger.info(f"   Total campaigns using this intelligence: {intelligence.reference_count}")
+        logger.info(f"   Total campaigns using this intelligence: {intelligence.times_used}")
 
     def _generate_summary(self, intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate summary of intelligence for API response"""
@@ -315,6 +323,97 @@ class IntelligenceCompilerService:
             'benefits_count': len(intelligence_data.get('product', {}).get('benefits', [])),
             'marketing_angles_count': len(intelligence_data.get('marketing', {}).get('angles', []))
         }
+
+    def _extract_and_save_product_metadata(
+        self,
+        product_intelligence: ProductIntelligence,
+        intelligence_data: Dict[str, Any],
+        scraped_data: Dict[str, Any],
+        campaign: Campaign
+    ):
+        """
+        Extract and save product metadata for public library display
+
+        Extracts:
+        - product_name: From intelligence analysis
+        - product_category: From market analysis
+        - thumbnail_image_url: First product image from R2
+        - affiliate_network: From campaign or URL detection
+        - commission_rate: From sales page or intelligence data
+        """
+        # Extract product name
+        product_intelligence.product_name = (
+            intelligence_data.get('product', {}).get('name') or
+            intelligence_data.get('sales_page', {}).get('title', '').strip()[:255] or
+            'Unknown Product'
+        )
+
+        # Extract product category
+        product_intelligence.product_category = (
+            intelligence_data.get('market', {}).get('category') or
+            intelligence_data.get('product', {}).get('category') or
+            'uncategorized'
+        )
+
+        # Extract thumbnail image (first image from scraped data)
+        images = scraped_data.get('images', [])
+        if images and len(images) > 0:
+            # Get first image that was successfully uploaded to R2
+            for img in images:
+                if img.get('r2_url'):
+                    product_intelligence.thumbnail_image_url = img['r2_url']
+                    break
+
+        # Extract affiliate network
+        product_intelligence.affiliate_network = (
+            campaign.affiliate_network or
+            self._detect_affiliate_network(campaign.product_url) or
+            'unknown'
+        )
+
+        # Extract commission rate (if mentioned in sales page or intelligence)
+        product_intelligence.commission_rate = (
+            intelligence_data.get('product', {}).get('commission') or
+            intelligence_data.get('sales_page', {}).get('commission_rate') or
+            intelligence_data.get('market', {}).get('commission_rate') or
+            None
+        )
+
+        # Mark as public (default)
+        product_intelligence.is_public = "true"
+
+        logger.info(f"📋 Extracted metadata: {product_intelligence.product_name} ({product_intelligence.product_category})")
+        if product_intelligence.thumbnail_image_url:
+            logger.info(f"🖼️  Thumbnail: {product_intelligence.thumbnail_image_url}")
+
+    def _detect_affiliate_network(self, url: str) -> Optional[str]:
+        """Detect affiliate network from URL patterns"""
+        if not url:
+            return None
+
+        url_lower = url.lower()
+
+        # Common affiliate networks
+        if 'clickbank' in url_lower or 'hop.clickbank' in url_lower:
+            return 'ClickBank'
+        elif 'jvzoo' in url_lower or 'jvz' in url_lower:
+            return 'JVZoo'
+        elif 'warriorplus' in url_lower or 'warriorplus' in url_lower:
+            return 'WarriorPlus'
+        elif 'shareasale' in url_lower:
+            return 'ShareASale'
+        elif 'cj.com' in url_lower or 'commission-junction' in url_lower:
+            return 'CJ Affiliate'
+        elif 'impact.com' in url_lower:
+            return 'Impact'
+        elif 'awin' in url_lower:
+            return 'Awin'
+        elif 'rakuten' in url_lower:
+            return 'Rakuten'
+        elif 'amazon' in url_lower:
+            return 'Amazon Associates'
+
+        return None
 
     async def get_intelligence_for_campaign(
         self,
