@@ -272,7 +272,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Right Sidebar */}
         <aside
           className={`${
-            rightSidebarOpen ? "w-100" : "w-0"
+            rightSidebarOpen ? "w-84" : "w-0"
           } transition-all duration-300 border-l border-[var(--border-color)] bg-[var(--bg-sidebar-help)] overflow-y-auto`}
         >
           {rightSidebarOpen && (
