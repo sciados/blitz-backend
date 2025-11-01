@@ -125,14 +125,15 @@ class IntelligenceAmplifier:
 
     async def _call_groq_direct(self, prompt: str) -> str:
         """
-        Direct Groq fallback when router not configured (FREE!)
+        Direct Groq/XAI fallback when router not configured
 
         Args:
             prompt: Prompt text
 
         Returns:
-            Response text from Groq
+            Response text from Groq or XAI
         """
+        # Try Groq first (FREE)
         try:
             client = openai.AsyncOpenAI(
                 api_key=settings.GROQ_API_KEY,
@@ -149,9 +150,29 @@ class IntelligenceAmplifier:
             logger.info("✅ Groq direct call successful (FREE!)")
             return response.choices[0].message.content.strip()
 
-        except Exception as e:
-            logger.error(f"Groq direct call failed: {e}")
-            raise
+        except Exception as groq_error:
+            logger.warning(f"Groq failed ({groq_error}), trying XAI/Grok...")
+
+            # Fallback to XAI (Grok) - cheap alternative
+            try:
+                client = openai.AsyncOpenAI(
+                    api_key=settings.XAI_API_KEY,
+                    base_url="https://api.x.ai/v1"
+                )
+
+                response = await client.chat.completions.create(
+                    model="grok-beta",
+                    max_tokens=4096,
+                    temperature=0,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+
+                logger.info("✅ XAI/Grok call successful (~$0.005)")
+                return response.choices[0].message.content.strip()
+
+            except Exception as xai_error:
+                logger.error(f"Both Groq and XAI failed. Groq: {groq_error}, XAI: {xai_error}")
+                raise Exception(f"All free/cheap providers failed. Please check API keys or add Anthropic credits.")
 
     async def _call_provider(self, spec, prompt: str) -> str:
         """
