@@ -5,6 +5,8 @@ import { ProductCard } from "src/components/ProductCard";
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { ProductLibraryItem, ProductCategory } from "src/lib/types";
+import { getRoleFromToken } from "src/lib/auth";
+import { toast } from "sonner";
 import Link from "next/link";
 
 export default function ProductLibraryPage() {
@@ -16,6 +18,7 @@ export default function ProductLibraryPage() {
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "alphabetical">("recent");
   const [recurringOnly, setRecurringOnly] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isAdmin = getRoleFromToken() === "admin";
 
   const fetchProducts = async () => {
     try {
@@ -80,6 +83,22 @@ export default function ProductLibraryPage() {
       setError("Search failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: number) => {
+    if (!window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/products/${productId}`);
+      toast.success("Product deleted successfully");
+      // Refresh the product list
+      fetchProducts();
+    } catch (err: any) {
+      console.error("Failed to delete product:", err);
+      toast.error(err.response?.data?.detail || "Failed to delete product");
     }
   };
 
@@ -270,7 +289,12 @@ export default function ProductLibraryPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                onDelete={isAdmin ? handleDeleteProduct : undefined}
+                showDeleteButton={isAdmin}
+              />
             ))}
           </div>
         )}
