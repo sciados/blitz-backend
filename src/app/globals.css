@@ -41,7 +41,7 @@
 /* Dark theme (override if you toggle data-theme="dark") */
 [data-theme="dark"] {
   --bg-primary: #242323; /* sidebar & page shell */
-  --bg-secondary: #767474 /* var(--bg-primary); match sidebar */
+  --bg-secondary: #ffffff /* 767474 var(--bg-primary); match sidebar */
   --card-bg: #2B2A2A /* 0b1220; cards slightly lighter than shell */
   --card-border: #1f2937;
   --text-primary: #e6eef3;
