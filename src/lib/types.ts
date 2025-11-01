@@ -10,6 +10,7 @@ export type Campaign = {
     name: string;
     product_url?: string | null; // Now optional - campaigns can be created without URL
     affiliate_network?: string | null;
+    commission_rate?: string | null;
     keywords?: string[];
     product_description?: string;
     product_type?: string;
@@ -26,6 +27,7 @@ export type CampaignCreate = {
     name: string;
     product_url?: string | null; // Optional - can add later or browse library
     affiliate_network?: string | null;
+    commission_rate?: string | null;
     keywords?: string[];
     product_description?: string;
     product_type?: string;

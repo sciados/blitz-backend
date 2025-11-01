@@ -1,0 +1,5 @@
+"campaign_id","campaign_name","affiliate_network","product_url","product_intelligence_id","product_name","pi_affiliate_network"
+1,"HepatoBurn","Clickbank","https://www.hepatoburn.com/",NULL,NULL,NULL
+2,"AquaSculpt","ClickBank","https://getaquasculptnow.net/extraBottle",NULL,NULL,NULL
+3,"Mitolyn","ClickBank","https://mitolyn.com/welcome",2,"Mitolyn",NULL
+4,"AquaSculpt","ClickBank","https://getaquasculptnow.net/extraBottle/",4,"AquaSculpt",NULL

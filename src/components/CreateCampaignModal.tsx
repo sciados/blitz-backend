@@ -11,6 +11,7 @@ const campaignSchema = z.object({
   name: z.string().min(3, "Campaign name must be at least 3 characters"),
   product_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
   affiliate_network: z.string().optional().or(z.literal("")),
+  commission_rate: z.string().optional().or(z.literal("")),
   keywords: z.string().optional(),
   product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
   product_type: z.string().optional(),
@@ -34,6 +35,7 @@ export function CreateCampaignModal({
     name: "",
     product_url: "",
     affiliate_network: "",
+    commission_rate: "",
     keywords: "",
     product_description: "",
     product_type: "",
@@ -95,6 +97,7 @@ export function CreateCampaignModal({
         ...prev,
         product_url: product.product_url || "",
         affiliate_network: product.affiliate_network || "",
+        commission_rate: product.commission_rate || "",
       }));
 
       setShowProductLibrary(false);
@@ -136,6 +139,7 @@ export function CreateCampaignModal({
         name: formData.name,
         product_url: formData.product_url,
         affiliate_network: formData.affiliate_network,
+        commission_rate: formData.commission_rate || undefined,
         keywords: keywords.length > 0 ? keywords : undefined,
         product_description: formData.product_description || undefined,
         product_type: formData.product_type || undefined,
@@ -149,6 +153,7 @@ export function CreateCampaignModal({
         name: "",
         product_url: "",
         affiliate_network: "",
+        commission_rate: "",
         keywords: "",
         product_description: "",
         product_type: "",
@@ -293,6 +298,35 @@ export function CreateCampaignModal({
                 {errors.affiliate_network}
               </p>
             )}
+          </div>
+
+          {/* Commission Rate */}
+          <div>
+            <label
+              htmlFor="commission_rate"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Commission Rate <span className="text-gray-400">(Optional)</span>
+            </label>
+            <input
+              type="text"
+              id="commission_rate"
+              name="commission_rate"
+              value={formData.commission_rate}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                errors.commission_rate ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder='e.g., "50%", "$37 per sale", "40% recurring"'
+            />
+            {errors.commission_rate && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.commission_rate}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Enter the commission structure (e.g., 50%, $37/sale, or 40% recurring)
+            </p>
           </div>
 
           {/* Keywords */}

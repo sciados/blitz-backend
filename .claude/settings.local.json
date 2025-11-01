@@ -7,7 +7,18 @@
       "Bash(dir \"C:\\Users\\shaun\\OneDrive\\Documents\\GitHub\\campaignforge-backend\" /B)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command \"(Get-Content page.tsx) -replace ''import { setToken } from'', ''import { setToken, getRoleFromToken } from'' | Set-Content page.tsx\")",
+      "Bash(python -m json.tool:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(git pull:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(move:*)",
+      "Bash(python migrate.py:*)",
+      "Bash(alembic revision:*)"
     ],
     "deny": [],
     "ask": []

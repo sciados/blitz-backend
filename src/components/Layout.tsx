@@ -37,7 +37,7 @@ export default function Layout({ children }: LayoutProps) {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   // Check if current page is an auth page (login, register)
-  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isAuthPage = pathname === "/login" || pathname === "/register";
 
   // Get help content based on current pathname
   const helpContent = getHelpContent(pathname);
@@ -47,7 +47,8 @@ export default function Layout({ children }: LayoutProps) {
     let mounted = true;
     const fetchUserInfo = async () => {
       // Check if token exists before making API call
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
       if (!token) {
         // No token, set default user info from token parsing
@@ -271,8 +272,8 @@ export default function Layout({ children }: LayoutProps) {
         {/* Right Sidebar */}
         <aside
           className={`${
-            rightSidebarOpen ? "w-80" : "w-0"
-          } transition-all duration-300 border-l border-[var(--border-color)] bg-[var(--bg-primary)] overflow-y-auto`}
+            rightSidebarOpen ? "w-100" : "w-0"
+          } transition-all duration-300 border-l border-[var(--border-color)] bg-[var(--bg-sidebar-help)] overflow-y-auto`}
         >
           {rightSidebarOpen && (
             <div className="p-4">
@@ -380,7 +381,9 @@ export default function Layout({ children }: LayoutProps) {
                               key={index}
                               className="flex items-start space-x-2 text-[var(--text-secondary)]"
                             >
-                              <span className="text-blue-500 mt-0.5 font-bold">•</span>
+                              <span className="text-blue-500 mt-0.5 font-bold">
+                                •
+                              </span>
                               <span className="leading-relaxed">{tip}</span>
                             </li>
                           ))}

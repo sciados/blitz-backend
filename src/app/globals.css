@@ -9,6 +9,9 @@
   /* Canvas (set same as sidebar so page matches) */
   --bg-secondary: var(--bg-primary);
 
+  /*Help - Right Siderbar */
+  --bg-sidebar-help: #111827; /* 
+
   /* Cards: light shade so they stand out a little */
   --card-bg: #0b1220; /* slightly lighter than background (dark theme) */
   --card-bg-light: #ffffff; /* light mode card color */
