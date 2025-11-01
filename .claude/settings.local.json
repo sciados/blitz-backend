@@ -18,7 +18,8 @@
       "Bash(python -m py_compile:*)",
       "Bash(move:*)",
       "Bash(python migrate.py:*)",
-      "Bash(alembic revision:*)"
+      "Bash(alembic revision:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Recurse -Filter ''page.tsx'' | Where-Object { $_DirectoryName -like ''*campaigns*'' } | Select-Object FullName\")"
     ],
     "deny": [],
     "ask": []
