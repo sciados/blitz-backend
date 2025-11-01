@@ -2,9 +2,9 @@
 
 ## Overview
 
-Blitz's intelligence compilation is a **simplified, powerful 3-step process** that improves on CampaignForge's over-engineered 6-module amplifier system. We use the **best AI platforms** for each task.
+Blitz's intelligence compilation is a **simplified, powerful 3-step process** that improves on Blitz's over-engineered 6-module amplifier system. We use the **best AI platforms** for each task.
 
-## Key Improvements Over CampaignForge
+## Key Improvements Over Blitz
 
 ### What We're Keeping:
 ✅ Sales page scraping with image extraction
@@ -465,7 +465,7 @@ class IntelligenceAmplifier:
     async def amplify_intelligence(scraped_data: dict):
         """
         Single comprehensive analysis with Claude 3.5 Sonnet.
-        Replaces CampaignForge's 6 separate enhancers.
+        Replaces Blitz's 6 separate enhancers.
         """
         prompt = f"""
 You are an expert marketing intelligence analyst. Analyze this sales page and extract comprehensive intelligence.
@@ -650,7 +650,7 @@ The "Compile Intelligence" button in Step 2 will:
 ### Parallel Processing
 - Image downloads happen concurrently (Promise.all)
 - Claude Vision analysis in parallel for multiple images
-- No artificial throttling (CampaignForge had 3s delays)
+- No artificial throttling (Blitz had 3s delays)
 
 ### Caching Strategy
 - Cache scraped HTML for 24 hours (avoid re-scraping same URL)
@@ -724,7 +724,7 @@ The "Compile Intelligence" button in Step 2 will:
 
 **Total: ~$0.06 per campaign**
 
-Compare to CampaignForge:
+Compare to Blitz:
 - 6 separate API calls to different providers
 - Higher token usage due to redundant prompting
 - Estimated: ~$0.15-0.20 per campaign

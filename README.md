@@ -1,4 +1,4 @@
-# CampaignForge Backend (FastAPI)
+# Blitz Backend (FastAPI)
 
 AI-Powered Modular SaaS Platform for Affiliate Marketing Campaign Generation.
 

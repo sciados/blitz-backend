@@ -2,7 +2,7 @@
 
 ## Recommended Setup (Simplified & Best-in-Class)
 
-Based on the improved intelligence compilation design, Blitz needs **only 3 API services** (compared to CampaignForge's 5+). We use the **best AI platform for each specific task**.
+Based on the improved intelligence compilation design, Blitz needs **only 3 API services** (compared to Blitz's 5+). We use the **best AI platform for each specific task**.
 
 ---
 
@@ -154,9 +154,9 @@ CORS_ORIGINS=https://your-vercel-app.vercel.app,http://localhost:3000  # Already
 
 ---
 
-## Cost Comparison: Blitz vs CampaignForge
+## Cost Comparison: Blitz vs Blitz
 
-### CampaignForge (Over-Engineered)
+### Blitz (Over-Engineered)
 - OpenAI API ✓
 - Anthropic API ✓
 - Google AI API ✓

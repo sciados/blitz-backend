@@ -21,7 +21,7 @@ def run_command(command):
 def main():
     if len(sys.argv) < 2:
         print("""
-CampaignForge Database Migration Tool
+Blitz Database Migration Tool
 
 Usage:
     python migrate.py init          # Initialize Alembic (first time only)

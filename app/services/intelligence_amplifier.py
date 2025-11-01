@@ -1,7 +1,7 @@
 """
 Intelligence Amplifier Service with RAG Integration
 Uses AI Router with automatic fallback + RAG research for comprehensive intelligence
-Replaces CampaignForge's 6 separate enhancers with a single unified analysis
+Replaces Blitz's 6 separate enhancers with a single unified analysis
 """
 import json
 import logging

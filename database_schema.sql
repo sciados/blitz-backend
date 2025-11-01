@@ -1,5 +1,5 @@
 -- ============================================================================
--- CampaignForge Database Schema
+-- Blitz Database Schema
 -- PostgreSQL with pgvector extension
 -- For use with pgAdmin
 -- ============================================================================

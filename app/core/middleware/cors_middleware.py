@@ -3,7 +3,7 @@
 # =====================================
 
 """
-CORS middleware configuration for CampaignForge.
+CORS middleware configuration for Blitz.
 Handles Cross-Origin Resource Sharing for Vercel frontend integration.
 """
 

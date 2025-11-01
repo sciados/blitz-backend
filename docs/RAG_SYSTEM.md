@@ -314,9 +314,9 @@ Potential additions:
 - **Reddit/social sentiment** analysis
 - **Competitive pricing** tracking
 
-## Comparison: Blitz vs CampaignForge
+## Comparison: Blitz vs Blitz
 
-| Feature | CampaignForge | Blitz |
+| Feature | Blitz | Blitz |
 |---------|---------------|-------|
 | **Approach** | 6 separate AI enhancers | 1 unified RAG system |
 | **Research** | AI-generated only | Real research + AI |

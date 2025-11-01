@@ -54,7 +54,7 @@ class R2StorageService:
             if meta_data:
                 extra_args["Metadata"] = {k: str(v) for k, v in meta_data.items()}
 
-            # Use asyncio to run sync boto3 operation (like CampaignForge)
+            # Use asyncio to run sync boto3 operation (like Blitz)
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
