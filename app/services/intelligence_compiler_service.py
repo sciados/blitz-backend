@@ -160,13 +160,26 @@ class IntelligenceCompilerService:
             stmt = select(ProductIntelligence).where(ProductIntelligence.id == existing_intelligence_id)
             result = await self.db.execute(stmt)
             product_intelligence = result.scalar_one()
+
+            # Update affiliate_network if missing
+            if not product_intelligence.affiliate_network and campaign.affiliate_network:
+                product_intelligence.affiliate_network = campaign.affiliate_network
+                logger.info(f"📝 Updated affiliate_network: {campaign.affiliate_network}")
+
+            # Update commission_rate if missing
+            if not product_intelligence.commission_rate and campaign.commission_rate:
+                product_intelligence.commission_rate = campaign.commission_rate
+                logger.info(f"📝 Updated commission_rate: {campaign.commission_rate}")
+
             logger.info(f"↻ Reusing existing intelligence record (ID: {product_intelligence.id})")
         else:
             # Create new record
             product_intelligence = ProductIntelligence(
                 product_url=campaign.product_url,
                 url_hash=url_hash,
-                compilation_version="1.0"
+                compilation_version="1.0",
+                affiliate_network=campaign.affiliate_network,  # Copy from campaign
+                commission_rate=campaign.commission_rate  # Copy from campaign if available
             )
             self.db.add(product_intelligence)
             await self.db.flush()  # Get ID without committing
@@ -303,6 +316,16 @@ class IntelligenceCompilerService:
         # Update intelligence usage metrics
         intelligence.times_used += 1
         intelligence.last_accessed_at = datetime.utcnow()
+
+        # Update affiliate_network if missing (from campaign data)
+        if not intelligence.affiliate_network and campaign.affiliate_network:
+            intelligence.affiliate_network = campaign.affiliate_network
+            logger.info(f"📝 Updated affiliate_network from campaign: {campaign.affiliate_network}")
+
+        # Update commission_rate if missing (from campaign data)
+        if not intelligence.commission_rate and campaign.commission_rate:
+            intelligence.commission_rate = campaign.commission_rate
+            logger.info(f"📝 Updated commission_rate from campaign: {campaign.commission_rate}")
 
         await self.db.commit()
 
