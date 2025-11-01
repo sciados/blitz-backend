@@ -11,6 +11,7 @@ from app.core.config.settings import settings
 from app.db.session import engine, Base
 from app.api import auth, campaigns, content, intelligence, compliance, products
 from app.api.admin import ai_router as admin_ai_router
+from app.api.admin import products as admin_products
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -150,6 +151,7 @@ app.include_router(content.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
 app.include_router(admin_ai_router.router)
+app.include_router(admin_products.router)
 
 # ====
 # STARTUP MESSAGE
