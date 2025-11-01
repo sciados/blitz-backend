@@ -128,6 +128,7 @@ async def list_products(
     limit: int = Query(50, ge=1, le=100),
     category: Optional[str] = None,
     sort_by: str = Query("recent", regex="^(recent|popular|alphabetical)$"),
+    recurring_only: Optional[bool] = Query(None, description="Filter for recurring commission products only"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -138,6 +139,7 @@ async def list_products(
     - **limit**: Number of products to return (max 100)
     - **category**: Filter by product category (health, wealth, relationships, etc.)
     - **sort_by**: Sort order - recent (newest first), popular (most used), alphabetical
+    - **recurring_only**: If True, show only products with recurring commissions
     """
 
     # Build query
@@ -157,17 +159,30 @@ async def list_products(
     else:  # recent (default)
         query = query.order_by(desc(ProductIntelligence.compiled_at))
 
-    # Apply pagination
-    query = query.offset(skip).limit(limit)
+    # If filtering by recurring, fetch more products to ensure we have enough after filtering
+    # Otherwise apply normal pagination
+    if recurring_only is not None:
+        # Fetch all products for filtering (we'll paginate after filtering)
+        result = await db.execute(query)
+    else:
+        # Apply normal pagination
+        query = query.offset(skip).limit(limit)
+        result = await db.execute(query)
 
-    # Execute query
-    result = await db.execute(query)
     products = result.scalars().all()
 
     # Build response with extracted description and recurring status
     product_items = []
     for p in products:
         description, is_recurring = extract_product_summary(p.intelligence_data)
+
+        # Apply recurring filter if specified
+        if recurring_only is not None:
+            if recurring_only and not is_recurring:
+                continue  # Skip non-recurring products when recurring_only=True
+            elif not recurring_only and is_recurring:
+                continue  # Skip recurring products when recurring_only=False
+
         product_items.append(ProductLibraryItem(
             id=p.id,
             product_name=p.product_name,
@@ -181,6 +196,10 @@ async def list_products(
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
         ))
+
+    # Apply pagination to filtered results if recurring filter was used
+    if recurring_only is not None:
+        product_items = product_items[skip:skip + limit]
 
     return product_items
 
@@ -240,6 +259,7 @@ async def get_product(
 async def search_products(
     q: str = Query(..., min_length=2, description="Search query (min 2 characters)"),
     limit: int = Query(20, ge=1, le=50),
+    recurring_only: Optional[bool] = Query(None, description="Filter for recurring commission products only"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -248,6 +268,7 @@ async def search_products(
 
     - **q**: Search query (searches product name and category)
     - **limit**: Maximum results to return (max 50)
+    - **recurring_only**: If True, show only products with recurring commissions
     """
 
     # Search in product_name and product_category using ILIKE for case-insensitive search
@@ -261,7 +282,11 @@ async def search_products(
         )
     ).order_by(
         desc(ProductIntelligence.times_used)  # Most popular first
-    ).limit(limit)
+    )
+
+    # If filtering by recurring, don't apply limit yet (we'll filter and limit after)
+    if recurring_only is None:
+        query = query.limit(limit)
 
     result = await db.execute(query)
     products = result.scalars().all()
@@ -270,6 +295,14 @@ async def search_products(
     product_items = []
     for p in products:
         description, is_recurring = extract_product_summary(p.intelligence_data)
+
+        # Apply recurring filter if specified
+        if recurring_only is not None:
+            if recurring_only and not is_recurring:
+                continue  # Skip non-recurring products when recurring_only=True
+            elif not recurring_only and is_recurring:
+                continue  # Skip recurring products when recurring_only=False
+
         product_items.append(ProductLibraryItem(
             id=p.id,
             product_name=p.product_name,
@@ -283,6 +316,10 @@ async def search_products(
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
         ))
+
+    # Apply limit to filtered results if recurring filter was used
+    if recurring_only is not None:
+        product_items = product_items[:limit]
 
     return product_items
 
