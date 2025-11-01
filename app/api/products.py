@@ -19,8 +19,32 @@ from app.auth import get_current_active_user
 router = APIRouter(prefix="/api/products", tags=["Product Library"])
 
 # ============================================================================
-# RESPONSE SCHEMAS
+# REQUEST/RESPONSE SCHEMAS
 # ============================================================================
+
+class ProductSubmission(BaseModel):
+    """Product submission by Product Creators"""
+    product_url: str
+    product_name: str
+    product_category: str
+    affiliate_network: str
+    commission_rate: str
+    product_description: Optional[str] = None
+    is_recurring: bool = False  # Future: recurring commission checkbox
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "product_url": "https://example.com/product",
+                "product_name": "Amazing Weight Loss Supplement",
+                "product_category": "health",
+                "affiliate_network": "ClickBank",
+                "commission_rate": "50%",
+                "product_description": "Revolutionary weight loss formula...",
+                "is_recurring": False
+            }
+        }
+
 
 class ProductLibraryItem(BaseModel):
     """Product listing in public library"""
@@ -367,3 +391,101 @@ async def list_categories(
         }
         for cat in categories
     ]
+
+
+# ============================================================================
+# SUBMIT PRODUCT (PRODUCT CREATORS)
+# ============================================================================
+
+@router.post("/submit", response_model=ProductDetails, status_code=status.HTTP_201_CREATED)
+async def submit_product(
+    submission: ProductSubmission,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Submit a new product to the library (Product Creators).
+
+    Product Creators can add products with basic metadata. The product will be:
+    1. Added to the public library immediately with provided metadata
+    2. Marked for intelligence compilation (can be done async or later)
+    3. Made available for Affiliate Marketers to use in campaigns
+
+    - **product_url**: Sales page URL
+    - **product_name**: Product name for display
+    - **product_category**: Category (health, wealth, relationships, etc.)
+    - **affiliate_network**: Network (ClickBank, JVZoo, etc.)
+    - **commission_rate**: Commission structure (50%, $37/sale, etc.)
+    - **product_description**: Optional description
+    - **is_recurring**: Whether commission is recurring (future feature)
+    """
+
+    # Check if product URL already exists
+    from hashlib import sha256
+    url_hash = sha256(submission.product_url.encode()).hexdigest()
+
+    existing_check = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.url_hash == url_hash
+        )
+    )
+    existing_product = existing_check.scalar_one_or_none()
+
+    if existing_product:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Product already exists in library (ID: {existing_product.id})"
+        )
+
+    # Create ProductIntelligence record with provided metadata
+    from datetime import datetime
+
+    new_product = ProductIntelligence(
+        product_url=submission.product_url,
+        url_hash=url_hash,
+        product_name=submission.product_name,
+        product_category=submission.product_category,
+        affiliate_network=submission.affiliate_network,
+        commission_rate=submission.commission_rate,
+        compilation_version="pending",  # Mark as pending compilation
+        is_public="true",  # Make immediately public
+        times_used=0,
+        compiled_at=datetime.utcnow(),  # Set to now, will update when actually compiled
+        # Store submission metadata in intelligence_data for now
+        intelligence_data={
+            "product": {
+                "name": submission.product_name,
+                "description": submission.product_description,
+                "category": submission.product_category
+            },
+            "submission": {
+                "submitted_by_user_id": current_user.id,
+                "submitted_at": datetime.utcnow().isoformat(),
+                "is_recurring": submission.is_recurring
+            },
+            "status": "pending_intelligence_compilation"
+        }
+    )
+
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+
+    # TODO: Trigger async intelligence compilation here
+    # For now, product is added with basic metadata
+    # Intelligence can be compiled later via admin tools or background job
+
+    return ProductDetails(
+        id=new_product.id,
+        product_url=new_product.product_url,
+        product_name=new_product.product_name,
+        product_category=new_product.product_category,
+        thumbnail_image_url=new_product.thumbnail_image_url,
+        affiliate_network=new_product.affiliate_network,
+        commission_rate=new_product.commission_rate,
+        intelligence_data=new_product.intelligence_data,
+        times_used=new_product.times_used,
+        compiled_at=new_product.compiled_at.isoformat() if new_product.compiled_at else "",
+        last_accessed_at=new_product.last_accessed_at.isoformat() if new_product.last_accessed_at else None,
+        compilation_version=new_product.compilation_version
+    )
