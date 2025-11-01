@@ -259,19 +259,20 @@ export default function CampaignDetailPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Product/Sales Page URL
               </label>
-              <a
-                href={campaign.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-1"
-              >
-                <span className="truncate">{campaign.product_url}</span>
-                <svg
-                  className="w-4 h-4 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {campaign.product_url ? (
+                <a
+                  href={campaign.product_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline flex items-center space-x-1"
                 >
+                  <span className="truncate">{campaign.product_url}</span>
+                  <svg
+                    className="w-4 h-4 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -280,6 +281,11 @@ export default function CampaignDetailPage() {
                   />
                 </svg>
               </a>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+                  No product URL set. You can add one later or select from the product library.
+                </p>
+              )}
             </div>
 
             {/* Affiliate Network */}
@@ -288,7 +294,7 @@ export default function CampaignDetailPage() {
                 Affiliate Platform
               </label>
               <p className="text-gray-900 dark:text-white">
-                {campaign.affiliate_network}
+                {campaign.affiliate_network || <span className="text-gray-500 dark:text-gray-400 text-sm italic">Not specified</span>}
               </p>
             </div>
 
