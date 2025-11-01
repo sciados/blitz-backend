@@ -185,9 +185,23 @@ export function ProductDetailsModal({
                       <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Target Audience
                       </div>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {product.intelligence_data.market.target_audience}
-                      </p>
+                      <div className="text-gray-600 dark:text-gray-400">
+                        {typeof product.intelligence_data.market.target_audience === 'string'
+                          ? product.intelligence_data.market.target_audience
+                          : typeof product.intelligence_data.market.target_audience === 'object'
+                          ? (
+                            <div className="space-y-1">
+                              {Object.entries(product.intelligence_data.market.target_audience).map(([key, value]) => (
+                                <div key={key}>
+                                  <span className="font-medium capitalize">{key.replace(/_/g, ' ')}: </span>
+                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                          : String(product.intelligence_data.market.target_audience)
+                        }
+                      </div>
                     </div>
                   )}
                 </div>
