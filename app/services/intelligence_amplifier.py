@@ -113,9 +113,22 @@ class IntelligenceAmplifier:
                 if img.get('success')
             ]
 
+            # Calculate intelligence data size
+            intelligence_json = json.dumps(intelligence)
+            data_size_chars = len(intelligence_json)
+            data_size_kb = data_size_chars / 1024
+
             logger.info(f"✅ Intelligence amplified successfully")
             logger.info(f"   - Confidence: {intelligence.get('analysis', {}).get('confidence_score', 0)}")
             logger.info(f"   - Images: {len(intelligence['images'])}")
+            logger.info(f"   - Data size: {data_size_chars:,} characters ({data_size_kb:.2f} KB)")
+
+            # Log breakdown by section
+            product_size = len(json.dumps(intelligence.get('product', {})))
+            market_size = len(json.dumps(intelligence.get('market', {})))
+            marketing_size = len(json.dumps(intelligence.get('marketing', {})))
+            analysis_size = len(json.dumps(intelligence.get('analysis', {})))
+            logger.info(f"   - Product: {product_size:,} chars | Market: {market_size:,} chars | Marketing: {marketing_size:,} chars | Analysis: {analysis_size:,} chars")
 
             return intelligence
 
