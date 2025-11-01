@@ -13,7 +13,7 @@
 
   /* Cards: light shade so they stand out a little */
   --card-bg: #0b1220; /* slightly lighter than background (dark theme) */
-  --card-bg-light: #ffffff; /* light mode card color */
+  --card-bg-light: #2B2A2A; /* light mode card color */
   --card-border: rgba(255, 255, 255, 0.04);
 
   --text-primary: #e6eef3;
