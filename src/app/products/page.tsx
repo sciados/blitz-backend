@@ -14,6 +14,7 @@ export default function ProductLibraryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "alphabetical">("recent");
+  const [recurringOnly, setRecurringOnly] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProducts = async () => {
@@ -28,6 +29,10 @@ export default function ProductLibraryPage() {
 
       if (selectedCategory) {
         params.append("category", selectedCategory);
+      }
+
+      if (recurringOnly !== null) {
+        params.append("recurring_only", String(recurringOnly));
       }
 
       const response = await api.get(`/api/products?${params}`);
@@ -58,7 +63,17 @@ export default function ProductLibraryPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get(`/api/products/search/query?q=${encodeURIComponent(query)}&limit=50`);
+
+      const params = new URLSearchParams({
+        q: query,
+        limit: "50",
+      });
+
+      if (recurringOnly !== null) {
+        params.append("recurring_only", String(recurringOnly));
+      }
+
+      const response = await api.get(`/api/products/search/query?${params}`);
       setProducts(response.data);
     } catch (err: any) {
       console.error("Failed to search products:", err);
@@ -71,7 +86,7 @@ export default function ProductLibraryPage() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-  }, [sortBy, selectedCategory]);
+  }, [sortBy, selectedCategory, recurringOnly]);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -143,6 +158,48 @@ export default function ProductLibraryPage() {
                 <option value="popular">Most Popular</option>
                 <option value="alphabetical">A-Z</option>
               </select>
+            </div>
+          </div>
+
+          {/* Recurring Commission Filter */}
+          <div className="mt-4 flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Commission Type:
+            </label>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setRecurringOnly(null)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  recurringOnly === null
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}
+              >
+                All Products
+              </button>
+              <button
+                onClick={() => setRecurringOnly(true)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center ${
+                  recurringOnly === true
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}
+              >
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                Recurring Only
+              </button>
+              <button
+                onClick={() => setRecurringOnly(false)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  recurringOnly === false
+                    ? "bg-gray-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                }`}
+              >
+                One-Time Only
+              </button>
             </div>
           </div>
 
