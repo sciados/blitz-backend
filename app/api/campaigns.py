@@ -64,8 +64,8 @@ async def list_campaigns(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List all campaigns for the current user."""
-    
+    """List all campaigns for the current user with intelligence data."""
+
     result = await db.execute(
         select(Campaign)
         .where(Campaign.user_id == current_user.id)
@@ -73,9 +73,42 @@ async def list_campaigns(
         .limit(limit)
         .order_by(Campaign.created_at.desc())
     )
-    
+
     campaigns = result.scalars().all()
-    return campaigns
+
+    # Fetch intelligence data for campaigns that have it
+    from app.db.models import ProductIntelligence
+    campaign_responses = []
+    for campaign in campaigns:
+        intelligence_data = None
+        if campaign.product_intelligence_id:
+            intel_result = await db.execute(
+                select(ProductIntelligence).where(
+                    ProductIntelligence.id == campaign.product_intelligence_id
+                )
+            )
+            intelligence = intel_result.scalar_one_or_none()
+            if intelligence and intelligence.intelligence_data:
+                intelligence_data = intelligence.intelligence_data
+
+        campaign_responses.append(CampaignResponse(
+            id=campaign.id,
+            user_id=campaign.user_id,
+            name=campaign.name,
+            product_url=campaign.product_url,
+            affiliate_network=campaign.affiliate_network,
+            keywords=campaign.keywords,
+            product_description=campaign.product_description,
+            product_type=campaign.product_type,
+            target_audience=campaign.target_audience,
+            marketing_angles=campaign.marketing_angles,
+            status=campaign.status,
+            intelligence_data=intelligence_data,
+            created_at=campaign.created_at,
+            updated_at=campaign.updated_at
+        ))
+
+    return campaign_responses
 
 # ============================================================================
 # GET CAMPAIGN
@@ -87,24 +120,53 @@ async def get_campaign(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get a specific campaign."""
-    
+    """Get a specific campaign with intelligence data."""
+
     result = await db.execute(
         select(Campaign).where(
             Campaign.id == campaign_id,
             Campaign.user_id == current_user.id
         )
     )
-    
+
     campaign = result.scalar_one_or_none()
-    
+
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaign not found"
         )
-    
-    return campaign
+
+    # Fetch intelligence data if available
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        from app.db.models import ProductIntelligence
+        intel_result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        intelligence = intel_result.scalar_one_or_none()
+        if intelligence and intelligence.intelligence_data:
+            intelligence_data = intelligence.intelligence_data
+
+    # Build response with intelligence data
+    return CampaignResponse(
+        id=campaign.id,
+        user_id=campaign.user_id,
+        name=campaign.name,
+        product_url=campaign.product_url,
+        affiliate_network=campaign.affiliate_network,
+        keywords=campaign.keywords,
+        product_description=campaign.product_description,
+        product_type=campaign.product_type,
+        target_audience=campaign.target_audience,
+        marketing_angles=campaign.marketing_angles,
+        status=campaign.status,
+        intelligence_data=intelligence_data,
+        created_at=campaign.created_at,
+        updated_at=campaign.updated_at
+    )
 
 # ============================================================================
 # UPDATE CAMPAIGN
