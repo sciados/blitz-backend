@@ -75,6 +75,7 @@ class CampaignBase(BaseModel):
     name: str
     product_url: Optional[HttpUrl] = None  # Optional - can create campaign before choosing product
     affiliate_network: Optional[str] = None
+    commission_rate: Optional[str] = None  # "50%", "$37/sale", etc.
     keywords: Optional[List[str]] = []
     product_description: Optional[str] = None
     product_type: Optional[str] = None
@@ -89,6 +90,7 @@ class CampaignUpdate(BaseModel):
     name: Optional[str] = None
     product_url: Optional[HttpUrl] = None
     affiliate_network: Optional[str] = None
+    commission_rate: Optional[str] = None
     status: Optional[CampaignStatus] = None
     keywords: Optional[List[str]] = None
     product_description: Optional[str] = None

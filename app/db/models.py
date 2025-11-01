@@ -103,6 +103,7 @@ class Campaign(Base):
     # Product URL (nullable - campaign can be created before product is chosen)
     product_url = Column(Text, nullable=True)
     affiliate_network = Column(String(100), nullable=True)
+    commission_rate = Column(String(50), nullable=True)  # "50%", "$37/sale", etc.
 
     # Campaign settings
     keywords = Column(ARRAY(String), nullable=True)
