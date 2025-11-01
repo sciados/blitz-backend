@@ -36,8 +36,8 @@ export function EditCampaignModal({
 }: EditCampaignModalProps) {
   const [formData, setFormData] = useState<CampaignFormData>({
     name: campaign.name,
-    product_url: campaign.product_url,
-    affiliate_network: campaign.affiliate_network,
+    product_url: campaign.product_url || "",
+    affiliate_network: campaign.affiliate_network || "",
     keywords: campaign.keywords?.join(", ") || "",
     product_description: campaign.product_description || "",
     product_type: campaign.product_type || "",
@@ -52,8 +52,8 @@ export function EditCampaignModal({
   useEffect(() => {
     setFormData({
       name: campaign.name,
-      product_url: campaign.product_url,
-      affiliate_network: campaign.affiliate_network,
+      product_url: campaign.product_url || "",
+      affiliate_network: campaign.affiliate_network || "",
       keywords: campaign.keywords?.join(", ") || "",
       product_description: campaign.product_description || "",
       product_type: campaign.product_type || "",
