@@ -184,7 +184,7 @@ class MediaAsset(Base):
     file_size = Column(Integer, nullable=False)
     r2_key = Column(String(500), nullable=False)
     r2_url = Column(Text, nullable=False)
-    meta_data = Column(JSONB, nullable=True)  # RENAMED from 'metadata' to 'meta_data'
+    meta_data = Column("metadata", JSONB, nullable=True)  # Python: meta_data, DB: metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
