@@ -86,6 +86,7 @@ export default function Layout({ children }: LayoutProps) {
     ? [
         { href: "/admin/dashboard", label: "Dashboard", icon: "🏠" },
         { href: "/admin/campaigns", label: "Campaigns", icon: "📢" },
+        { href: "/products", label: "Product Library", icon: "📦" },
         { href: "/admin/tools", label: "Admin Tools", icon: "🔧" },
         { href: "/admin/ai_router", label: "AI Router", icon: "🤖" },
         { href: "/admin/users", label: "Users", icon: "👥" },
