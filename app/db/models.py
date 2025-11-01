@@ -163,7 +163,7 @@ class KnowledgeBase(Base):
     campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
     content = Column(Text, nullable=False)
     embedding = Column(Vector(1024), nullable=True)  # Cohere embeddings are 1024 dimensions
-    meta_data = Column(JSONB, nullable=True)  # RENAMED from 'metadata' to 'meta_data'
+    meta_data = Column("metadata", JSONB, nullable=True)  # Python: meta_data, DB: metadata
     source_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
