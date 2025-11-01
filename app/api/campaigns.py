@@ -130,12 +130,18 @@ async def get_campaign(
 ):
     """Get a specific campaign with intelligence data."""
 
-    result = await db.execute(
-        select(Campaign).where(
-            Campaign.id == campaign_id,
-            Campaign.user_id == current_user.id
+    # Admins can view all campaigns, regular users can only view their own
+    if current_user.role == "admin":
+        result = await db.execute(
+            select(Campaign).where(Campaign.id == campaign_id)
         )
-    )
+    else:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
 
     campaign = result.scalar_one_or_none()
 
