@@ -85,6 +85,7 @@ export default function Layout({ children }: LayoutProps) {
   const menuItems: MenuItem[] = isAdmin
     ? [
         { href: "/admin/dashboard", label: "Dashboard", icon: "🏠" },
+        { href: "/admin/campaigns", label: "Campaigns", icon: "📢" },
         { href: "/admin/tools", label: "Admin Tools", icon: "🔧" },
         { href: "/admin/ai_router", label: "AI Router", icon: "🤖" },
         { href: "/admin/users", label: "Users", icon: "👥" },
