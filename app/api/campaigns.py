@@ -397,17 +397,23 @@ async def delete_campaign(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a campaign."""
-    
-    result = await db.execute(
-        select(Campaign).where(
-            Campaign.id == campaign_id,
-            Campaign.user_id == current_user.id
+    """Delete a campaign. Admins can delete any campaign, users can only delete their own."""
+
+    # Admins can delete any campaign, regular users can only delete their own
+    if current_user.role == "admin":
+        result = await db.execute(
+            select(Campaign).where(Campaign.id == campaign_id)
         )
-    )
-    
+    else:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+
     campaign = result.scalar_one_or_none()
-    
+
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

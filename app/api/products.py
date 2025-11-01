@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.db.models import User, ProductIntelligence
+from app.schemas import MessageResponse
 from app.auth import get_current_active_user
 
 router = APIRouter(prefix="/api/products", tags=["Product Library"])
@@ -578,3 +579,45 @@ async def submit_product(
         last_accessed_at=new_product.last_accessed_at.isoformat() if new_product.last_accessed_at else None,
         compilation_version=new_product.compilation_version
     )
+
+
+# ============================================================================
+# DELETE PRODUCT (ADMIN ONLY)
+# ============================================================================
+
+@router.delete("/{product_id}", response_model=MessageResponse)
+async def delete_product(
+    product_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a product from the library (admin only).
+
+    This will permanently remove the product and its intelligence data.
+    Warning: This cannot be undone.
+    """
+    # Only admins can delete products
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete products"
+        )
+
+    # Get the product
+    result = await db.execute(
+        select(ProductIntelligence).where(ProductIntelligence.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    # Delete the product
+    await db.delete(product)
+    await db.commit()
+
+    return MessageResponse(message=f"Product '{product.product_name}' deleted successfully")
