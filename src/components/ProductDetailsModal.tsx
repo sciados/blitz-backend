@@ -145,14 +145,14 @@ export function ProductDetailsModal({
               </div>
 
               {/* Intelligence Data */}
-              {product.intelligence_data && (
+              {product.intelligence_data ? (
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Product Intelligence
                   </h4>
 
                   {/* Product Features */}
-                  {product.intelligence_data.product?.features && (
+                  {product.intelligence_data.product?.features && Array.isArray(product.intelligence_data.product.features) && product.intelligence_data.product.features.length > 0 && (
                     <div className="mb-4">
                       <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Features
@@ -166,7 +166,7 @@ export function ProductDetailsModal({
                   )}
 
                   {/* Product Benefits */}
-                  {product.intelligence_data.product?.benefits && (
+                  {product.intelligence_data.product?.benefits && Array.isArray(product.intelligence_data.product.benefits) && product.intelligence_data.product.benefits.length > 0 && (
                     <div className="mb-4">
                       <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Benefits
@@ -190,6 +190,12 @@ export function ProductDetailsModal({
                       </p>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 text-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No intelligence data available for this product yet.
+                  </p>
                 </div>
               )}
 
