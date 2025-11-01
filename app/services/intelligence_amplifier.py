@@ -141,7 +141,7 @@ class IntelligenceAmplifier:
             )
 
             response = await client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",  # Updated from decommissioned 3.1
                 max_tokens=4096,
                 temperature=0,
                 messages=[{"role": "user", "content": prompt}]
@@ -161,7 +161,7 @@ class IntelligenceAmplifier:
                 )
 
                 response = await client.chat.completions.create(
-                    model="grok-beta",
+                    model="grok-3",  # Updated from deprecated grok-beta
                     max_tokens=4096,
                     temperature=0,
                     messages=[{"role": "user", "content": prompt}]
