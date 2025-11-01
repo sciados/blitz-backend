@@ -1,14 +1,16 @@
 """
-Intelligence Amplifier Service
-Uses AI Router with automatic fallback to extract comprehensive marketing intelligence
+Intelligence Amplifier Service with RAG Integration
+Uses AI Router with automatic fallback + RAG research for comprehensive intelligence
 Replaces CampaignForge's 6 separate enhancers with a single unified analysis
 """
 import json
 import logging
+import re
 from typing import Dict, Any
 from datetime import datetime
 from app.core.config.settings import settings
 from app.services.ai_router import ai_router
+from app.services.rag import rag_system
 import anthropic
 import openai
 
@@ -25,9 +27,14 @@ class IntelligenceAmplifier:
         self.ai_router = ai_router
         # Clients will be created dynamically based on selected provider
 
-    async def amplify_intelligence(self, scraped_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def amplify_intelligence(
+        self,
+        scraped_data: Dict[str, Any],
+        enable_rag: bool = True,
+        intelligence_level: str = "standard"
+    ) -> Dict[str, Any]:
         """
-        Main entry point: Analyze scraped data and extract comprehensive intelligence
+        Main entry point: Analyze scraped data and extract comprehensive intelligence with RAG
 
         Args:
             scraped_data: Dictionary containing scraped sales page data
@@ -37,15 +44,36 @@ class IntelligenceAmplifier:
                     'images': [...],
                     'scraped_at': str
                 }
+            enable_rag: Enable RAG research (default: True)
+            intelligence_level: "basic" (10 searches), "standard" (20), "comprehensive" (35)
 
         Returns:
             Comprehensive intelligence dictionary with product, market, and marketing data
         """
         try:
-            logger.info("🧠 Amplifying intelligence with AI Router (auto-fallback enabled)...")
+            logger.info("🧠 Amplifying intelligence with AI Router + RAG...")
 
-            # Prepare prompt
-            prompt = self._build_intelligence_prompt(scraped_data)
+            # Step 1: Extract basic product info from sales page
+            basic_product_info = self._extract_basic_product_info(scraped_data)
+            logger.info(f"📝 Extracted basic info: {basic_product_info.get('name', 'Unknown product')}")
+
+            # Step 2: Conduct RAG research (optional)
+            research_data = None
+            if enable_rag:
+                try:
+                    logger.info(f"🔍 Starting RAG research (level: {intelligence_level})...")
+                    research_data = await rag_system.research_product(
+                        basic_product_info,
+                        intelligence_level=intelligence_level
+                    )
+                    logger.info(f"✅ RAG complete: {research_data.get('total_sources', 0)} sources, "
+                              f"${research_data.get('estimated_cost_usd', 0):.4f} cost")
+                except Exception as rag_error:
+                    logger.warning(f"⚠️ RAG research failed, continuing without it: {str(rag_error)}")
+                    research_data = None
+
+            # Step 3: Build enhanced prompt with RAG data
+            prompt = self._build_intelligence_prompt(scraped_data, research_data)
 
             # Debug: Check if env vars are set
             import os
@@ -268,12 +296,27 @@ class IntelligenceAmplifier:
             logger.error(f"Provider {spec.name} call failed: {e}")
             raise
 
-    def _build_intelligence_prompt(self, scraped_data: Dict[str, Any]) -> str:
-        """Build comprehensive intelligence extraction prompt"""
+    def _build_intelligence_prompt(
+        self,
+        scraped_data: Dict[str, Any],
+        research_data: Dict[str, Any] = None
+    ) -> str:
+        """Build comprehensive intelligence extraction prompt with RAG data"""
 
         metadata = scraped_data.get('metadata', {})
         text_content = scraped_data.get('text_content', '')
         image_count = len(scraped_data.get('images', []))
+
+        # Build RAG research section if available
+        rag_section = ""
+        if research_data and research_data.get('total_sources', 0) > 0:
+            rag_summary = self._format_rag_for_prompt(research_data)
+            rag_section = f"""
+
+RESEARCH INTELLIGENCE (from {research_data.get('total_sources', 0)} verified sources):
+{rag_summary}
+
+Use this research data to enhance your analysis with scientific evidence, clinical studies, and market data."""
 
         prompt = f"""You are an expert marketing intelligence analyst. Analyze this sales page and extract comprehensive intelligence for affiliate marketers.
 
@@ -284,7 +327,7 @@ METADATA:
 - Title: {metadata.get('title', 'N/A')}
 - Description: {metadata.get('description', 'N/A')}
 - URL: {metadata.get('url', 'N/A')}
-- Images Found: {image_count}
+- Images Found: {image_count}{rag_section}
 
 Extract the following intelligence and return as valid JSON (no markdown formatting):
 
@@ -371,6 +414,99 @@ IMPORTANT:
 - Prioritize quality over quantity - only include genuinely useful information"""
 
         return prompt
+
+    def _extract_basic_product_info(self, scraped_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract basic product information from scraped data for RAG research
+
+        Returns:
+            Dictionary with name, ingredients, features, type
+        """
+        text_content = scraped_data.get('text_content', '').lower()
+        metadata = scraped_data.get('metadata', {})
+
+        # Extract product name (from title or first heading)
+        product_name = metadata.get('title', 'Product').split('|')[0].split('-')[0].strip()
+
+        # Detect product type/category
+        product_type = "product"
+        if any(word in text_content for word in ['supplement', 'pill', 'capsule', 'vitamin', 'weight loss']):
+            product_type = "health_supplement"
+        elif any(word in text_content for word in ['course', 'training', 'program', 'system', 'method']):
+            product_type = "educational_program"
+        elif any(word in text_content for word in ['software', 'tool', 'app', 'platform']):
+            product_type = "software"
+
+        # Extract ingredients (for health products)
+        ingredients = []
+        ingredient_keywords = ['ingredient', 'contains', 'formula', 'blend', 'extract']
+        if any(keyword in text_content for keyword in ingredient_keywords):
+            # Simple extraction: look for capitalized words near ingredient keywords
+            import re
+            # This is a basic extraction - AI will refine it
+            potential_ingredients = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', scraped_data.get('text_content', ''))
+            ingredients = list(set(potential_ingredients))[:15]  # Limit to 15
+
+        # Extract features (look for bullet points or numbered lists)
+        features = []
+        feature_patterns = [r'[•\-\*]\s*([^\n]+)', r'\d+\.\s*([^\n]+)']
+        for pattern in feature_patterns:
+            matches = re.findall(pattern, scraped_data.get('text_content', ''))
+            features.extend([m.strip() for m in matches if len(m.strip()) > 10])
+
+        features = features[:10]  # Top 10 features
+
+        return {
+            "name": product_name,
+            "type": product_type,
+            "ingredients": ingredients,
+            "features": features,
+            "url": metadata.get('url', '')
+        }
+
+    def _format_rag_for_prompt(self, research_data: Dict[str, Any]) -> str:
+        """Format RAG research data for AI prompt"""
+        sections = []
+
+        # Ingredient research
+        ingredient_data = research_data.get("research_by_category", {}).get("ingredients", {})
+        if ingredient_data and ingredient_data.get("researched"):
+            sections.append("INGREDIENT RESEARCH:")
+            for ing in ingredient_data.get("researched", [])[:5]:  # Top 5 ingredients
+                ingredient = ing.get("ingredient", "")
+                sources = ing.get("sources", [])
+                if sources:
+                    sections.append(f"\n{ingredient}:")
+                    for source in sources[:2]:  # Top 2 sources per ingredient
+                        title = source.get("title", "")
+                        content = source.get("content", "")[:300]  # First 300 chars
+                        sections.append(f"  - {title}")
+                        if content:
+                            sections.append(f"    {content}...")
+
+        # Feature research
+        feature_data = research_data.get("research_by_category", {}).get("features", {})
+        if feature_data and feature_data.get("sources"):
+            sections.append("\n\nFEATURE RESEARCH:")
+            for source in feature_data.get("sources", [])[:3]:  # Top 3
+                title = source.get("title", "")
+                content = source.get("content", "")[:300]
+                sections.append(f"  - {title}")
+                if content:
+                    sections.append(f"    {content}...")
+
+        # Market research
+        market_data = research_data.get("research_by_category", {}).get("market", {})
+        if market_data and market_data.get("sources"):
+            sections.append("\n\nMARKET RESEARCH:")
+            for source in market_data.get("sources", [])[:3]:  # Top 3
+                title = source.get("title", "")
+                content = source.get("content", "")[:300]
+                sections.append(f"  - {title}")
+                if content:
+                    sections.append(f"    {content}...")
+
+        return "\n".join(sections)
 
     def calculate_intelligence_score(self, intelligence: Dict[str, Any]) -> int:
         """

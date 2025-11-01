@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     AIMLAPI_API_KEY: str
     XAI_API_KEY: str  # xAI Grok
 
+    # ==== RAG & SEARCH ====
+    TAVILY_API_KEY: Optional[str] = None  # $1 per 1,000 searches
+
     # ==== MEDIA GENERATION ====
     STABILITY_API_KEY: str
     REPLICATE_API_TOKEN: str
