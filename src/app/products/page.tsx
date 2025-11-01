@@ -5,6 +5,7 @@ import { ProductCard } from "src/components/ProductCard";
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { ProductLibraryItem, ProductCategory } from "src/lib/types";
+import Link from "next/link";
 
 export default function ProductLibraryPage() {
   const [products, setProducts] = useState<ProductLibraryItem[]>([]);
@@ -88,13 +89,25 @@ export default function ProductLibraryPage() {
     <AuthGate requiredRole="user">
       <div className="p-6">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-            Product Library
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Browse products with existing intelligence. Use them in your campaigns instantly!
-          </p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+              Product Library
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Browse products with existing intelligence. Use them in your campaigns instantly!
+            </p>
+          </div>
+
+          <Link
+            href="/products/add"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Add Product</span>
+          </Link>
         </div>
 
         {/* Filters and Search */}
