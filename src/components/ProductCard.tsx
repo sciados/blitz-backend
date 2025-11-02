@@ -27,7 +27,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="card rounded-lg hover:shadow-lg transition-shadow flex flex-col">
         {/* Thumbnail */}
         <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-t-lg overflow-hidden">
           {product.thumbnail_image_url ? (
@@ -76,13 +76,13 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
 
         {/* Content */}
         <div className="p-4 flex-1 flex flex-col">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+          <h3 className="text-lg font-semibold mb-2 line-clamp-2" style={{ color: 'var(--text-primary)' }}>
             {product.product_name || "Unknown Product"}
           </h3>
 
           {/* Product Description */}
           {product.product_description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+            <p className="text-sm mb-3 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
               {product.product_description}
             </p>
           )}
@@ -90,7 +90,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
           {/* Metadata */}
           <div className="space-y-2 mb-4 flex-1">
             {product.affiliate_network && (
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center text-sm" style={{ color: 'var(--text-secondary)' }}>
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
@@ -100,7 +100,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
 
             {product.commission_rate && (
               <div className="flex items-start text-sm">
-                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                <div className="flex items-center" style={{ color: 'var(--text-secondary)' }}>
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -117,7 +117,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
               </div>
             )}
 
-            <div className="flex items-center text-xs text-gray-500 dark:text-gray-500">
+            <div className="flex items-center text-xs" style={{ color: 'var(--text-secondary)' }}>
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

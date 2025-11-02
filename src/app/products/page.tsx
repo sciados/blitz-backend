@@ -125,10 +125,10 @@ export default function ProductLibraryPage() {
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
               Product Library
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p style={{ color: 'var(--text-secondary)' }}>
               Browse products with existing intelligence. Use them in your campaigns instantly!
             </p>
           </div>
@@ -145,11 +145,11 @@ export default function ProductLibraryPage() {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+        <div className="card rounded-lg p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="md:col-span-2">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="search" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Search Products
               </label>
               <input
@@ -158,20 +158,30 @@ export default function ProductLibraryPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by product name or category..."
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{
+                  borderColor: 'var(--card-border)',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-primary)'
+                }}
               />
             </div>
 
             {/* Sort By */}
             <div>
-              <label htmlFor="sortBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="sortBy" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Sort By
               </label>
               <select
                 id="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{
+                  borderColor: 'var(--card-border)',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-primary)'
+                }}
               >
                 <option value="recent">Newest First</option>
                 <option value="popular">Most Popular</option>
@@ -182,7 +192,7 @@ export default function ProductLibraryPage() {
 
           {/* Recurring Commission Filter */}
           <div className="mt-4 flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               Commission Type:
             </label>
             <div className="flex space-x-2">
@@ -191,8 +201,13 @@ export default function ProductLibraryPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   recurringOnly === null
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    : "hover:bg-gray-200"
                 }`}
+                style={
+                  recurringOnly !== null
+                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                    : undefined
+                }
               >
                 All Products
               </button>
@@ -201,8 +216,13 @@ export default function ProductLibraryPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center ${
                   recurringOnly === true
                     ? "bg-purple-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    : "hover:bg-gray-200"
                 }`}
+                style={
+                  recurringOnly !== true
+                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                    : undefined
+                }
               >
                 <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
@@ -214,8 +234,13 @@ export default function ProductLibraryPage() {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   recurringOnly === false
                     ? "bg-gray-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    : "hover:bg-gray-200"
                 }`}
+                style={
+                  recurringOnly !== false
+                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                    : undefined
+                }
               >
                 One-Time Only
               </button>
@@ -225,17 +250,20 @@ export default function ProductLibraryPage() {
           {/* Categories */}
           {categories.length > 0 && (
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                 Filter by Category
               </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={`px-4 py-2 rounded-lg transition ${
-                    selectedCategory === null
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    selectedCategory === null ? "bg-blue-600 text-white" : "hover:bg-gray-200"
                   }`}
+                  style={
+                    selectedCategory !== null
+                      ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                      : undefined
+                  }
                 >
                   All Categories
                 </button>
@@ -244,10 +272,13 @@ export default function ProductLibraryPage() {
                     key={cat.category}
                     onClick={() => setSelectedCategory(cat.category)}
                     className={`px-4 py-2 rounded-lg transition ${
-                      selectedCategory === cat.category
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      selectedCategory === cat.category ? "bg-blue-600 text-white" : "hover:bg-gray-200"
                     }`}
+                    style={
+                      selectedCategory !== cat.category
+                        ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                        : undefined
+                    }
                   >
                     {cat.category} ({cat.count})
                   </button>
@@ -259,7 +290,7 @@ export default function ProductLibraryPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
             {error}
           </div>
         )}
@@ -268,19 +299,19 @@ export default function ProductLibraryPage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading products...</p>
+            <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading products...</p>
           </div>
         ) : products.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-            <div className="text-gray-400 mb-4">
+          <div className="card rounded-lg p-12 text-center">
+            <div className="mb-4" style={{ color: 'var(--text-secondary)' }}>
               <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
               No Products Found
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
               {searchQuery || selectedCategory
                 ? "Try adjusting your search or filters"
                 : "Be the first to add a product by creating a campaign!"}
