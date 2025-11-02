@@ -32,7 +32,7 @@
   --bg-secondary: #f9fafb;
   --card-bg: var(--card-bg-light);
   --card-border: #e5e7eb;
-  --text-primary: #111827;
+  --text-primary: #414347 /* #111827; */
   --text-secondary: #6b7280;
   --hover-bg: #f3f4f6;
   --border-color: #e5e7eb;
@@ -40,8 +40,8 @@
 
 /* Dark theme (override if you toggle data-theme="dark") */
 [data-theme="dark"] {
-  --bg-primary: #242323; /* sidebar & page shell */
-  --bg-secondary: #ffffff /* 767474 var(--bg-primary); match sidebar */
+  --bg-primary: #262728; /* sidebar & page shell */
+  --bg-secondary: #414347 /* 767474 var(--bg-primary); match sidebar */
   --card-bg: #2B2A2A /* 0b1220; cards slightly lighter than shell */
   --card-border: #1f2937;
   --text-primary: #e6eef3;

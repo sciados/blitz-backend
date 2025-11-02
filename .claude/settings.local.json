@@ -1,25 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend/**)",
-      "Read(//c/Users/shaun/OneDrive/Documents/GitHub/campaignforge-frontend/**)",
-      "Read(//c/Users/shaun/OneDrive/Documents/GitHub/campaignforge-backend/**)",
-      "Bash(dir \"C:\\Users\\shaun\\OneDrive\\Documents\\GitHub\\campaignforge-backend\" /B)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(curl:*)",
-      "Bash(cat:*)",
-      "Bash(powershell -Command \"(Get-Content page.tsx) -replace ''import { setToken } from'', ''import { setToken, getRoleFromToken } from'' | Set-Content page.tsx\")",
-      "Bash(python -m json.tool:*)",
-      "Bash(dir:*)",
-      "Bash(findstr:*)",
-      "Bash(git pull:*)",
-      "Bash(python -m py_compile:*)",
-      "Bash(move:*)",
-      "Bash(python migrate.py:*)",
-      "Bash(alembic revision:*)",
-      "Bash(powershell -Command \"Get-ChildItem -Recurse -Filter ''page.tsx'' | Where-Object { $_DirectoryName -like ''*campaigns*'' } | Select-Object FullName\")"
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
