@@ -58,9 +58,11 @@ export type ProductDetails = {
     product_url: string;
     product_name: string | null;
     product_category: string | null;
+    product_description: string | null;
     thumbnail_image_url: string | null;
     affiliate_network: string | null;
     commission_rate: string | null;
+    is_recurring: boolean;
     intelligence_data: any;
     times_used: number;
     compiled_at: string;
