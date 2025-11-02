@@ -253,6 +253,99 @@ async def get_product(
 
 
 # ============================================================================
+# GENERATE PRODUCT DESCRIPTION
+# ============================================================================
+
+@router.post("/{product_id}/generate-description", response_model=Dict[str, str])
+async def generate_product_description(
+    product_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate a compelling product description from intelligence data.
+
+    This endpoint is called when a product card is hovered and no description exists.
+    It extracts key selling points from the intelligence data and creates an affiliate-focused
+    description that encourages promotion.
+    """
+
+    # Get the product
+    result = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.id == product_id,
+            ProductIntelligence.is_public == "true"
+        )
+    )
+
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found in library"
+        )
+
+    # Check if description already exists
+    existing_description, _ = extract_product_summary(product.intelligence_data)
+    if existing_description:
+        return {"description": existing_description}
+
+    # Generate description from intelligence data
+    intelligence = product.intelligence_data or {}
+
+    # Extract key elements for description
+    features = intelligence.get("product", {}).get("features", [])
+    benefits = intelligence.get("product", {}).get("benefits", [])
+    headline = intelligence.get("sales_page", {}).get("headline", "")
+    positioning = intelligence.get("market", {}).get("positioning", "")
+
+    # Build compelling description
+    description_parts = []
+
+    # Start with headline or positioning
+    if headline:
+        description_parts.append(headline)
+    elif positioning:
+        description_parts.append(positioning)
+    elif product.product_name:
+        description_parts.append(f"{product.product_name} - ")
+
+    # Add top benefit or feature
+    if benefits and len(benefits) > 0:
+        description_parts.append(f"Delivers {benefits[0].lower()}.")
+    elif features and len(features) > 0:
+        description_parts.append(f"Features {features[0].lower()}.")
+
+    # Add commission hook
+    if product.commission_rate:
+        description_parts.append(f"Earn {product.commission_rate} commission.")
+
+    # Combine and truncate to 150 characters
+    description = " ".join(description_parts)
+    if len(description) > 150:
+        description = description[:147] + "..."
+
+    # If we couldn't generate a meaningful description, use a default
+    if not description or len(description) < 20:
+        description = f"Promote {product.product_name or 'this product'} and earn {product.commission_rate or 'commissions'}."
+        if len(description) > 150:
+            description = description[:147] + "..."
+
+    # Update intelligence_data with the generated description
+    if intelligence:
+        if "product" not in intelligence:
+            intelligence["product"] = {}
+        intelligence["product"]["description"] = description
+
+        # Update the database
+        product.intelligence_data = intelligence
+        await db.commit()
+
+    return {"description": description}
+
+
+# ============================================================================
 # SEARCH PRODUCTS
 # ============================================================================
 
