@@ -267,7 +267,7 @@ export default function Layout({ children }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-[var(--bg-primary)]">
+        <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
           {children}
         </main>
 
