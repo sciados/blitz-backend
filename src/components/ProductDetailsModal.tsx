@@ -51,35 +51,55 @@ export function ProductDetailsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Product Details
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-30 z-40 transition-opacity duration-300"
+        onClick={onClose}
+      />
 
-        {/* Content */}
-        <div className="p-6">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading product details...</p>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          ) : product ? (
+      {/* Slide-in Panel */}
+      <div
+        className="fixed top-16 left-0 bottom-0 w-full md:w-[600px] lg:w-[700px] xl:w-[800px] z-50 transform transition-transform duration-300 ease-in-out"
+        style={{
+          background: 'var(--bg-secondary)',
+          boxShadow: '4px 0 24px rgba(0, 0, 0, 0.3)'
+        }}
+      >
+        <div className="h-full flex flex-col overflow-hidden">
+          {/* Header */}
+          <div
+            className="flex items-center justify-between p-6 border-b"
+            style={{ borderColor: 'var(--border-color)', background: 'var(--bg-primary)' }}
+          >
+            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              Product Details
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading product details...</p>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            ) : product ? (
             <div className="space-y-6">
               {/* Product Image */}
               {product.thumbnail_image_url && (
@@ -94,35 +114,35 @@ export function ProductDetailsModal({
 
               {/* Basic Info */}
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
                   {product.product_name || "Unknown Product"}
                 </h3>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Category</div>
-                    <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="card p-4 rounded-lg">
+                    <div className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Category</div>
+                    <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
                       {product.product_category || "Uncategorized"}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Affiliate Network</div>
-                    <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="card p-4 rounded-lg">
+                    <div className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Affiliate Network</div>
+                    <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
                       {product.affiliate_network || "Unknown"}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Commission</div>
+                  <div className="card p-4 rounded-lg">
+                    <div className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Commission</div>
                     <div className="font-medium text-green-600 dark:text-green-400">
                       {product.commission_rate || "Not specified"}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Times Used</div>
-                    <div className="font-medium text-gray-900 dark:text-white">
+                  <div className="card p-4 rounded-lg">
+                    <div className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Times Used</div>
+                    <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
                       {product.times_used} campaigns
                     </div>
                   </div>
@@ -131,7 +151,7 @@ export function ProductDetailsModal({
 
               {/* Product URL */}
               <div>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                   Sales Page URL
                 </div>
                 <a
@@ -147,17 +167,17 @@ export function ProductDetailsModal({
               {/* Intelligence Data */}
               {product.intelligence_data ? (
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  <h4 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
                     Product Intelligence
                   </h4>
 
                   {/* Product Features */}
                   {product.intelligence_data.product?.features && Array.isArray(product.intelligence_data.product.features) && product.intelligence_data.product.features.length > 0 && (
                     <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                         Features
                       </div>
-                      <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                      <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-secondary)' }}>
                         {product.intelligence_data.product.features.slice(0, 5).map((feature: string, index: number) => (
                           <li key={index}>{feature}</li>
                         ))}
@@ -168,10 +188,10 @@ export function ProductDetailsModal({
                   {/* Product Benefits */}
                   {product.intelligence_data.product?.benefits && Array.isArray(product.intelligence_data.product.benefits) && product.intelligence_data.product.benefits.length > 0 && (
                     <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                         Benefits
                       </div>
-                      <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                      <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-secondary)' }}>
                         {product.intelligence_data.product.benefits.slice(0, 5).map((benefit: string, index: number) => (
                           <li key={index}>{benefit}</li>
                         ))}
@@ -182,10 +202,10 @@ export function ProductDetailsModal({
                   {/* Target Audience */}
                   {product.intelligence_data.market?.target_audience && (
                     <div className="mb-4">
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                         Target Audience
                       </div>
-                      <div className="text-gray-600 dark:text-gray-400">
+                      <div style={{ color: 'var(--text-secondary)' }}>
                         {typeof product.intelligence_data.market.target_audience === 'string'
                           ? product.intelligence_data.market.target_audience
                           : typeof product.intelligence_data.market.target_audience === 'object'
@@ -206,46 +226,51 @@ export function ProductDetailsModal({
                   )}
                 </div>
               ) : (
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 text-center">
-                  <p className="text-gray-600 dark:text-gray-400">
+                <div className="card rounded-lg p-6 text-center">
+                  <p style={{ color: 'var(--text-secondary)' }}>
                     No intelligence data available for this product yet.
                   </p>
                 </div>
               )}
 
               {/* Metadata */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 text-sm text-gray-500 dark:text-gray-500">
+              <div className="border-t pt-4 text-sm" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
                 <div>Intelligence compiled: {new Date(product.compiled_at).toLocaleString()}</div>
                 <div>Version: {product.compilation_version}</div>
               </div>
             </div>
           ) : null}
-        </div>
+          </div>
 
-        {/* Footer */}
-        {product && (
-          <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition"
+          {/* Footer - Sticky */}
+          {product && (
+            <div
+              className="flex items-center justify-between p-6 border-t"
+              style={{ borderColor: 'var(--border-color)', background: 'var(--bg-primary)' }}
             >
-              Close
-            </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg transition-colors"
+                style={{ color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover-bg)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Close
+              </button>
 
-            {onSelect && (
               <button
                 onClick={handleSelect}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Use in Campaign</span>
+                <span>Create Campaign</span>
               </button>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
