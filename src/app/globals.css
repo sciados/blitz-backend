@@ -7,7 +7,7 @@
   /* Sidebar + page shell */
   --bg-primary: #1b1a19; /* dark slate (used for sidebar & page shell) */
   /* Canvas (set same as sidebar so page matches) */
-  --bg-secondary: #323336; /* var(--bg-primary); */
+  --bg-secondary: #2c2c2e; /* var(--bg-primary); */
   /*Help - Right Siderbar */
   --bg-sidebar-help: #1b1a19;
 
