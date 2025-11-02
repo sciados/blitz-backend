@@ -71,9 +71,11 @@ class ProductDetails(BaseModel):
     product_url: str
     product_name: Optional[str]
     product_category: Optional[str]
+    product_description: Optional[str]
     thumbnail_image_url: Optional[str]
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
+    is_recurring: bool
     intelligence_data: Optional[Dict[str, Any]]
     times_used: int
     compiled_at: str
@@ -237,14 +239,19 @@ async def get_product(
             detail="Product not found in library"
         )
 
+    # Extract description and recurring status from intelligence data
+    description, is_recurring = extract_product_summary(product.intelligence_data)
+
     return ProductDetails(
         id=product.id,
         product_url=product.product_url,
         product_name=product.product_name,
         product_category=product.product_category,
+        product_description=description,
         thumbnail_image_url=product.thumbnail_image_url,
         affiliate_network=product.affiliate_network,
         commission_rate=product.commission_rate,
+        is_recurring=is_recurring,
         intelligence_data=product.intelligence_data,
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
@@ -693,14 +700,19 @@ async def submit_product(
     # For now, product is added with basic metadata
     # Intelligence can be compiled later via admin tools or background job
 
+    # Extract description and recurring status from intelligence data
+    description, is_recurring = extract_product_summary(new_product.intelligence_data)
+
     return ProductDetails(
         id=new_product.id,
         product_url=new_product.product_url,
         product_name=new_product.product_name,
         product_category=new_product.product_category,
+        product_description=description,
         thumbnail_image_url=new_product.thumbnail_image_url,
         affiliate_network=new_product.affiliate_network,
         commission_rate=new_product.commission_rate,
+        is_recurring=is_recurring,
         intelligence_data=new_product.intelligence_data,
         times_used=new_product.times_used,
         compiled_at=new_product.compiled_at.isoformat() if new_product.compiled_at else "",
