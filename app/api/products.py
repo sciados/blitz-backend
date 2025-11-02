@@ -107,11 +107,12 @@ def extract_product_summary(intelligence_data: Optional[Dict[str, Any]]) -> tupl
     if intelligence_data.get("product", {}).get("description"):
         description = intelligence_data["product"]["description"]
     elif intelligence_data.get("sales_page", {}).get("headline"):
-        description = intelligence_data["sales_page"]["headline"]
-
-    # Truncate description to 150 characters for card display
-    if description and len(description) > 150:
-        description = description[:147] + "..."
+        # Use headline as fallback, but limit to reasonable length
+        headline = intelligence_data["sales_page"]["headline"]
+        if len(headline) > 280:
+            description = headline[:277] + "..."
+        else:
+            description = headline
 
     # Extract is_recurring from submission metadata
     is_recurring = intelligence_data.get("submission", {}).get("is_recurring", False)
@@ -294,43 +295,77 @@ async def generate_product_description(
     # Generate description from intelligence data
     intelligence = product.intelligence_data or {}
 
-    # Extract key elements for description
+    # Extract comprehensive elements for description
     features = intelligence.get("product", {}).get("features", [])
     benefits = intelligence.get("product", {}).get("benefits", [])
+    pain_points = intelligence.get("market", {}).get("pain_points", [])
     headline = intelligence.get("sales_page", {}).get("headline", "")
+    subheadline = intelligence.get("sales_page", {}).get("subheadline", "")
     positioning = intelligence.get("market", {}).get("positioning", "")
+    target_audience = intelligence.get("market", {}).get("target_audience", "")
 
-    # Build compelling description
+    # Build comprehensive description
     description_parts = []
 
-    # Start with headline or positioning
-    if headline:
-        description_parts.append(headline)
+    # 1. Start with what the product is (headline or positioning)
+    if headline and len(headline) < 100:
+        description_parts.append(headline.rstrip('.') + '.')
     elif positioning:
-        description_parts.append(positioning)
+        description_parts.append(positioning.rstrip('.') + '.')
     elif product.product_name:
-        description_parts.append(f"{product.product_name} - ")
+        description_parts.append(f"{product.product_name}:")
 
-    # Add top benefit or feature
-    if benefits and len(benefits) > 0:
-        description_parts.append(f"Delivers {benefits[0].lower()}.")
-    elif features and len(features) > 0:
-        description_parts.append(f"Features {features[0].lower()}.")
+    # 2. Add what it does (subheadline or top benefit)
+    if subheadline and len(subheadline) < 100:
+        description_parts.append(subheadline.rstrip('.') + '.')
+    elif benefits and len(benefits) > 0:
+        benefit = benefits[0].rstrip('.')
+        # Make it conversational
+        if not benefit.lower().startswith(('delivers', 'provides', 'helps', 'enables')):
+            benefit = f"Helps you {benefit.lower()}"
+        description_parts.append(benefit + '.')
 
-    # Add commission hook
+    # 3. Add key feature or pain point solution
+    if pain_points and len(pain_points) > 0:
+        pain = pain_points[0].rstrip('.')
+        description_parts.append(f"Solves: {pain.lower()}.")
+    elif features and len(features) > 0 and len(description_parts) < 2:
+        feature = features[0].rstrip('.')
+        description_parts.append(f"Features {feature.lower()}.")
+
+    # 4. Add target audience if short enough
+    if target_audience and isinstance(target_audience, str) and len(target_audience) < 50:
+        description_parts.append(f"Perfect for {target_audience.lower()}.")
+
+    # 5. Add commission hook
     if product.commission_rate:
-        description_parts.append(f"Earn {product.commission_rate} commission.")
+        commission_text = f"Earn {product.commission_rate}"
+        if intelligence.get("submission", {}).get("is_recurring"):
+            commission_text += " recurring"
+        description_parts.append(commission_text + " commission!")
 
-    # Combine and truncate to 150 characters
+    # Combine with intelligent truncation (target ~250 chars, max 280)
     description = " ".join(description_parts)
-    if len(description) > 150:
-        description = description[:147] + "..."
+
+    # Truncate intelligently at sentence boundaries if too long
+    if len(description) > 280:
+        # Try to keep at least 2 sentences
+        sentences = description.split('. ')
+        truncated = sentences[0] + '.'
+        for sentence in sentences[1:]:
+            if len(truncated) + len(sentence) + 2 <= 280:
+                truncated += ' ' + sentence + ('.' if not sentence.endswith('.') else '')
+            else:
+                break
+        description = truncated
+        if len(description) > 280:
+            description = description[:277] + "..."
 
     # If we couldn't generate a meaningful description, use a default
-    if not description or len(description) < 20:
+    if not description or len(description) < 30:
         description = f"Promote {product.product_name or 'this product'} and earn {product.commission_rate or 'commissions'}."
-        if len(description) > 150:
-            description = description[:147] + "..."
+        if product.product_category:
+            description = f"{product.product_category.title()} product: {description}"
 
     # Update intelligence_data with the generated description
     if intelligence:
