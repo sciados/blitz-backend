@@ -240,30 +240,38 @@ export default function Layout({ children }: LayoutProps) {
         {/* Left Sidebar */}
         <aside
           className={`${
-            leftSidebarOpen ? "w-64" : "w-0"
+            leftSidebarOpen ? "w-64" : "w-16"
           } transition-all duration-300 border-r border-[var(--border-color)] bg-[var(--bg-primary)] overflow-y-auto`}
         >
-          {leftSidebarOpen && (
-            <nav className="p-4 space-y-1">
-              {menuItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href as any}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
-                        : "hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
-                    }`}
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          )}
+          <nav className="p-2 space-y-1">
+            {menuItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href as any}
+                  className={`flex items-center ${
+                    leftSidebarOpen ? "space-x-3 px-4" : "justify-center px-2"
+                  } py-3 rounded-lg transition-colors group relative ${
+                    isActive
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
+                      : "hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                  }`}
+                  title={!leftSidebarOpen ? item.label : undefined}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  {leftSidebarOpen && <span>{item.label}</span>}
+
+                  {/* Tooltip for collapsed state */}
+                  {!leftSidebarOpen && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded shadow-lg text-sm text-[var(--text-primary)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                      {item.label}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
         </aside>
 
         {/* Main Content */}
