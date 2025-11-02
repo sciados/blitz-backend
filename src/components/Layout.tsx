@@ -120,7 +120,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     // Use the same background for the shell and page canvas so the main page matches the sidebar
-    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
+    <div className="min-h-screen flex flex-col bg-[var(--bg-secondary)]">
       {/* Header */}
       <header className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)] flex items-center justify-between px-4 sticky top-0 z-50">
         {/* Left: Menu Toggle + Logo */}
