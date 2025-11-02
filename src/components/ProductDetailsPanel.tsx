@@ -32,10 +32,7 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
       setProduct(response.data);
 
       // Check if description exists, if not, generate one
-      const hasDescription = response.data.intelligence_data?.product?.description ||
-                            response.data.intelligence_data?.sales_page?.headline;
-
-      if (!hasDescription && !isGeneratingDesc) {
+      if (!response.data.product_description && !isGeneratingDesc) {
         generateDescription(response.data.id);
       }
     } catch (err: any) {
@@ -51,6 +48,14 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
     try {
       const response = await api.post(`/api/products/${prodId}/generate-description`);
       setGeneratedDescription(response.data.description);
+
+      // Update the product object with the generated description
+      if (product) {
+        setProduct({
+          ...product,
+          product_description: response.data.description
+        });
+      }
     } catch (err) {
       console.error("Failed to generate description:", err);
       // Silent fail - will show "No description available"
@@ -99,10 +104,8 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
     return null;
   }
 
-  // Extract description from intelligence data or use generated one
-  const productDescription = generatedDescription ||
-                             product.intelligence_data?.product?.description ||
-                             product.intelligence_data?.sales_page?.headline ||
+  // Use product description from database or show generating/not available message
+  const productDescription = product.product_description ||
                              (isGeneratingDesc ? "Generating description..." : "No description available for this product.");
 
   return (
