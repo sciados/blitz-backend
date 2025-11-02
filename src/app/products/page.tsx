@@ -2,6 +2,7 @@
 
 import { AuthGate } from "src/components/AuthGate";
 import { ProductCard } from "src/components/ProductCard";
+import { ProductDetailsPanel } from "src/components/ProductDetailsPanel";
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { ProductLibraryItem, ProductCategory } from "src/lib/types";
@@ -18,6 +19,7 @@ export default function ProductLibraryPage() {
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "alphabetical">("recent");
   const [recurringOnly, setRecurringOnly] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const isAdmin = getRoleFromToken() === "admin";
 
   const fetchProducts = async () => {
@@ -121,7 +123,7 @@ export default function ProductLibraryPage() {
 
   return (
     <AuthGate requiredRole="user">
-      <div className="p-6">
+      <div className="p-6 h-full overflow-hidden flex flex-col">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div>
@@ -288,46 +290,56 @@ export default function ProductLibraryPage() {
           )}
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
+        {!selectedProductId ? (
+          <>
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {error}
+              </div>
+            )}
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading products...</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="card rounded-lg p-12 text-center">
-            <div className="mb-4" style={{ color: 'var(--text-secondary)' }}>
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-              No Products Found
-            </h3>
-            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
-              {searchQuery || selectedCategory
-                ? "Try adjusting your search or filters"
-                : "Be the first to add a product by creating a campaign!"}
-            </p>
-          </div>
+            {/* Loading State */}
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading products...</p>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="card rounded-lg p-12 text-center">
+                <div className="mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                  No Products Found
+                </h3>
+                <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  {searchQuery || selectedCategory
+                    ? "Try adjusting your search or filters"
+                    : "Be the first to add a product by creating a campaign!"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onDelete={isAdmin ? handleDeleteProduct : undefined}
+                    showDeleteButton={isAdmin}
+                    onViewDetails={() => setSelectedProductId(product.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onDelete={isAdmin ? handleDeleteProduct : undefined}
-                showDeleteButton={isAdmin}
-              />
-            ))}
-          </div>
+          <ProductDetailsPanel
+            productId={selectedProductId}
+            onClose={() => setSelectedProductId(null)}
+          />
         )}
       </div>
     </AuthGate>

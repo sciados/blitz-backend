@@ -11,10 +11,10 @@ interface ProductCardProps {
   showSelectButton?: boolean;
   onDelete?: (productId: number) => void;
   showDeleteButton?: boolean;
+  onViewDetails?: () => void;
 }
 
-export function ProductCard({ product, onSelect, showSelectButton = false, onDelete, showDeleteButton = false }: ProductCardProps) {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+export function ProductCard({ product, onSelect, showSelectButton = false, onDelete, showDeleteButton = false, onViewDetails }: ProductCardProps) {
   const isAdmin = getRoleFromToken() === "admin";
 
   const formatDate = (dateString: string) => {
@@ -133,7 +133,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
           {/* Actions - Compact */}
           <div className="flex gap-1.5 mt-auto">
             <button
-              onClick={() => setShowDetailsModal(true)}
+              onClick={onViewDetails}
               className="flex-1 px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-600 dark:border-blue-400 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
             >
               Details
@@ -163,16 +163,6 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
           </div>
         </div>
       </div>
-
-      {/* Details Modal */}
-      {showDetailsModal && (
-        <ProductDetailsModal
-          productId={product.id}
-          isOpen={showDetailsModal}
-          onClose={() => setShowDetailsModal(false)}
-          onSelect={onSelect}
-        />
-      )}
     </>
   );
 }

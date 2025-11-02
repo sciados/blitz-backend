@@ -83,3 +83,19 @@ body {
 .shadow-card-sm {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
+
+/* Slide-in animation for product details panel */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromLeft 0.3s ease-out;
+}
