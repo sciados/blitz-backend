@@ -57,7 +57,7 @@ export default function CampaignsPage() {
     <AuthGate requiredRole="user">
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
             Campaigns
           </h1>
           <button
@@ -90,13 +90,13 @@ export default function CampaignsPage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">
+            <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>
               Loading campaigns...
             </p>
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-            <div className="text-gray-400 mb-4">
+          <div className="card rounded-lg p-12 text-center">
+            <div className="mb-4" style={{ color: 'var(--text-secondary)' }}>
               <svg
                 className="w-16 h-16 mx-auto"
                 fill="none"
@@ -111,10 +111,10 @@ export default function CampaignsPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               No campaigns yet
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
               Create your first campaign to get started
             </p>
             <button
@@ -129,13 +129,13 @@ export default function CampaignsPage() {
             {campaigns.map((campaign) => (
               <div
                 key={campaign.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition p-6 relative"
+                className="card rounded-lg hover:shadow-md transition p-6 relative"
               >
                 <Link href={`/campaigns/${campaign.id}`} className="block">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                        <h3 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
                           {campaign.name}
                         </h3>
                         <span
@@ -147,7 +147,7 @@ export default function CampaignsPage() {
                         </span>
                       </div>
 
-                      <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="space-y-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
                         <div className="flex items-center space-x-2">
                           <svg
                             className="w-4 h-4"
@@ -222,17 +222,17 @@ export default function CampaignsPage() {
                     </div>
 
                     <div className="text-right ml-4">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                         Created
                       </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
                         {new Date(campaign.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
 
                   {campaign.product_description && (
-                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    <p className="mt-3 text-sm line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
                       {campaign.product_description}
                     </p>
                   )}
