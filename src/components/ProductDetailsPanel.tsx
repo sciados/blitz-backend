@@ -76,6 +76,11 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
     return null;
   }
 
+  // Extract description from intelligence data
+  const productDescription = product.intelligence_data?.product?.description ||
+                             product.intelligence_data?.sales_page?.headline ||
+                             "No description available for this product.";
+
   return (
     <div className="h-full flex flex-col animate-slide-in">
       {/* Header */}
@@ -144,7 +149,7 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
                 {product.product_name || "Unknown Product"}
               </h3>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {product.product_description || "No description available for this product."}
+                {productDescription}
               </p>
             </div>
 

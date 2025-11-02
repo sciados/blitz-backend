@@ -100,14 +100,14 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
 
             {/* Back - Description */}
             <div
-              className="absolute inset-0 p-3 flex flex-col justify-center items-center text-center"
+              className="absolute inset-0 p-3 flex flex-col justify-center items-center text-center overflow-y-auto"
               style={{
                 backfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)',
                 background: 'var(--card-bg)'
               }}
             >
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-xs leading-relaxed max-h-full" style={{ color: 'var(--text-secondary)' }}>
                 {isGenerating ? "Generating description..." : displayDescription}
               </p>
             </div>
