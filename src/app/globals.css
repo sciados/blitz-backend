@@ -5,7 +5,7 @@
 /* Theme variables */
 :root {
   /* Sidebar + page shell */
-  --bg-primary: #1f2937; /* dark slate (used for sidebar & page shell) */
+  --bg-primary: #1b1a19; /* dark slate (used for sidebar & page shell) */
   /* Canvas (set same as sidebar so page matches) */
   --bg-secondary: #414347; /* var(--bg-primary); */
   /*Help - Right Siderbar */
@@ -40,7 +40,7 @@
 
 /* Dark theme (override if you toggle data-theme="dark") */
 [data-theme="dark"] {
-  --bg-primary: #343535; /* sidebar & page shell */
+  --bg-primary: #1b1a19; /* sidebar & page shell */
   --bg-secondary: #414347; /* 767474 var(--bg-primary); match sidebar */
   --card-bg: #2b2a2a; /* 0b1220; cards slightly lighter than shell */
   --card-border: #1f2937;
