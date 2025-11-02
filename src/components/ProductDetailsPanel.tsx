@@ -15,6 +15,8 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatedDescription, setGeneratedDescription] = useState<string | null>(null);
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -28,11 +30,32 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
       setError(null);
       const response = await api.get(`/api/products/${productId}`);
       setProduct(response.data);
+
+      // Check if description exists, if not, generate one
+      const hasDescription = response.data.intelligence_data?.product?.description ||
+                            response.data.intelligence_data?.sales_page?.headline;
+
+      if (!hasDescription && !isGeneratingDesc) {
+        generateDescription(response.data.id);
+      }
     } catch (err: any) {
       console.error("Failed to fetch product details:", err);
       setError("Failed to load product details. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateDescription = async (prodId: number) => {
+    setIsGeneratingDesc(true);
+    try {
+      const response = await api.post(`/api/products/${prodId}/generate-description`);
+      setGeneratedDescription(response.data.description);
+    } catch (err) {
+      console.error("Failed to generate description:", err);
+      // Silent fail - will show "No description available"
+    } finally {
+      setIsGeneratingDesc(false);
     }
   };
 
@@ -76,10 +99,11 @@ export function ProductDetailsPanel({ productId, onClose }: ProductDetailsPanelP
     return null;
   }
 
-  // Extract description from intelligence data
-  const productDescription = product.intelligence_data?.product?.description ||
+  // Extract description from intelligence data or use generated one
+  const productDescription = generatedDescription ||
+                             product.intelligence_data?.product?.description ||
                              product.intelligence_data?.sales_page?.headline ||
-                             "No description available for this product.";
+                             (isGeneratingDesc ? "Generating description..." : "No description available for this product.");
 
   return (
     <div className="h-full flex flex-col animate-slide-in">
