@@ -4,6 +4,7 @@ import { ProductLibraryItem } from "src/lib/types";
 import { useState } from "react";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 import { getRoleFromToken } from "src/lib/auth";
+import { api } from "src/lib/appClient";
 
 interface ProductCardProps {
   product: ProductLibraryItem;
@@ -16,6 +17,26 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onSelect, showSelectButton = false, onDelete, showDeleteButton = false, onViewDetails }: ProductCardProps) {
   const isAdmin = getRoleFromToken() === "admin";
+  const [generatedDescription, setGeneratedDescription] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleHover = async () => {
+    // Only generate if no description exists and we haven't already generated one
+    if (!product.product_description && !generatedDescription && !isGenerating) {
+      setIsGenerating(true);
+      try {
+        const response = await api.post(`/api/products/${product.id}/generate-description`);
+        setGeneratedDescription(response.data.description);
+      } catch (err) {
+        console.error("Failed to generate description:", err);
+        // Silent fail - don't show error to user, just keep placeholder text
+      } finally {
+        setIsGenerating(false);
+      }
+    }
+  };
+
+  const displayDescription = generatedDescription || product.product_description || "No description available for this product.";
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -29,7 +50,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
     <>
       <div className="card rounded-lg hover:shadow-lg transition-all duration-300 flex flex-col group">
         {/* Thumbnail with Flip Effect */}
-        <div className="relative h-40 rounded-t-lg overflow-hidden" style={{ perspective: '1000px' }}>
+        <div className="relative h-40 rounded-t-lg overflow-hidden" style={{ perspective: '1000px' }} onMouseEnter={handleHover}>
           <div className="relative w-full h-full transition-transform duration-500 group-hover:[transform:rotateY(180deg)]" style={{ transformStyle: 'preserve-3d' }}>
             {/* Front - Image */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600" style={{ backfaceVisibility: 'hidden' }}>
@@ -87,7 +108,7 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
               }}
             >
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {product.product_description || "No description available for this product."}
+                {isGenerating ? "Generating description..." : displayDescription}
               </p>
             </div>
           </div>
