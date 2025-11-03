@@ -62,6 +62,7 @@ export type ProductDetails = {
     thumbnail_image_url: string | null;
     affiliate_network: string | null;
     commission_rate: string | null;
+    affiliate_link_url: string | null;
     is_recurring: boolean;
     intelligence_data: any;
     times_used: number;

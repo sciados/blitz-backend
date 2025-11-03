@@ -351,14 +351,81 @@ export function ProductDetailsPanel({
               </div>
             </div>
 
+            {/* Product URL */}
+            <div className="card rounded-lg p-6">
+              <div
+                className="text-sm font-medium mb-2"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Sales Page URL
+              </div>
+              <a
+                href={product.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline break-all text-sm"
+              >
+                {product.product_url}
+              </a>
+            </div>
+
+            {/* Affiliate Link */}
+            {product.affiliate_link_url && (
+              <div className="card rounded-lg p-6">
+                <div
+                  className="text-sm font-medium mb-2 flex items-center"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  Get Your Affiliate Link
+                </div>
+                <a
+                  href={product.affiliate_link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                  Get Affiliate Link on {product.affiliate_network}
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Product Description & Intelligence Data */}
+          <div className="space-y-6">
             {/* Product Description */}
             <div className="card rounded-lg p-6">
               <div
-                className="text-sm font-semibold mb-2 flex items-center"
+                className="text-lg font-semibold mb-3 flex items-center"
                 style={{ color: "var(--text-primary)" }}
               >
                 <svg
-                  className="w-4 h-4 mr-2"
+                  className="w-5 h-5 mr-2"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -380,27 +447,6 @@ export function ProductDetailsPanel({
               </p>
             </div>
 
-            {/* Product URL */}
-            <div className="card rounded-lg p-6">
-              <div
-                className="text-sm font-medium mb-2"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Sales Page URL
-              </div>
-              <a
-                href={product.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline break-all text-sm"
-              >
-                {product.product_url}
-              </a>
-            </div>
-          </div>
-
-          {/* Right Column - Intelligence Data */}
-          <div className="space-y-6">
             {product.intelligence_data ? (
               <>
                 <div className="card rounded-lg p-6">
