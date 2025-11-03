@@ -522,24 +522,6 @@ export function ProductDetailsPanel({
               </div>
             </div>
 
-            {/* Product URL */}
-            <div className="card rounded-lg p-6">
-              <div
-                className="text-sm font-medium mb-2"
-                style={{ color: "var(--text-primary)" }}
-              >
-                Sales Page URL
-              </div>
-              <a
-                href={product.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline break-all text-sm"
-              >
-                {product.product_url}
-              </a>
-            </div>
-
             {/* Affiliate Link */}
             {(product.affiliate_link_url || isEditMode) && (
               <div className="card rounded-lg p-6">
@@ -814,6 +796,24 @@ export function ProductDetailsPanel({
                 </p>
               </div>
             )}
+
+            {/* Product URL */}
+            <div className="card rounded-lg p-6">
+              <div
+                className="text-sm font-medium mb-2"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Sales Page URL
+              </div>
+              <a
+                href={product.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline break-all text-sm"
+              >
+                {product.product_url}
+              </a>
+            </div>
 
             {/* Metadata */}
             <div
