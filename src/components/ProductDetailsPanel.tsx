@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { ProductDetails } from "src/lib/types";
 import { useRouter } from "next/navigation";
+import { getRoleFromToken } from "src/lib/auth";
+import { toast } from "sonner";
 
 interface ProductDetailsPanelProps {
   productId: number;
@@ -15,6 +17,7 @@ export function ProductDetailsPanel({
   onClose,
 }: ProductDetailsPanelProps) {
   const router = useRouter();
+  const isAdmin = getRoleFromToken() === "admin";
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +25,9 @@ export function ProductDetailsPanel({
     string | null
   >(null);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -75,6 +81,43 @@ export function ProductDetailsPanel({
     if (product) {
       // Navigate to create campaign with this product pre-selected
       router.push(`/campaigns/create?productId=${product.id}`);
+    }
+  };
+
+  const handleEdit = () => {
+    if (product) {
+      setEditedProduct({
+        product_name: product.product_name || "",
+        product_category: product.product_category || "",
+        affiliate_network: product.affiliate_network || "",
+        commission_rate: product.commission_rate || "",
+        affiliate_link_url: product.affiliate_link_url || "",
+        product_description: product.product_description || "",
+      });
+      setIsEditMode(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedProduct({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (!product) return;
+
+    setIsSaving(true);
+    try {
+      const response = await api.patch(`/api/products/${product.id}`, editedProduct);
+      setProduct(response.data);
+      setIsEditMode(false);
+      setEditedProduct({});
+      toast.success("Product updated successfully");
+    } catch (err: any) {
+      console.error("Failed to update product:", err);
+      toast.error(err.response?.data?.detail || "Failed to update product");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -149,25 +192,104 @@ export function ProductDetailsPanel({
             Product Details
           </h2>
         </div>
-        <button
-          onClick={handleCreateCampaign}
-          className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          <span>Create Campaign</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          {isEditMode ? (
+            <>
+              <button
+                onClick={handleCancelEdit}
+                disabled={isSaving}
+                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition flex items-center space-x-2 font-medium disabled:opacity-50"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span>Cancel</span>
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2 font-medium disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span>Save Changes</span>
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              {isAdmin && (
+                <button
+                  onClick={handleEdit}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  <span>Edit Product</span>
+                </button>
+              )}
+              <button
+                onClick={handleCreateCampaign}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                <span>Create Campaign</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Content - Multi-column layout */}
@@ -205,12 +327,28 @@ export function ProductDetailsPanel({
 
             {/* Product Name & Target Audience */}
             <div className="card rounded-lg p-6">
-              <h3
-                className="text-2xl font-bold mb-4"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {product.product_name || "Unknown Product"}
-              </h3>
+              {isEditMode ? (
+                <div className="mb-4">
+                  <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editedProduct.product_name || ""}
+                    onChange={(e) => setEditedProduct({ ...editedProduct, product_name: e.target.value })}
+                    className="w-full px-3 py-2 text-xl font-bold rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    style={{ color: "var(--text-primary)" }}
+                    placeholder="Product Name"
+                  />
+                </div>
+              ) : (
+                <h3
+                  className="text-2xl font-bold mb-4"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {product.product_name || "Unknown Product"}
+                </h3>
+              )}
 
               {/* Target Audience */}
               {product.intelligence_data?.market?.target_audience ? (
@@ -277,12 +415,23 @@ export function ProductDetailsPanel({
                 >
                   Category
                 </div>
-                <div
-                  className="font-semibold text-sm"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {product.product_category || "Uncategorized"}
-                </div>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={editedProduct.product_category || ""}
+                    onChange={(e) => setEditedProduct({ ...editedProduct, product_category: e.target.value })}
+                    className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    style={{ color: "var(--text-primary)" }}
+                    placeholder="Category"
+                  />
+                ) : (
+                  <div
+                    className="font-semibold text-sm"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {product.product_category || "Uncategorized"}
+                  </div>
+                )}
               </div>
 
               <div className="card p-4 rounded-lg">
@@ -292,12 +441,23 @@ export function ProductDetailsPanel({
                 >
                   Affiliate Network
                 </div>
-                <div
-                  className="font-semibold text-sm"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {product.affiliate_network || "Unknown"}
-                </div>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={editedProduct.affiliate_network || ""}
+                    onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_network: e.target.value })}
+                    className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    style={{ color: "var(--text-primary)" }}
+                    placeholder="Affiliate Network"
+                  />
+                ) : (
+                  <div
+                    className="font-semibold text-sm"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {product.affiliate_network || "Unknown"}
+                  </div>
+                )}
               </div>
 
               <div className="card p-4 rounded-lg">
@@ -307,25 +467,36 @@ export function ProductDetailsPanel({
                 >
                   Commission Rate
                 </div>
-                <div className="font-semibold text-sm text-green-600 dark:text-green-400 flex items-center">
-                  {product.commission_rate || "Not specified"}
-                  {product.is_recurring && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
-                      <svg
-                        className="w-3 h-3 mr-0.5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Recurring
-                    </span>
-                  )}
-                </div>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    value={editedProduct.commission_rate || ""}
+                    onChange={(e) => setEditedProduct({ ...editedProduct, commission_rate: e.target.value })}
+                    className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    style={{ color: "var(--text-primary)" }}
+                    placeholder="e.g. 50% or $37/sale"
+                  />
+                ) : (
+                  <div className="font-semibold text-sm text-green-600 dark:text-green-400 flex items-center">
+                    {product.commission_rate || "Not specified"}
+                    {product.is_recurring && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+                        <svg
+                          className="w-3 h-3 mr-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Recurring
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="card p-4 rounded-lg">
@@ -370,7 +541,7 @@ export function ProductDetailsPanel({
             </div>
 
             {/* Affiliate Link */}
-            {product.affiliate_link_url && (
+            {(product.affiliate_link_url || isEditMode) && (
               <div className="card rounded-lg p-6">
                 <div
                   className="text-sm font-medium mb-2 flex items-center"
@@ -391,27 +562,38 @@ export function ProductDetailsPanel({
                   </svg>
                   Get Your Affiliate Link
                 </div>
-                <a
-                  href={product.affiliate_link_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
-                >
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                {isEditMode ? (
+                  <input
+                    type="url"
+                    value={editedProduct.affiliate_link_url || ""}
+                    onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_link_url: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                    style={{ color: "var(--text-primary)" }}
+                    placeholder="https://example.com/affiliate-signup"
+                  />
+                ) : (
+                  <a
+                    href={product.affiliate_link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                  Get Affiliate Link on {product.affiliate_network}
-                </a>
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                    Get Affiliate Link on {product.affiliate_network}
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -439,12 +621,23 @@ export function ProductDetailsPanel({
                 </svg>
                 Product Description
               </div>
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {productDescription}
-              </p>
+              {isEditMode ? (
+                <textarea
+                  value={editedProduct.product_description || ""}
+                  onChange={(e) => setEditedProduct({ ...editedProduct, product_description: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] min-h-[100px]"
+                  style={{ color: "var(--text-primary)" }}
+                  placeholder="Enter product description..."
+                  rows={4}
+                />
+              ) : (
+                <p
+                  className="text-sm leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {productDescription}
+                </p>
+              )}
             </div>
 
             {product.intelligence_data ? (
