@@ -573,7 +573,7 @@ export function ProductDetailsPanel({
                   />
                 ) : (
                   <a
-                    href={product.affiliate_link_url}
+                    href={product.affiliate_link_url || ""}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
