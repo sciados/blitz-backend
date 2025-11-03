@@ -728,6 +728,118 @@ async def submit_product(
 
 
 # ============================================================================
+# UPDATE PRODUCT (ADMIN ONLY)
+# ============================================================================
+
+class ProductUpdate(BaseModel):
+    """Update product metadata"""
+    product_name: Optional[str] = None
+    product_category: Optional[str] = None
+    affiliate_network: Optional[str] = None
+    commission_rate: Optional[str] = None
+    affiliate_link_url: Optional[str] = None
+    product_description: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "product_name": "Updated Product Name",
+                "product_category": "health",
+                "affiliate_network": "ClickBank",
+                "commission_rate": "60%",
+                "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
+                "product_description": "Updated description..."
+            }
+        }
+
+
+@router.patch("/{product_id}", response_model=ProductDetails)
+async def update_product(
+    product_id: int,
+    update: ProductUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update product metadata (admin only).
+
+    Allows updating product library fields like name, category, network, etc.
+    """
+    # Only admins can update products (for now)
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can update products"
+        )
+
+    # Get the product
+    result = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.id == product_id,
+            ProductIntelligence.is_public == "true"
+        )
+    )
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    # Update fields if provided
+    if update.product_name is not None:
+        product.product_name = update.product_name
+
+    if update.product_category is not None:
+        product.product_category = update.product_category
+
+    if update.affiliate_network is not None:
+        product.affiliate_network = update.affiliate_network
+
+    if update.commission_rate is not None:
+        product.commission_rate = update.commission_rate
+
+    if update.affiliate_link_url is not None:
+        product.affiliate_link_url = update.affiliate_link_url
+
+    # Update description in intelligence_data if provided
+    if update.product_description is not None:
+        if product.intelligence_data is None:
+            product.intelligence_data = {}
+        if "product" not in product.intelligence_data:
+            product.intelligence_data["product"] = {}
+        product.intelligence_data["product"]["description"] = update.product_description
+        # Mark as modified so SQLAlchemy detects the change
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(product, "intelligence_data")
+
+    await db.commit()
+    await db.refresh(product)
+
+    # Extract description and recurring status
+    description, is_recurring = extract_product_summary(product.intelligence_data)
+
+    return ProductDetails(
+        id=product.id,
+        product_url=product.product_url,
+        product_name=product.product_name,
+        product_category=product.product_category,
+        product_description=description,
+        thumbnail_image_url=product.thumbnail_image_url,
+        affiliate_network=product.affiliate_network,
+        commission_rate=product.commission_rate,
+        affiliate_link_url=product.affiliate_link_url,
+        is_recurring=is_recurring,
+        intelligence_data=product.intelligence_data,
+        times_used=product.times_used,
+        compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
+        last_accessed_at=product.last_accessed_at.isoformat() if product.last_accessed_at else None,
+        compilation_version=product.compilation_version
+    )
+
+
+# ============================================================================
 # DELETE PRODUCT (ADMIN ONLY)
 # ============================================================================
 
