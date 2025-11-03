@@ -31,6 +31,7 @@ class ProductSubmission(BaseModel):
     affiliate_network: str
     commission_rate: str
     product_description: Optional[str] = None
+    affiliate_link_url: Optional[str] = None  # URL where affiliates get their link
     is_recurring: bool = False  # Future: recurring commission checkbox
 
     class Config:
@@ -42,6 +43,7 @@ class ProductSubmission(BaseModel):
                 "affiliate_network": "ClickBank",
                 "commission_rate": "50%",
                 "product_description": "Revolutionary weight loss formula...",
+                "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
                 "is_recurring": False
             }
         }
@@ -75,6 +77,7 @@ class ProductDetails(BaseModel):
     thumbnail_image_url: Optional[str]
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
+    affiliate_link_url: Optional[str]
     is_recurring: bool
     intelligence_data: Optional[Dict[str, Any]]
     times_used: int
@@ -251,6 +254,7 @@ async def get_product(
         thumbnail_image_url=product.thumbnail_image_url,
         affiliate_network=product.affiliate_network,
         commission_rate=product.commission_rate,
+        affiliate_link_url=product.affiliate_link_url,
         is_recurring=is_recurring,
         intelligence_data=product.intelligence_data,
         times_used=product.times_used,
@@ -672,6 +676,7 @@ async def submit_product(
         product_category=submission.product_category,
         affiliate_network=submission.affiliate_network,
         commission_rate=submission.commission_rate,
+        affiliate_link_url=submission.affiliate_link_url,
         compilation_version="pending",  # Mark as pending compilation
         is_public="true",  # Make immediately public
         times_used=0,
@@ -712,6 +717,7 @@ async def submit_product(
         thumbnail_image_url=new_product.thumbnail_image_url,
         affiliate_network=new_product.affiliate_network,
         commission_rate=new_product.commission_rate,
+        affiliate_link_url=new_product.affiliate_link_url,
         is_recurring=is_recurring,
         intelligence_data=new_product.intelligence_data,
         times_used=new_product.times_used,
