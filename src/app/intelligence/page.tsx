@@ -420,11 +420,24 @@ export default function IntelligencePage() {
                     <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                       Target Audience
                     </h3>
-                    <p className="leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      {typeof intelligenceData.market.target_audience === 'string'
-                        ? intelligenceData.market.target_audience
-                        : JSON.stringify(intelligenceData.market.target_audience, null, 2)}
-                    </p>
+                    {typeof intelligenceData.market.target_audience === 'string' ? (
+                      <p className="leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        {intelligenceData.market.target_audience}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(intelligenceData.market.target_audience).map(([key, value]: [string, any]) => (
+                          <div key={key} className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                            <div className="text-sm font-semibold mb-1 capitalize" style={{ color: 'var(--text-primary)' }}>
+                              {key.replace(/_/g, ' ')}
+                            </div>
+                            <div className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                              {renderValue(value)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -566,14 +579,30 @@ export default function IntelligencePage() {
                       <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         Objections Addressed
                       </h3>
-                      <ul className="space-y-2">
+                      <div className="space-y-3">
                         {intelligenceData.marketing.objections_handled.map((objection: any, idx: number) => (
-                          <li key={idx} className="flex items-start text-sm">
-                            <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(objection)}</span>
-                          </li>
+                          <div key={idx} className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+                            {typeof objection === 'object' && objection !== null ? (
+                              <>
+                                {objection.objection && (
+                                  <div className="mb-2">
+                                    <span className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>Objection:</span>
+                                    <p className="text-sm mt-1 font-medium" style={{ color: 'var(--text-primary)' }}>{objection.objection}</p>
+                                  </div>
+                                )}
+                                {objection.response && (
+                                  <div>
+                                    <span className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>Response:</span>
+                                    <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{objection.response}</p>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{renderValue(objection)}</p>
+                            )}
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
 
@@ -750,14 +779,28 @@ export default function IntelligencePage() {
                       <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         Recommended Angles
                       </h3>
-                      <ul className="space-y-2">
+                      <div className="space-y-3">
                         {intelligenceData.analysis.recommended_angles.map((angle: any, idx: number) => (
-                          <li key={idx} className="flex items-start text-sm">
-                            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(angle)}</span>
-                          </li>
+                          <div key={idx} className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+                            {typeof angle === 'object' && angle !== null ? (
+                              <div className="space-y-2">
+                                {Object.entries(angle).map(([key, value]: [string, any]) => (
+                                  <div key={key}>
+                                    <span className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
+                                      {key.replace(/_/g, ' ')}:
+                                    </span>
+                                    <p className="text-sm mt-1" style={{ color: 'var(--text-primary)' }}>
+                                      {renderValue(value)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{renderValue(angle)}</p>
+                            )}
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
 
@@ -816,7 +859,7 @@ export default function IntelligencePage() {
             )}
 
             {/* Research Section */}
-            {intelligenceData.research && (
+            {intelligenceData.research ? (
               <div className="card rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-4 flex items-center" style={{ color: 'var(--text-primary)' }}>
                   <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -863,7 +906,7 @@ export default function IntelligencePage() {
 
                 {/* Research Sources by Category */}
                 {intelligenceData.research.all_sources && Array.isArray(intelligenceData.research.all_sources) && intelligenceData.research.all_sources.length > 0 && (
-                  <details className="mt-4">
+                  <details className="mt-4" open>
                     <summary className="text-lg font-semibold cursor-pointer mb-3" style={{ color: 'var(--text-primary)' }}>
                       View All Research Sources ({intelligenceData.research.all_sources.length})
                     </summary>
@@ -893,6 +936,32 @@ export default function IntelligencePage() {
                     </div>
                   </details>
                 )}
+              </div>
+            ) : (
+              <div className="card rounded-lg p-6">
+                <h2 className="text-2xl font-bold mb-4 flex items-center" style={{ color: 'var(--text-primary)' }}>
+                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  RAG Research Data
+                </h2>
+                <div className="text-center py-8">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-3 opacity-30"
+                    style={{ color: 'var(--text-secondary)' }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    No RAG research data available for this campaign.
+                  </p>
+                  <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+                    RAG research includes ingredient studies, feature research, and market analysis from scholarly and web sources.
+                  </p>
+                </div>
               </div>
             )}
 
