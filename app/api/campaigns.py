@@ -89,6 +89,7 @@ async def list_campaigns(
     campaign_responses = []
     for campaign in campaigns:
         intelligence_data = None
+        thumbnail_image_url = None
         if campaign.product_intelligence_id:
             intel_result = await db.execute(
                 select(ProductIntelligence).where(
@@ -96,8 +97,11 @@ async def list_campaigns(
                 )
             )
             intelligence = intel_result.scalar_one_or_none()
-            if intelligence and intelligence.intelligence_data:
-                intelligence_data = intelligence.intelligence_data
+            if intelligence:
+                if intelligence.intelligence_data:
+                    intelligence_data = intelligence.intelligence_data
+                if intelligence.thumbnail_image_url:
+                    thumbnail_image_url = intelligence.thumbnail_image_url
 
         campaign_responses.append(CampaignResponse(
             id=campaign.id,
@@ -111,7 +115,9 @@ async def list_campaigns(
             target_audience=campaign.target_audience,
             marketing_angles=campaign.marketing_angles,
             status=campaign.status,
+            product_intelligence_id=campaign.product_intelligence_id,
             intelligence_data=intelligence_data,
+            thumbnail_image_url=thumbnail_image_url,
             created_at=campaign.created_at,
             updated_at=campaign.updated_at
         ))
@@ -153,6 +159,7 @@ async def get_campaign(
 
     # Fetch intelligence data if available
     intelligence_data = None
+    thumbnail_image_url = None
     if campaign.product_intelligence_id:
         from app.db.models import ProductIntelligence
         intel_result = await db.execute(
@@ -161,8 +168,11 @@ async def get_campaign(
             )
         )
         intelligence = intel_result.scalar_one_or_none()
-        if intelligence and intelligence.intelligence_data:
-            intelligence_data = intelligence.intelligence_data
+        if intelligence:
+            if intelligence.intelligence_data:
+                intelligence_data = intelligence.intelligence_data
+            if intelligence.thumbnail_image_url:
+                thumbnail_image_url = intelligence.thumbnail_image_url
 
     # Build response with intelligence data
     return CampaignResponse(
@@ -177,7 +187,9 @@ async def get_campaign(
         target_audience=campaign.target_audience,
         marketing_angles=campaign.marketing_angles,
         status=campaign.status,
+        product_intelligence_id=campaign.product_intelligence_id,
         intelligence_data=intelligence_data,
+        thumbnail_image_url=thumbnail_image_url,
         created_at=campaign.created_at,
         updated_at=campaign.updated_at
     )

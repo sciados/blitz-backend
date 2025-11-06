@@ -104,6 +104,7 @@ class CampaignResponse(CampaignBase):
     status: CampaignStatus
     product_intelligence_id: Optional[int] = None  # Link to product library
     intelligence_data: Optional[Dict[str, Any]] = None
+    thumbnail_image_url: Optional[str] = None  # Product thumbnail from ProductIntelligence
     created_at: datetime
     updated_at: datetime
 
