@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { api } from "src/lib/appClient";
 import { CampaignCreate } from "src/lib/types";
@@ -24,12 +24,14 @@ interface CreateCampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  preselectedProductId?: number | null;
 }
 
 export function CreateCampaignModal({
   isOpen,
   onClose,
   onSuccess,
+  preselectedProductId,
 }: CreateCampaignModalProps) {
   const [formData, setFormData] = useState<CampaignFormData>({
     name: "",
@@ -46,6 +48,13 @@ export function CreateCampaignModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showProductLibrary, setShowProductLibrary] = useState(false);
+
+  // Auto-fill form when preselectedProductId is provided
+  useEffect(() => {
+    if (isOpen && preselectedProductId) {
+      handleProductSelect(preselectedProductId);
+    }
+  }, [isOpen, preselectedProductId]);
 
   const affiliateNetworks = [
     "ClickBank",

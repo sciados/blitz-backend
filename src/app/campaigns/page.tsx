@@ -6,13 +6,15 @@ import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { Campaign } from "src/lib/types";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CampaignsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [preselectedProductId, setPreselectedProductId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCampaigns = async () => {
@@ -31,11 +33,28 @@ export default function CampaignsPage() {
 
   useEffect(() => {
     fetchCampaigns();
-  }, []);
+
+    // Check if productId query parameter exists
+    const productIdParam = searchParams.get("productId");
+    if (productIdParam) {
+      const productId = parseInt(productIdParam, 10);
+      if (!isNaN(productId)) {
+        setPreselectedProductId(productId);
+        setIsModalOpen(true);
+        // Clear the query parameter from URL
+        router.replace("/campaigns");
+      }
+    }
+  }, [searchParams, router]);
 
   const handleCreateSuccess = () => {
     // Refresh campaigns list after successful creation
     fetchCampaigns();
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setPreselectedProductId(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -269,8 +288,9 @@ export default function CampaignsPage() {
 
       <CreateCampaignModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleModalClose}
         onSuccess={handleCreateSuccess}
+        preselectedProductId={preselectedProductId}
       />
     </AuthGate>
   );
