@@ -179,3 +179,78 @@ async def get_metadata_status(
         "missing_category": total - with_category,
         "missing_thumbnail": total - with_thumbnail,
     }
+
+
+@router.post("/{product_id}/compile", response_model=Dict[str, Any])
+async def recompile_product_intelligence(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Force recompilation of intelligence for an existing product.
+
+    Admin only. This will:
+    1. Re-scrape the sales page
+    2. Re-download and classify images
+    3. Re-run AI amplification
+    4. Re-generate embeddings
+    5. Re-run RAG research
+
+    Useful for:
+    - Updating outdated intelligence
+    - Adding RAG data to old products
+    - Fixing compilation errors
+    """
+    # Check if user is admin
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    logger.info(f"🔄 Admin {current_user.email} requesting recompilation for product {product_id}")
+
+    # Get product
+    result = await db.execute(
+        select(ProductIntelligence).where(ProductIntelligence.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Import here to avoid circular dependency
+    from app.services.intelligence_compiler_service import IntelligenceCompilerService
+
+    # Create compiler instance
+    compiler = IntelligenceCompilerService(db)
+
+    try:
+        # Compile with force_recompile=True
+        result = await compiler.compile_for_product_url(
+            product_url=product.product_url,
+            options={
+                'deep_scrape': True,
+                'scrape_images': True,
+                'max_images': 10,
+                'enable_rag': True,
+                'force_recompile': True  # Force recompilation
+            }
+        )
+
+        logger.info(f"✅ Product {product_id} recompiled successfully")
+
+        return {
+            "success": True,
+            "product_id": product_id,
+            "product_name": result.get("product_name", "Unknown"),
+            "was_recompiled": True,
+            "processing_time_ms": result.get("processing_time_ms", 0),
+            "costs": result.get("costs", {}),
+            "message": "Intelligence successfully recompiled"
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Failed to recompile product {product_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to recompile intelligence: {str(e)}"
+        )
