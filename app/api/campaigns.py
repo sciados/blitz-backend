@@ -52,6 +52,7 @@ async def create_campaign(
         product_type=campaign_data.product_type,
         target_audience=campaign_data.target_audience,
         marketing_angles=campaign_data.marketing_angles,
+        product_intelligence_id=campaign_data.product_intelligence_id,
         status="draft"
     )
 

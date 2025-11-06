@@ -84,7 +84,7 @@ class CampaignBase(BaseModel):
 
 class CampaignCreate(CampaignBase):
     """Create campaign with optional product URL (can be added later)"""
-    pass
+    product_intelligence_id: Optional[int] = None  # Link to Product Library when creating from product
 
 class CampaignUpdate(BaseModel):
     name: Optional[str] = None
