@@ -95,8 +95,47 @@ Copy `.env.local.example` to `.env.local` and set:
 
 - **Shared Types**: Defined in `src/lib/types.ts`
 - **User Type**: `id`, `email`, `full_name`, `created_at`
-- **Campaign Type**: `id`, `name`, `product_url`, `affiliate_network`, `status`, `created_at`, `updated_at`
+- **Campaign Type**: `id`, `name`, `product_url`, `affiliate_network`, `status`, `thumbnail_image_url`, `created_at`, `updated_at`
 - Campaign status values: `"draft" | "active" | "paused" | "completed"`
+
+### Product Library & Campaign Integration
+
+The Product Library is a centralized repository of products with pre-compiled intelligence that can be reused across multiple campaigns.
+
+#### Product Library Features
+
+- **Centralized Storage**: Products stored in `ProductIntelligence` table with compiled data
+- **Product Cards**: Display thumbnail, name, category, affiliate network, commission rate, times used
+- **Product Details Panel**: Full-width sliding panel with comprehensive product information
+- **Search & Filter**: Search by name/category, filter by commission type (recurring/one-time), sort by recent/popular/alphabetical
+- **Category Organization**: Auto-categorized products with category filtering
+
+#### Campaign-Product Linking
+
+**How Campaigns Get Product Images:**
+
+1. **New Campaigns from Product Library**:
+   - Click "Create Campaign" button on Product Details panel
+   - Redirects to `/campaigns?productId={id}`
+   - Opens Create Campaign modal with product data auto-filled
+   - Campaign links to product via `product_intelligence_id`
+   - `thumbnail_image_url` fetched from linked ProductIntelligence record
+
+2. **Existing Campaigns Without Products**:
+   - Show placeholder icon if no `product_intelligence_id` or `thumbnail_image_url`
+   - To add image: Add product to library (product URL must match campaign URL)
+   - Backend automatically links campaigns to products by matching URLs
+
+3. **Campaign Card Display** (`/campaigns`):
+   - 128x128px product thumbnail on left side
+   - Fallback to placeholder icon for campaigns without linked products
+   - Campaign details (name, URL, network, keywords) to the right of image
+   - Product description indented below image (if available)
+
+**Backend Integration:**
+- `CampaignResponse` includes `thumbnail_image_url` from ProductIntelligence
+- `GET /api/campaigns` fetches thumbnails for all campaigns with `product_intelligence_id`
+- Images stored in Cloudflare R2, URLs returned in API responses
 
 ### Context-Sensitive Help System
 
