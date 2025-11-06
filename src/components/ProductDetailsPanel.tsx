@@ -79,8 +79,8 @@ export function ProductDetailsPanel({
 
   const handleCreateCampaign = () => {
     if (product) {
-      // Navigate to create campaign with this product pre-selected
-      router.push(`/campaigns/create?productId=${product.id}`);
+      // Navigate to campaigns page with this product pre-selected
+      router.push(`/campaigns?productId=${product.id}`);
     }
   };
 
