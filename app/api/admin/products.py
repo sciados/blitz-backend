@@ -217,6 +217,26 @@ async def recompile_product_intelligence(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    # Find any campaign that uses this product (need campaign_id for compiler)
+    from app.db.models import Campaign
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.product_intelligence_id == product_id).limit(1)
+    )
+    campaign = campaign_result.scalar_one_or_none()
+
+    if not campaign:
+        # No campaign uses this product yet - create a temporary one for recompilation
+        campaign = Campaign(
+            user_id=current_user.id,
+            name=f"[TEMP] {product.product_name or 'Product'} - Recompile",
+            product_url=product.product_url,
+            product_intelligence_id=product_id,
+            status="draft"
+        )
+        db.add(campaign)
+        await db.flush()  # Get campaign ID
+        logger.info(f"✓ Created temporary campaign {campaign.id} for recompilation")
+
     # Import here to avoid circular dependency
     from app.services.intelligence_compiler_service import IntelligenceCompilerService
 
@@ -225,8 +245,8 @@ async def recompile_product_intelligence(
 
     try:
         # Compile with force_recompile=True
-        result = await compiler.compile_for_product_url(
-            product_url=product.product_url,
+        result = await compiler.compile_for_campaign(
+            campaign_id=campaign.id,
             options={
                 'deep_scrape': True,
                 'scrape_images': True,
@@ -236,12 +256,14 @@ async def recompile_product_intelligence(
             }
         )
 
+        await db.commit()  # Commit the changes
+
         logger.info(f"✅ Product {product_id} recompiled successfully")
 
         return {
             "success": True,
             "product_id": product_id,
-            "product_name": result.get("product_name", "Unknown"),
+            "product_name": product.product_name or "Unknown",
             "was_recompiled": True,
             "processing_time_ms": result.get("processing_time_ms", 0),
             "costs": result.get("costs", {}),
@@ -249,6 +271,7 @@ async def recompile_product_intelligence(
         }
 
     except Exception as e:
+        await db.rollback()
         logger.error(f"❌ Failed to recompile product {product_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
