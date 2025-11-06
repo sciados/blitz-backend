@@ -139,10 +139,16 @@ class IntelligentRAGSystem:
 
         # 2. Research key features/claims
         features = product_data.get("features", [])
-        if features:
-            logger.info(f"🎯 Researching {len(features[:3])} key features")
+        benefits = product_data.get("benefits", [])
+
+        # Combine features and benefits for research (both are product claims)
+        all_claims = features + benefits
+        claims_to_research = all_claims[:5]  # Research top 5 claims instead of 3
+
+        if claims_to_research:
+            logger.info(f"🎯 Researching {len(claims_to_research)} key claims (features + benefits)")
             feature_research = await self._research_features(
-                features[:3],  # Top 3 features
+                claims_to_research,
                 product_name=product_data.get("name", "Product"),
                 max_results=limits["scholarly"] // 3
             )

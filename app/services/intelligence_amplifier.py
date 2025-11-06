@@ -135,12 +135,14 @@ class IntelligenceAmplifier:
                         "type": "health_supplement" if intelligence.get('product', {}).get('ingredients') else "product",
                         "ingredients": intelligence.get('product', {}).get('ingredients', []),
                         "features": intelligence.get('product', {}).get('features', []),
+                        "benefits": intelligence.get('product', {}).get('benefits', []),
                         "url": scraped_data['metadata']['url']
                     }
 
                     logger.info(f"   - Product: {product_data['name']}")
                     logger.info(f"   - Ingredients: {len(product_data['ingredients'])} found")
                     logger.info(f"   - Features: {len(product_data['features'])} found")
+                    logger.info(f"   - Benefits: {len(product_data['benefits'])} found")
 
                     # Run RAG research
                     research_data = await rag_system.research_product(
