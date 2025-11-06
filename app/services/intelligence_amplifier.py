@@ -141,6 +141,11 @@ class IntelligenceAmplifier:
                 if img.get('success')
             ]
 
+            # Add RAG research data if available
+            if research_data:
+                intelligence['research'] = research_data
+                logger.info(f"✅ RAG research data added: {research_data.get('total_sources', 0)} sources, {research_data.get('searches_conducted', 0)} searches")
+
             # Calculate intelligence data size
             intelligence_json = json.dumps(intelligence)
             data_size_chars = len(intelligence_json)
