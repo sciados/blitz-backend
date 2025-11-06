@@ -14,6 +14,7 @@ from app.db.models import Campaign, ProductIntelligence
 from app.services.scraper_service import SalesPageScraper
 from app.services.intelligence_amplifier import IntelligenceAmplifier
 from app.services.embeddings_openai import OpenAIEmbeddingService
+from app.services.storage_r2 import R2StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class IntelligenceCompilerService:
         self.scraper = SalesPageScraper()
         self.amplifier = IntelligenceAmplifier()
         self.embeddings = OpenAIEmbeddingService()
+        self.r2_storage = R2StorageService()
 
     async def compile_for_campaign(
         self,
@@ -160,6 +162,10 @@ class IntelligenceCompilerService:
             stmt = select(ProductIntelligence).where(ProductIntelligence.id == existing_intelligence_id)
             result = await self.db.execute(stmt)
             product_intelligence = result.scalar_one()
+
+            # Clean up old images if this is a force recompile
+            if options.get('force_recompile') and product_intelligence.intelligence_data:
+                await self._cleanup_old_images(product_intelligence.intelligence_data)
 
             # Update affiliate_network if missing
             if not product_intelligence.affiliate_network and campaign.affiliate_network:
@@ -501,3 +507,46 @@ class IntelligenceCompilerService:
             'progress': 0,
             'message': 'Compilation not started'
         }
+
+    async def _cleanup_old_images(self, intelligence_data: Dict[str, Any]) -> None:
+        """
+        Delete old R2 images before recompiling to prevent orphaned files.
+
+        Args:
+            intelligence_data: Existing intelligence data with images array
+
+        Returns:
+            None
+        """
+        if not intelligence_data:
+            return
+
+        images = intelligence_data.get('images', [])
+        if not images:
+            logger.info("🗑️  No old images to clean up")
+            return
+
+        logger.info(f"🗑️  Cleaning up {len(images)} old images from R2...")
+
+        deleted_count = 0
+        failed_count = 0
+
+        for img in images:
+            if isinstance(img, dict) and img.get('r2_key'):
+                r2_key = img['r2_key']
+                try:
+                    # Delete from R2 (synchronous operation)
+                    success = self.r2_storage.delete_file(r2_key)
+                    if success:
+                        deleted_count += 1
+                    else:
+                        failed_count += 1
+                        logger.warning(f"⚠️  Failed to delete: {r2_key}")
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"❌ Error deleting {r2_key}: {str(e)}")
+
+        if deleted_count > 0:
+            logger.info(f"✅ Deleted {deleted_count} old images from R2")
+        if failed_count > 0:
+            logger.warning(f"⚠️  Failed to delete {failed_count} images")
