@@ -28,6 +28,7 @@ export function ProductDetailsPanel({
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isRecompiling, setIsRecompiling] = useState(false);
 
   useEffect(() => {
     if (productId) {
@@ -118,6 +119,27 @@ export function ProductDetailsPanel({
       toast.error(err.response?.data?.detail || "Failed to update product");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRecompileIntelligence = async () => {
+    if (!product) return;
+
+    setIsRecompiling(true);
+    toast.info("Starting intelligence recompilation... This may take 30-60 seconds.");
+
+    try {
+      const response = await api.post(`/api/admin/products/${product.id}/compile`);
+
+      // Refresh product details to get updated intelligence
+      await fetchProductDetails();
+
+      toast.success("Intelligence recompiled successfully! All data has been refreshed.");
+    } catch (err: any) {
+      console.error("Failed to recompile intelligence:", err);
+      toast.error(err.response?.data?.detail || "Failed to recompile intelligence");
+    } finally {
+      setIsRecompiling(false);
     }
   };
 
@@ -248,25 +270,57 @@ export function ProductDetailsPanel({
           ) : (
             <>
               {isAdmin && (
-                <button
-                  onClick={handleEdit}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                  <span>Edit Product</span>
-                </button>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    <span>Edit Product</span>
+                  </button>
+                  <button
+                    onClick={handleRecompileIntelligence}
+                    disabled={isRecompiling}
+                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center space-x-2 font-medium"
+                    title="Recompile all intelligence data including RAG research"
+                  >
+                    {isRecompiling ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Recompiling...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
+                        </svg>
+                        <span>Refresh Intelligence</span>
+                      </>
+                    )}
+                  </button>
+                </>
               )}
               <button
                 onClick={handleCreateCampaign}
