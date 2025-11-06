@@ -19,6 +19,7 @@ export type Campaign = {
     status: "draft" | "active" | "paused" | "completed";
     product_intelligence_id?: number | null;
     intelligence_data?: any;
+    thumbnail_image_url?: string | null; // Product thumbnail from ProductIntelligence
     created_at: string;
     updated_at: string;
 };

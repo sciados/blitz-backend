@@ -151,8 +151,37 @@ export default function CampaignsPage() {
                 className="card rounded-lg hover:shadow-md transition p-6 relative"
               >
                 <Link href={`/campaigns/${campaign.id}`} className="block">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex items-start gap-4">
+                    {/* Product Thumbnail */}
+                    {campaign.thumbnail_image_url ? (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={campaign.thumbnail_image_url}
+                          alt={campaign.name}
+                          className="w-32 h-32 object-cover rounded-lg"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                        <svg
+                          className="w-12 h-12 opacity-30"
+                          style={{ color: 'var(--text-secondary)' }}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                          />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Campaign Details */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
                           {campaign.name}
@@ -240,7 +269,8 @@ export default function CampaignsPage() {
                       </div>
                     </div>
 
-                    <div className="text-right ml-4">
+                    {/* Created Date - Right Side */}
+                    <div className="text-right ml-4 flex-shrink-0">
                       <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                         Created
                       </p>
@@ -250,8 +280,9 @@ export default function CampaignsPage() {
                     </div>
                   </div>
 
+                  {/* Product Description */}
                   {campaign.product_description && (
-                    <p className="mt-3 text-sm line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="mt-3 ml-36 text-sm line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
                       {campaign.product_description}
                     </p>
                   )}
