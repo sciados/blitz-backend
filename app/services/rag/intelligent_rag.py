@@ -137,6 +137,13 @@ class IntelligentRAGSystem:
             research_data["research_by_category"]["ingredients"] = ingredient_research
             research_data["all_sources"].extend(ingredient_research.get("sources", []))
 
+        # Determine if this is a health product (for source selection)
+        product_type = product_data.get("type", "product")
+        is_health_product = (
+            product_type == "health_supplement" or
+            len(product_data.get("ingredients", [])) > 0
+        )
+
         # 2. Research key features/claims
         features = product_data.get("features", [])
         benefits = product_data.get("benefits", [])
@@ -150,18 +157,14 @@ class IntelligentRAGSystem:
             feature_research = await self._research_features(
                 claims_to_research,
                 product_name=product_data.get("name", "Product"),
-                max_results=limits["scholarly"] // 3
+                max_results=limits["scholarly"] // 3,
+                is_health_product=is_health_product
             )
             research_data["research_by_category"]["features"] = feature_research
             research_data["all_sources"].extend(feature_research.get("sources", []))
 
         # 3. Market/business research (web search)
         # Skip market research for health supplements - scholarly sources are more valuable
-        product_type = product_data.get("type", "product")
-        is_health_product = (
-            product_type == "health_supplement" or
-            len(product_data.get("ingredients", [])) > 0
-        )
 
         if not is_health_product:
             logger.info(f"📊 Conducting market research (non-health product)")
@@ -211,7 +214,7 @@ class IntelligentRAGSystem:
         max_per_ingredient: int = 4
     ) -> Dict[str, Any]:
         """Research each ingredient with clinical studies"""
-        logger.info(f"🧪 Researching {len(ingredients)} ingredients (max {max_per_ingredient} each)")
+        logger.info(f"🧪 Researching {len(ingredients)} ingredients (max {max_per_ingredient} queries each, PubMed ONLY)")
 
         ingredient_data = {
             "count": len(ingredients),
@@ -238,8 +241,8 @@ class IntelligentRAGSystem:
                     ingredient_sources.extend(cached)
                     continue
 
-                # Search scholarly sources (FREE)
-                results = await self.scholarly.search(query, max_results=2)
+                # Search PubMed ONLY for ingredients (health-specific, no irrelevant results)
+                results = await self.scholarly.search(query, max_results=3, sources=["pubmed"])
                 ingredient_data["searches_conducted"] += 1
 
                 if results:
@@ -261,10 +264,11 @@ class IntelligentRAGSystem:
         self,
         features: List[str],
         product_name: str,
-        max_results: int = 3
+        max_results: int = 3,
+        is_health_product: bool = False
     ) -> Dict[str, Any]:
         """Research product features/claims"""
-        logger.info(f"🎯 Researching {len(features)} features")
+        logger.info(f"🎯 Researching {len(features)} features (health product: {is_health_product})")
 
         feature_data = {
             "count": len(features),
@@ -289,7 +293,10 @@ class IntelligentRAGSystem:
                 continue
 
             # Search scholarly sources
-            results = await self.scholarly.search(query, max_results=max_results)
+            # For health products: use PubMed only (clinical evidence)
+            # For other products: use both PubMed + Semantic Scholar
+            sources = ["pubmed"] if is_health_product else ["pubmed", "semantic_scholar"]
+            results = await self.scholarly.search(query, max_results=max_results, sources=sources)
             feature_data["searches_conducted"] += 1
 
             if results:
