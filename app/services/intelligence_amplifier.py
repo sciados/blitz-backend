@@ -53,29 +53,10 @@ class IntelligenceAmplifier:
         try:
             logger.info("🧠 Amplifying intelligence with AI Router + RAG...")
 
-            # Step 1: Extract basic product info from sales page
-            basic_product_info = self._extract_basic_product_info(scraped_data)
-            logger.info(f"📝 Extracted basic info: {basic_product_info.get('name', 'Unknown product')}")
+            # Step 1: Build AI prompt (without RAG data initially)
+            prompt = self._build_intelligence_prompt(scraped_data, research_data=None)
 
-            # Step 2: Conduct RAG research (optional)
-            research_data = None
-            if enable_rag:
-                try:
-                    logger.info(f"🔍 Starting RAG research (level: {intelligence_level})...")
-                    research_data = await rag_system.research_product(
-                        basic_product_info,
-                        intelligence_level=intelligence_level
-                    )
-                    logger.info(f"✅ RAG complete: {research_data.get('total_sources', 0)} sources, "
-                              f"${research_data.get('estimated_cost_usd', 0):.4f} cost")
-                except Exception as rag_error:
-                    logger.warning(f"⚠️ RAG research failed, continuing without it: {str(rag_error)}")
-                    research_data = None
-
-            # Step 3: Build enhanced prompt with RAG data
-            prompt = self._build_intelligence_prompt(scraped_data, research_data)
-
-            # Debug: Check if env vars are set
+            # Step 2: Run AI amplification to extract clean product data
             import os
             ai_chat_quality = os.getenv("AI_CHAT_QUALITY", "NOT_SET")
             logger.info(f"[DEBUG] AI_CHAT_QUALITY env var: {ai_chat_quality[:50]}...")
@@ -113,6 +94,8 @@ class IntelligenceAmplifier:
 
             intelligence = json.loads(response_text)
 
+            logger.info(f"✅ AI amplification complete - extracted clean product data")
+
             # Add metadata
             intelligence['amplified_at'] = datetime.utcnow().isoformat()
             intelligence['model'] = f"{result['provider']}:{result['model']}"
@@ -141,10 +124,40 @@ class IntelligenceAmplifier:
                 if img.get('success')
             ]
 
-            # Add RAG research data if available
-            if research_data:
-                intelligence['research'] = research_data
-                logger.info(f"✅ RAG research data added: {research_data.get('total_sources', 0)} sources, {research_data.get('searches_conducted', 0)} searches")
+            # Step 3: Conduct RAG research using clean extracted data
+            if enable_rag:
+                try:
+                    logger.info(f"🔍 Starting RAG research with clean product data (level: {intelligence_level})...")
+
+                    # Build product data from clean intelligence
+                    product_data = {
+                        "name": intelligence.get('product', {}).get('name', 'Product'),
+                        "type": "health_supplement" if intelligence.get('product', {}).get('ingredients') else "product",
+                        "ingredients": intelligence.get('product', {}).get('ingredients', []),
+                        "features": intelligence.get('product', {}).get('features', []),
+                        "url": scraped_data['metadata']['url']
+                    }
+
+                    logger.info(f"   - Product: {product_data['name']}")
+                    logger.info(f"   - Ingredients: {len(product_data['ingredients'])} found")
+                    logger.info(f"   - Features: {len(product_data['features'])} found")
+
+                    # Run RAG research
+                    research_data = await rag_system.research_product(
+                        product_data,
+                        intelligence_level=intelligence_level
+                    )
+
+                    # Add RAG data to intelligence
+                    intelligence['research'] = research_data
+                    logger.info(f"✅ RAG complete: {research_data.get('total_sources', 0)} sources, "
+                              f"${research_data.get('estimated_cost_usd', 0):.4f} cost")
+
+                except Exception as rag_error:
+                    logger.warning(f"⚠️ RAG research failed, continuing without it: {str(rag_error)}")
+                    intelligence['research'] = None
+            else:
+                logger.info("⏭️  RAG research skipped (enable_rag=False)")
 
             # Calculate intelligence data size
             intelligence_json = json.dumps(intelligence)
