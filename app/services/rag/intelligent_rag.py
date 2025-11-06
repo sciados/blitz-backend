@@ -156,14 +156,31 @@ class IntelligentRAGSystem:
             research_data["all_sources"].extend(feature_research.get("sources", []))
 
         # 3. Market/business research (web search)
-        logger.info(f"📊 Conducting market research")
-        market_research = await self._research_market(
-            product_name=product_data.get("name", "Product"),
-            product_type=product_data.get("type", "product"),
-            max_results=limits["web"]
+        # Skip market research for health supplements - scholarly sources are more valuable
+        product_type = product_data.get("type", "product")
+        is_health_product = (
+            product_type == "health_supplement" or
+            len(product_data.get("ingredients", [])) > 0
         )
-        research_data["research_by_category"]["market"] = market_research
-        research_data["all_sources"].extend(market_research.get("sources", []))
+
+        if not is_health_product:
+            logger.info(f"📊 Conducting market research (non-health product)")
+            market_research = await self._research_market(
+                product_name=product_data.get("name", "Product"),
+                product_type=product_type,
+                max_results=limits["web"]
+            )
+            research_data["research_by_category"]["market"] = market_research
+            research_data["all_sources"].extend(market_research.get("sources", []))
+        else:
+            logger.info(f"⏭️  Skipping market research (health product - scholarly sources prioritized)")
+            research_data["research_by_category"]["market"] = {
+                "skipped": True,
+                "reason": "Health supplement - scholarly research prioritized over market data",
+                "queries": [],
+                "sources": [],
+                "searches_conducted": 0
+            }
 
         # Calculate stats
         research_data["searches_conducted"] = sum(
