@@ -175,34 +175,40 @@ export const helpContent: Record<string, HelpContent> = {
   // Intelligence
   "/intelligence": {
     title: "Campaign Intelligence",
-    description: "Analyze sales pages and gather insights to improve your marketing campaigns.",
+    description: "View compiled intelligence data including product information, market analysis, and marketing insights for your campaigns.",
     steps: [
       {
         number: 1,
         title: "Select a Campaign",
-        description: "Choose the campaign you want to compile intelligence for.",
+        description: "Use the dropdown at the top to select a campaign. Campaigns with intelligence data show a ✓ checkmark.",
       },
       {
         number: 2,
-        title: "Run Analysis",
-        description: "The system will analyze the sales page and extract key information.",
+        title: "Review Product Information",
+        description: "View extracted product features, benefits, and descriptions from the sales page.",
       },
       {
         number: 3,
-        title: "Review Insights",
-        description: "Review extracted pain points, benefits, features, and marketing angles.",
+        title: "Analyze Market Data",
+        description: "Study the target audience profiles, pain points, and market positioning insights.",
       },
       {
         number: 4,
-        title: "Use for Content",
-        description: "Use this intelligence to generate more targeted and effective content.",
+        title: "Use Marketing Intelligence",
+        description: "Review marketing hooks, angles, CTAs, and testimonials to inform your content strategy.",
+      },
+      {
+        number: 5,
+        title: "Check Sales Page Analysis",
+        description: "View the extracted headline, subheadline, and key messaging from the original sales page.",
       },
     ],
     tips: [
-      "Run intelligence compilation before generating content",
-      "Review and refine extracted information for accuracy",
-      "Use identified pain points in your marketing copy",
-      "Update intelligence if the sales page changes significantly",
+      "Intelligence data is automatically compiled when adding products to the Product Library",
+      "Use the pain points and benefits to create more resonant marketing copy",
+      "Reference marketing hooks and angles when generating campaign content",
+      "The raw data view at the bottom shows the complete intelligence structure",
+      "Campaigns without intelligence show '(No intelligence data)' in the dropdown",
     ],
   },
 
