@@ -12,6 +12,15 @@ export default function IntelligencePage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to safely render any value (string or object)
+  const renderValue = (value: any): string => {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return value.toString();
+    if (typeof value === 'boolean') return value.toString();
+    if (value === null || value === undefined) return '';
+    return JSON.stringify(value, null, 2);
+  };
+
   useEffect(() => {
     fetchCampaigns();
   }, []);
@@ -290,10 +299,10 @@ export default function IntelligencePage() {
                         Key Features
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.product.features.map((feature: string, idx: number) => (
+                        {intelligenceData.product.features.map((feature: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{feature}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(feature)}</span>
                           </li>
                         ))}
                       </ul>
@@ -310,10 +319,10 @@ export default function IntelligencePage() {
                         Key Benefits
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.product.benefits.map((benefit: string, idx: number) => (
+                        {intelligenceData.product.benefits.map((benefit: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-green-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{benefit}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(benefit)}</span>
                           </li>
                         ))}
                       </ul>
@@ -330,10 +339,10 @@ export default function IntelligencePage() {
                         Ingredients/Components
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.product.ingredients_or_components.map((ingredient: string, idx: number) => (
+                        {intelligenceData.product.ingredients_or_components.map((ingredient: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{ingredient}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(ingredient)}</span>
                           </li>
                         ))}
                       </ul>
@@ -350,10 +359,10 @@ export default function IntelligencePage() {
                         Solutions Provided
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.product.solutions.map((solution: string, idx: number) => (
+                        {intelligenceData.product.solutions.map((solution: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-teal-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{solution}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(solution)}</span>
                           </li>
                         ))}
                       </ul>
@@ -442,10 +451,10 @@ export default function IntelligencePage() {
                         Customer Pain Points
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.market.pain_points.map((pain: string, idx: number) => (
+                        {intelligenceData.market.pain_points.map((pain: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-red-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{pain}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(pain)}</span>
                           </li>
                         ))}
                       </ul>
@@ -462,10 +471,10 @@ export default function IntelligencePage() {
                         Competitive Advantages
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.market.competitive_advantages.map((advantage: string, idx: number) => (
+                        {intelligenceData.market.competitive_advantages.map((advantage: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{advantage}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(advantage)}</span>
                           </li>
                         ))}
                       </ul>
@@ -486,9 +495,9 @@ export default function IntelligencePage() {
                     )}
                     {intelligenceData.market.price_points && Array.isArray(intelligenceData.market.price_points) && intelligenceData.market.price_points.length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {intelligenceData.market.price_points.map((price: string, idx: number) => (
+                        {intelligenceData.market.price_points.map((price: any, idx: number) => (
                           <span key={idx} className="px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
-                            {price}
+                            {renderValue(price)}
                           </span>
                         ))}
                       </div>
@@ -524,10 +533,10 @@ export default function IntelligencePage() {
                         Marketing Hooks
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.hooks.map((hook: string, idx: number) => (
+                        {intelligenceData.marketing.hooks.map((hook: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{hook}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(hook)}</span>
                           </li>
                         ))}
                       </ul>
@@ -541,10 +550,10 @@ export default function IntelligencePage() {
                         Marketing Angles
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.angles.map((angle: string, idx: number) => (
+                        {intelligenceData.marketing.angles.map((angle: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{angle}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(angle)}</span>
                           </li>
                         ))}
                       </ul>
@@ -558,10 +567,10 @@ export default function IntelligencePage() {
                         Objections Addressed
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.objections_handled.map((objection: string, idx: number) => (
+                        {intelligenceData.marketing.objections_handled.map((objection: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{objection}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(objection)}</span>
                           </li>
                         ))}
                       </ul>
@@ -575,10 +584,10 @@ export default function IntelligencePage() {
                         Urgency Tactics
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.urgency_tactics.map((tactic: string, idx: number) => (
+                        {intelligenceData.marketing.urgency_tactics.map((tactic: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-red-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{tactic}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(tactic)}</span>
                           </li>
                         ))}
                       </ul>
@@ -597,9 +606,9 @@ export default function IntelligencePage() {
                         Guarantees
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.guarantees.map((guarantee: string, idx: number) => (
+                        {intelligenceData.marketing.guarantees.map((guarantee: any, idx: number) => (
                           <li key={idx} className="px-3 py-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded text-sm" style={{ color: 'var(--text-secondary)' }}>
-                            {guarantee}
+                            {renderValue(guarantee)}
                           </li>
                         ))}
                       </ul>
@@ -613,9 +622,9 @@ export default function IntelligencePage() {
                         Risk Reversals
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.marketing.risk_reversals.map((reversal: string, idx: number) => (
+                        {intelligenceData.marketing.risk_reversals.map((reversal: any, idx: number) => (
                           <li key={idx} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded text-sm" style={{ color: 'var(--text-secondary)' }}>
-                            {reversal}
+                            {renderValue(reversal)}
                           </li>
                         ))}
                       </ul>
@@ -630,9 +639,9 @@ export default function IntelligencePage() {
                       Call-to-Actions
                     </h3>
                     <div className="grid md:grid-cols-2 gap-3">
-                      {intelligenceData.marketing.CTAs.map((cta: string, idx: number) => (
+                      {intelligenceData.marketing.CTAs.map((cta: any, idx: number) => (
                         <div key={idx} className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium">
-                          {cta}
+                          {renderValue(cta)}
                         </div>
                       ))}
                     </div>
@@ -742,10 +751,10 @@ export default function IntelligencePage() {
                         Recommended Angles
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.analysis.recommended_angles.map((angle: string, idx: number) => (
+                        {intelligenceData.analysis.recommended_angles.map((angle: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{angle}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(angle)}</span>
                           </li>
                         ))}
                       </ul>
@@ -759,10 +768,10 @@ export default function IntelligencePage() {
                         Content Gaps
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.analysis.content_gaps.map((gap: string, idx: number) => (
+                        {intelligenceData.analysis.content_gaps.map((gap: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-yellow-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{gap}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(gap)}</span>
                           </li>
                         ))}
                       </ul>
@@ -776,10 +785,10 @@ export default function IntelligencePage() {
                         Affiliate Opportunities
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.analysis.affiliate_opportunities.map((opp: string, idx: number) => (
+                        {intelligenceData.analysis.affiliate_opportunities.map((opp: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-green-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{opp}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(opp)}</span>
                           </li>
                         ))}
                       </ul>
@@ -793,10 +802,10 @@ export default function IntelligencePage() {
                         Compliance Notes
                       </h3>
                       <ul className="space-y-2">
-                        {intelligenceData.analysis.compliance_notes.map((note: string, idx: number) => (
+                        {intelligenceData.analysis.compliance_notes.map((note: any, idx: number) => (
                           <li key={idx} className="flex items-start text-sm">
                             <span className="inline-block w-2 h-2 rounded-full bg-red-500 mt-1.5 mr-3 flex-shrink-0"></span>
-                            <span style={{ color: 'var(--text-secondary)' }}>{note}</span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{renderValue(note)}</span>
                           </li>
                         ))}
                       </ul>
