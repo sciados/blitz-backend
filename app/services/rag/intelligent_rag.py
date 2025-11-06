@@ -124,9 +124,15 @@ class IntelligentRAGSystem:
         ingredients = product_data.get("ingredients", [])
         if ingredients:
             logger.info(f"🧪 Researching {len(ingredients)} ingredients")
+
+            # Calculate queries per ingredient (minimum 2, maximum 4)
+            # For standard: 12 searches / 8 ingredients = 1.5 → use 2
+            # For standard: 12 searches / 3 ingredients = 4 → use 4
+            queries_per_ingredient = max(2, min(4, limits["scholarly"] // len(ingredients)))
+
             ingredient_research = await self._research_ingredients(
                 ingredients,
-                max_per_ingredient=min(4, limits["scholarly"] // len(ingredients))
+                max_per_ingredient=queries_per_ingredient
             )
             research_data["research_by_category"]["ingredients"] = ingredient_research
             research_data["all_sources"].extend(ingredient_research.get("sources", []))
