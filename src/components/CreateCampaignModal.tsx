@@ -48,6 +48,7 @@ export function CreateCampaignModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showProductLibrary, setShowProductLibrary] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   // Auto-fill form when preselectedProductId is provided
   useEffect(() => {
@@ -101,6 +102,9 @@ export function CreateCampaignModal({
       const response = await api.get(`/api/products/${productId}`);
       const product = response.data;
 
+      // Store the selected product ID for linking
+      setSelectedProductId(productId);
+
       // Auto-fill form with product data
       setFormData((prev) => ({
         ...prev,
@@ -153,6 +157,7 @@ export function CreateCampaignModal({
         product_description: formData.product_description || undefined,
         product_type: formData.product_type || undefined,
         target_audience: formData.target_audience || undefined,
+        product_intelligence_id: selectedProductId || undefined,
       };
 
       await api.post("/api/campaigns", campaignData);
@@ -168,6 +173,7 @@ export function CreateCampaignModal({
         product_type: "",
         target_audience: "",
       });
+      setSelectedProductId(null);
       onSuccess();
       onClose();
     } catch (error: any) {

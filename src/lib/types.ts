@@ -34,6 +34,7 @@ export type CampaignCreate = {
     product_type?: string;
     target_audience?: string;
     marketing_angles?: string[];
+    product_intelligence_id?: number | null; // Link to Product Library
 };
 
 // ============================================================================
