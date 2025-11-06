@@ -427,7 +427,7 @@ export default function IntelligencePage() {
                     ) : (
                       <div className="space-y-3">
                         {Object.entries(intelligenceData.market.target_audience).map(([key, value]: [string, any]) => (
-                          <div key={key} className="p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                          <div key={key} className="mb-3">
                             <div className="text-sm font-semibold mb-1 capitalize" style={{ color: 'var(--text-primary)' }}>
                               {key.replace(/_/g, ' ')}
                             </div>
@@ -579,9 +579,9 @@ export default function IntelligencePage() {
                       <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         Objections Addressed
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {intelligenceData.marketing.objections_handled.map((objection: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+                          <div key={idx} className="mb-4">
                             {typeof objection === 'object' && objection !== null ? (
                               <>
                                 {objection.objection && (
@@ -779,9 +779,9 @@ export default function IntelligencePage() {
                       <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         Recommended Angles
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {intelligenceData.analysis.recommended_angles.map((angle: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+                          <div key={idx} className="mb-4">
                             {typeof angle === 'object' && angle !== null ? (
                               <div className="space-y-2">
                                 {Object.entries(angle).map(([key, value]: [string, any]) => (
