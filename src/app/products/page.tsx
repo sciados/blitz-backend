@@ -146,149 +146,151 @@ export default function ProductLibraryPage() {
           </Link>
         </div>
 
-        {/* Filters and Search */}
-        <div className="card rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="md:col-span-2">
-              <label htmlFor="search" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Search Products
-              </label>
-              <input
-                type="text"
-                id="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by product name or category..."
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{
-                  borderColor: 'var(--card-border)',
-                  background: 'var(--card-bg)',
-                  color: 'var(--text-primary)'
-                }}
-              />
+        {/* Filters and Search - Only show when no product is selected */}
+        {!selectedProductId && (
+          <div className="card rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Search */}
+              <div className="md:col-span-2">
+                <label htmlFor="search" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  Search Products
+                </label>
+                <input
+                  type="text"
+                  id="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by product name or category..."
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{
+                    borderColor: 'var(--card-border)',
+                    background: 'var(--card-bg)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <label htmlFor="sortBy" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  Sort By
+                </label>
+                <select
+                  id="sortBy"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{
+                    borderColor: 'var(--card-border)',
+                    background: 'var(--card-bg)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <option value="recent">Newest First</option>
+                  <option value="popular">Most Popular</option>
+                  <option value="alphabetical">A-Z</option>
+                </select>
+              </div>
             </div>
 
-            {/* Sort By */}
-            <div>
-              <label htmlFor="sortBy" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Sort By
+            {/* Recurring Commission Filter */}
+            <div className="mt-4 flex items-center space-x-4">
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Commission Type:
               </label>
-              <select
-                id="sortBy"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                style={{
-                  borderColor: 'var(--card-border)',
-                  background: 'var(--card-bg)',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <option value="recent">Newest First</option>
-                <option value="popular">Most Popular</option>
-                <option value="alphabetical">A-Z</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Recurring Commission Filter */}
-          <div className="mt-4 flex items-center space-x-4">
-            <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Commission Type:
-            </label>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setRecurringOnly(null)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  recurringOnly === null
-                    ? "bg-blue-600 text-white"
-                    : "hover:bg-gray-200"
-                }`}
-                style={
-                  recurringOnly !== null
-                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
-                    : undefined
-                }
-              >
-                All Products
-              </button>
-              <button
-                onClick={() => setRecurringOnly(true)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center ${
-                  recurringOnly === true
-                    ? "bg-purple-600 text-white"
-                    : "hover:bg-gray-200"
-                }`}
-                style={
-                  recurringOnly !== true
-                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
-                    : undefined
-                }
-              >
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-                Recurring Only
-              </button>
-              <button
-                onClick={() => setRecurringOnly(false)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  recurringOnly === false
-                    ? "bg-gray-600 text-white"
-                    : "hover:bg-gray-200"
-                }`}
-                style={
-                  recurringOnly !== false
-                    ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
-                    : undefined
-                }
-              >
-                One-Time Only
-              </button>
-            </div>
-          </div>
-
-          {/* Categories */}
-          {categories.length > 0 && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
-                Filter by Category
-              </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex space-x-2">
                 <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={`px-4 py-2 rounded-lg transition ${
-                    selectedCategory === null ? "bg-blue-600 text-white" : "hover:bg-gray-200"
+                  onClick={() => setRecurringOnly(null)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    recurringOnly === null
+                      ? "bg-blue-600 text-white"
+                      : "hover:bg-gray-200"
                   }`}
                   style={
-                    selectedCategory !== null
+                    recurringOnly !== null
                       ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
                       : undefined
                   }
                 >
-                  All Categories
+                  All Products
                 </button>
-                {categories.map((cat) => (
+                <button
+                  onClick={() => setRecurringOnly(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center ${
+                    recurringOnly === true
+                      ? "bg-purple-600 text-white"
+                      : "hover:bg-gray-200"
+                  }`}
+                  style={
+                    recurringOnly !== true
+                      ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                      : undefined
+                  }
+                >
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  </svg>
+                  Recurring Only
+                </button>
+                <button
+                  onClick={() => setRecurringOnly(false)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    recurringOnly === false
+                      ? "bg-gray-600 text-white"
+                      : "hover:bg-gray-200"
+                  }`}
+                  style={
+                    recurringOnly !== false
+                      ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                      : undefined
+                  }
+                >
+                  One-Time Only
+                </button>
+              </div>
+            </div>
+
+            {/* Categories */}
+            {categories.length > 0 && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  Filter by Category
+                </label>
+                <div className="flex flex-wrap gap-2">
                   <button
-                    key={cat.category}
-                    onClick={() => setSelectedCategory(cat.category)}
+                    onClick={() => setSelectedCategory(null)}
                     className={`px-4 py-2 rounded-lg transition ${
-                      selectedCategory === cat.category ? "bg-blue-600 text-white" : "hover:bg-gray-200"
+                      selectedCategory === null ? "bg-blue-600 text-white" : "hover:bg-gray-200"
                     }`}
                     style={
-                      selectedCategory !== cat.category
+                      selectedCategory !== null
                         ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
                         : undefined
                     }
                   >
-                    {cat.category} ({cat.count})
+                    All Categories
                   </button>
-                ))}
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.category}
+                      onClick={() => setSelectedCategory(cat.category)}
+                      className={`px-4 py-2 rounded-lg transition ${
+                        selectedCategory === cat.category ? "bg-blue-600 text-white" : "hover:bg-gray-200"
+                      }`}
+                      style={
+                        selectedCategory !== cat.category
+                          ? { background: 'var(--card-bg)', color: 'var(--text-secondary)' }
+                          : undefined
+                      }
+                    >
+                      {cat.category} ({cat.count})
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {!selectedProductId ? (
           <>
