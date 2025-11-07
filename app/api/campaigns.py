@@ -60,6 +60,50 @@ async def create_campaign(
     await db.commit()
     await db.refresh(new_campaign)
 
+    # If campaign was created with a product from library, trigger compilation
+    # This will reuse cached intelligence but ensure KnowledgeBase ingestion happens
+    if new_campaign.product_intelligence_id:
+        import asyncio
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        async def background_compile():
+            """Background task to compile intelligence for campaign"""
+            try:
+                from app.db.session import AsyncSessionLocal
+                from app.services.intelligence_compiler_service import IntelligenceCompilerService
+
+                async with AsyncSessionLocal() as bg_db:
+                    compiler = IntelligenceCompilerService(bg_db)
+
+                    logger.info(f"🚀 Starting background compilation for campaign {new_campaign.id}")
+
+                    result = await compiler.compile_for_campaign(
+                        campaign_id=new_campaign.id,
+                        options={
+                            'deep_scrape': False,
+                            'scrape_images': True,
+                            'max_images': 10,
+                            'enable_rag': True,
+                            'force_recompile': False  # Use cache
+                        }
+                    )
+
+                    if result.get('success'):
+                        logger.info(f"✅ Background compilation completed for campaign {new_campaign.id}")
+                        if result.get('was_cached'):
+                            logger.info(f"   📚 KnowledgeBase ingestion completed (intelligence was cached)")
+                    else:
+                        logger.error(f"❌ Background compilation failed for campaign {new_campaign.id}: {result.get('error')}")
+
+            except Exception as e:
+                logger.error(f"❌ Background compilation error for campaign {new_campaign.id}: {str(e)}")
+
+        # Start background task (fire-and-forget)
+        asyncio.create_task(background_compile())
+        logger.info(f"📦 Campaign {new_campaign.id} created with product. Compilation started in background.")
+
     return new_campaign
 
 # ============================================================================
