@@ -283,20 +283,50 @@ export function EditCampaignModal({
             >
               Affiliate Link <span className="text-gray-400">(Optional)</span>
             </label>
-            <input
-              type="url"
-              id="affiliate_link"
-              name="affiliate_link"
-              value={formData.affiliate_link}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                errors.affiliate_link ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="https://affiliate-network.com/your-affiliate-link"
-            />
+            <div className="relative">
+              <input
+                type="url"
+                id="affiliate_link"
+                name="affiliate_link"
+                value={formData.affiliate_link}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                  errors.affiliate_link ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="https://affiliate-network.com/your-affiliate-link"
+              />
+              {formData.affiliate_link && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (campaign.affiliate_link_short_code) {
+                      if (!confirm("This will remove the affiliate link and delete the shortened URL. Are you sure?")) {
+                        return;
+                      }
+                    }
+                    setFormData((prev) => ({ ...prev, affiliate_link: "" }));
+                    setHasChanges(true);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Clear affiliate link"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {errors.affiliate_link && (
               <p className="mt-1 text-sm text-red-600">
                 {errors.affiliate_link}
+              </p>
+            )}
+            {campaign.affiliate_link_short_code && formData.affiliate_link !== campaign.affiliate_link && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Changing or removing this will delete the existing short link and all tracking data
               </p>
             )}
             <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">

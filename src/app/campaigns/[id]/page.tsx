@@ -71,8 +71,28 @@ export default function CampaignDetailPage() {
     },
   });
 
+  // Delete affiliate link mutation
+  const deleteAffiliateLinkMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/api/campaigns/${id}/affiliate-link`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+      toast.success("Affiliate link removed successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to remove affiliate link");
+    },
+  });
+
   const handleDelete = () => {
     deleteMutation.mutate();
+  };
+
+  const handleDeleteAffiliateLink = () => {
+    if (confirm("Are you sure you want to remove the affiliate link? All click tracking data will be deleted.")) {
+      deleteAffiliateLinkMutation.mutate();
+    }
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -313,6 +333,17 @@ export default function CampaignDetailPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     Copy
+                  </button>
+                  <button
+                    onClick={handleDeleteAffiliateLink}
+                    disabled={deleteAffiliateLinkMutation.isPending}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg transition flex items-center gap-2 disabled:cursor-not-allowed"
+                    title="Remove affiliate link and all tracking data"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {deleteAffiliateLinkMutation.isPending ? "Removing..." : "Remove"}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1">
