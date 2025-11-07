@@ -87,9 +87,10 @@ class IntelligenceCompilerService:
                     # Prevents duplicate storage when multiple campaigns use same product
                     if existing_intelligence.intelligence_data.get('research') and options.get('enable_rag', True):
                         # Check if research for this product already exists in KnowledgeBase
+                        # Query directly by product_intelligence_id column (not metadata)
                         kb_check = await self.db.execute(
                             select(KnowledgeBase).where(
-                                KnowledgeBase.meta_data['product_intelligence_id'].astext == str(existing_intelligence.id)
+                                KnowledgeBase.product_intelligence_id == existing_intelligence.id
                             ).limit(1)
                         )
                         existing_kb = kb_check.scalar_one_or_none()
@@ -100,7 +101,6 @@ class IntelligenceCompilerService:
                         else:
                             logger.info(f"📚 First campaign using this product - ingesting RAG research")
                             await self._ingest_research_to_knowledge_base(
-                                campaign.id,
                                 existing_intelligence.id,
                                 existing_intelligence.intelligence_data
                             )
@@ -475,9 +475,9 @@ class IntelligenceCompilerService:
         await self._link_campaign_to_intelligence(campaign, product_intelligence)
 
         # Step 4: Ingest RAG research into KnowledgeBase for content generation
+        # Research is owned by product and shared across all campaigns
         if amplified_intelligence.get('research') and options.get('enable_rag', True):
             await self._ingest_research_to_knowledge_base(
-                campaign.id,  # Pass campaign_id (not user_id)
                 product_intelligence.id,
                 amplified_intelligence
             )
@@ -848,7 +848,6 @@ class IntelligenceCompilerService:
 
     async def _ingest_research_to_knowledge_base(
         self,
-        campaign_id: int,
         product_intelligence_id: int,
         intelligence_data: Dict[str, Any]
     ) -> None:
@@ -858,9 +857,11 @@ class IntelligenceCompilerService:
         Creates individual KnowledgeBase entries for each research source to enable
         precise semantic search and retrieval during content generation.
 
+        Research is owned by the product (not campaign) and shared across all campaigns
+        using that product. This prevents duplicate storage and CASCADE DELETE issues.
+
         Args:
-            campaign_id: Campaign ID (KnowledgeBase is campaign-specific)
-            product_intelligence_id: ProductIntelligence record ID
+            product_intelligence_id: ProductIntelligence record ID (owner of research)
             intelligence_data: Complete intelligence data including research
         """
         try:
@@ -910,13 +911,14 @@ class IntelligenceCompilerService:
                     embedding_vector = await self.embeddings.generate_embedding(content)
 
                     # Store individual source in KnowledgeBase
+                    # Research is owned by product and shared across all campaigns
                     kb_entry = KnowledgeBase(
-                        campaign_id=campaign_id,
+                        product_intelligence_id=product_intelligence_id,
+                        campaign_id=None,  # NULL = shared across campaigns, not owned by any specific campaign
                         content=content,
                         embedding=embedding_vector,
                         source_url=source.get('url', ''),
                         meta_data={
-                            "product_intelligence_id": product_intelligence_id,
                             "product_name": product_name,
                             "source_type": "rag_research_source",
                             "source_index": idx,

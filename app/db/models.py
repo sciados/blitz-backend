@@ -85,6 +85,7 @@ class ProductIntelligence(Base):
 
     # Relationships
     campaigns = relationship("Campaign", back_populates="product_intelligence")
+    knowledge_base = relationship("KnowledgeBase", back_populates="product_intelligence", cascade="all, delete-orphan")
 
 # ============================================================================
 # CAMPAIGN MODEL
@@ -127,7 +128,7 @@ class Campaign(Base):
     user = relationship("User", back_populates="campaigns")
     product_intelligence = relationship("ProductIntelligence", back_populates="campaigns")
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
-    knowledge_base = relationship("KnowledgeBase", back_populates="campaign", cascade="all, delete-orphan")
+    knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
 
 # ============================================================================
@@ -161,14 +162,16 @@ class KnowledgeBase(Base):
     __tablename__ = "knowledge_base"
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)  # Optional: for campaign-specific notes
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1024), nullable=True)  # Cohere embeddings are 1024 dimensions
+    embedding = Column(Vector(1024), nullable=True)  # OpenAI text-embedding-3-large with 1024 dimensions
     meta_data = Column("metadata", JSONB, nullable=True)  # Python: meta_data, DB: metadata
     source_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
+    product_intelligence = relationship("ProductIntelligence", back_populates="knowledge_base")
     campaign = relationship("Campaign", back_populates="knowledge_base")
 
 # ============================================================================
