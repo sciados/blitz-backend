@@ -714,8 +714,8 @@ async def submit_product(
         """Background task to compile intelligence for newly submitted product"""
         try:
             # Create a new database session for the background task
-            from app.db.session import SessionLocal
-            async with SessionLocal() as bg_db:
+            from app.db.session import AsyncSessionLocal
+            async with AsyncSessionLocal() as bg_db:
                 compiler = IntelligenceCompilerService(bg_db)
 
                 logger.info(f"🚀 Starting background intelligence compilation for product {new_product.id}")
