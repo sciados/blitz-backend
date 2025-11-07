@@ -904,37 +904,194 @@ export default function IntelligencePage() {
                   )}
                 </div>
 
-                {/* Research Sources by Category */}
-                {intelligenceData.research.all_sources && Array.isArray(intelligenceData.research.all_sources) && intelligenceData.research.all_sources.length > 0 && (
-                  <details className="mt-4" open>
-                    <summary className="text-lg font-semibold cursor-pointer mb-3" style={{ color: 'var(--text-primary)' }}>
-                      View All Research Sources ({intelligenceData.research.all_sources.length})
-                    </summary>
-                    <div className="space-y-2 mt-3">
-                      {intelligenceData.research.all_sources.map((source: any, idx: number) => (
-                        <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800 rounded border" style={{ borderColor: 'var(--border-color)' }}>
-                          <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                            {source.title || 'Untitled'}
+                {/* Ingredient Clinical Evidence */}
+                {intelligenceData.research.research_by_category?.ingredients?.researched &&
+                 Array.isArray(intelligenceData.research.research_by_category.ingredients.researched) &&
+                 intelligenceData.research.research_by_category.ingredients.researched.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold mb-4 flex items-center" style={{ color: 'var(--text-primary)' }}>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                      Ingredient Clinical Evidence
+                    </h3>
+
+                    <div className="space-y-4">
+                      {intelligenceData.research.research_by_category.ingredients.researched.map((ingredientData: any, idx: number) => (
+                        <details key={idx} className="border rounded-lg" style={{ borderColor: 'var(--border-color)' }} open={idx === 0}>
+                          <summary className="cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <span className="inline-block w-3 h-3 rounded-full bg-purple-500 mr-3"></span>
+                                <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                  {ingredientData.ingredient}
+                                </span>
+                                <span className="ml-3 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
+                                  {ingredientData.sources_found || 0} studies
+                                </span>
+                              </div>
+                            </div>
+                          </summary>
+
+                          <div className="p-4 pt-0 space-y-4">
+                            {ingredientData.sources && Array.isArray(ingredientData.sources) && ingredientData.sources.map((source: any, sourceIdx: number) => (
+                              <div key={sourceIdx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border" style={{ borderColor: 'var(--border-color)' }}>
+                                {/* Source Header */}
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                                        {source.source || 'PubMed'}
+                                      </span>
+                                      {source.research_type && (
+                                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-medium">
+                                          {source.research_type}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                                      {sourceIdx + 1}. {source.title || 'Untitled Study'}
+                                    </h4>
+                                  </div>
+                                </div>
+
+                                {/* Metadata */}
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3 text-xs">
+                                  {source.journal && (
+                                    <div>
+                                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>Journal:</span>
+                                      <span className="ml-1" style={{ color: 'var(--text-primary)' }}>{source.journal}</span>
+                                    </div>
+                                  )}
+                                  {source.pub_date && (
+                                    <div>
+                                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>Published:</span>
+                                      <span className="ml-1" style={{ color: 'var(--text-primary)' }}>{source.pub_date}</span>
+                                    </div>
+                                  )}
+                                  {source.authors && (
+                                    <div>
+                                      <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>Authors:</span>
+                                      <span className="ml-1" style={{ color: 'var(--text-primary)' }}>{source.authors}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* URL */}
+                                {source.url && (
+                                  <a
+                                    href={source.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all mb-3 block"
+                                  >
+                                    🔗 {source.url}
+                                  </a>
+                                )}
+
+                                {/* Abstract */}
+                                {source.abstract && (
+                                  <details className="mt-3">
+                                    <summary className="text-xs font-medium cursor-pointer text-blue-600 dark:text-blue-400 hover:underline">
+                                      View Complete Abstract
+                                    </summary>
+                                    <p className="text-xs mt-2 leading-relaxed p-3 bg-white dark:bg-gray-900 rounded" style={{ color: 'var(--text-secondary)' }}>
+                                      {source.abstract}
+                                    </p>
+                                  </details>
+                                )}
+
+                                {/* Quality/Relevance Scores */}
+                                {(source.quality_score || source.relevance_score) && (
+                                  <div className="flex gap-3 mt-3 text-xs">
+                                    {source.quality_score && (
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)' }}>Quality:</span>
+                                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                                          {(source.quality_score * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    )}
+                                    {source.relevance_score && (
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)' }}>Relevance:</span>
+                                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                                          {(source.relevance_score * 100).toFixed(0)}%
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                          {source.url && (
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
-                            >
-                              {source.url}
-                            </a>
-                          )}
-                          {source.snippet && (
-                            <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                              {source.snippet}
-                            </p>
-                          )}
-                        </div>
+                        </details>
                       ))}
                     </div>
-                  </details>
+                  </div>
+                )}
+
+                {/* Feature/Benefit Research (if not skipped) */}
+                {intelligenceData.research.research_by_category?.features?.sources &&
+                 Array.isArray(intelligenceData.research.research_by_category.features.sources) &&
+                 intelligenceData.research.research_by_category.features.sources.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+                      Feature/Benefit Validation
+                    </h3>
+                    <details className="border rounded-lg p-4" style={{ borderColor: 'var(--border-color)' }}>
+                      <summary className="cursor-pointer text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                        View {intelligenceData.research.research_by_category.features.sources.length} Studies
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        {intelligenceData.research.research_by_category.features.sources.map((source: any, idx: number) => (
+                          <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800 rounded text-xs">
+                            <div className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{source.title}</div>
+                            {source.url && (
+                              <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                                {source.url}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
+
+                {/* Cache Stats */}
+                {intelligenceData.research.cache_stats && (
+                  <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                      💾 Cache Performance
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Cache Size:</span>
+                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {intelligenceData.research.cache_stats.cache_size || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Hit Rate:</span>
+                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {intelligenceData.research.cache_stats.hit_rate || '0%'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Hits:</span>
+                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {intelligenceData.research.cache_stats.hits || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Savings:</span>
+                        <span className="ml-1 font-medium" style={{ color: 'var(--text-primary)' }}>
+                          ${(intelligenceData.research.cache_stats.estimated_savings_usd || 0).toFixed(4)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             ) : (
