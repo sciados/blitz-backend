@@ -1,5 +1,5 @@
 # app/db/models.py
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, ARRAY
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, ARRAY, Date, Boolean, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -24,11 +24,18 @@ class User(Base):
     # "product_creator" (free, adds products) | "affiliate_marketer" (paid, uses products)
     user_type = Column(String(50), server_default="affiliate_marketer", nullable=False, index=True)
 
+    # Developer tier (for product developers)
+    developer_tier = Column(String(20), nullable=True, index=True)  # new, verified, premium
+    developer_tier_upgraded_at = Column(DateTime(timezone=True), nullable=True)
+    stripe_subscription_id = Column(String(255), nullable=True)  # For premium tier
+    email_notifications = Column(JSONB, nullable=True)  # Email notification preferences
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
+    created_products = relationship("ProductIntelligence", back_populates="created_by", foreign_keys="ProductIntelligence.created_by_user_id")
 
 # ============================================================================
 # PRODUCT INTELLIGENCE MODEL (Global Shared Intelligence)
@@ -83,9 +90,24 @@ class ProductIntelligence(Base):
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
     is_public = Column(String(20), server_default="true", nullable=False, index=True)  # Show in public library (for future moderation)
 
+    # Product ownership and quality
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    developer_tier = Column(String(20), nullable=True)  # Tier of developer who added it
+    quality_score = Column(Integer, nullable=True)  # 0-100 quality score
+    status = Column(String(20), server_default="pending", nullable=False, index=True)  # pending, approved, rejected, archived
+    approval_date = Column(DateTime(timezone=True), nullable=True)
+    rejected_reason = Column(Text, nullable=True)
+
+    # Product freshness and maintenance
+    product_launch_date = Column(Date, nullable=True)  # When product was launched
+    last_verified_at = Column(DateTime(timezone=True), nullable=True)  # Last quality check
+    is_actively_maintained = Column(Boolean, server_default="true")
+
     # Relationships
     campaigns = relationship("Campaign", back_populates="product_intelligence")
     knowledge_base = relationship("KnowledgeBase", back_populates="product_intelligence", cascade="all, delete-orphan")
+    created_by = relationship("User", back_populates="created_products", foreign_keys=[created_by_user_id])
+    analytics = relationship("ProductAnalytics", back_populates="product_intelligence", cascade="all, delete-orphan")
 
 # ============================================================================
 # CAMPAIGN MODEL
@@ -130,6 +152,7 @@ class Campaign(Base):
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
+    analytics = relationship("CampaignAnalytics", back_populates="campaign", cascade="all, delete-orphan")
 
 # ============================================================================
 # GENERATED CONTENT MODEL
@@ -193,3 +216,90 @@ class MediaAsset(Base):
 
     # Relationships
     campaign = relationship("Campaign", back_populates="media_assets")
+
+# ============================================================================
+# ANALYTICS MODELS
+# ============================================================================
+
+class ProductAnalytics(Base):
+    """Track product performance metrics"""
+    __tablename__ = "product_analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+
+    # Campaign metrics
+    campaigns_created = Column(Integer, server_default="0", nullable=False)
+    campaigns_active = Column(Integer, server_default="0", nullable=False)
+
+    # Content generation metrics
+    content_pieces_generated = Column(Integer, server_default="0", nullable=False)
+    content_by_type = Column(JSONB, nullable=True)
+
+    # Affiliate engagement
+    unique_affiliates = Column(Integer, server_default="0", nullable=False)
+    new_affiliates_this_period = Column(Integer, server_default="0", nullable=False)
+
+    # Library visibility
+    product_page_views = Column(Integer, server_default="0", nullable=False)
+    product_detail_views = Column(Integer, server_default="0", nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    product_intelligence = relationship("ProductIntelligence", back_populates="analytics")
+
+    __table_args__ = (
+        UniqueConstraint('product_intelligence_id', 'date', name='uq_product_analytics_date'),
+    )
+
+
+class CampaignAnalytics(Base):
+    """Track campaign performance metrics"""
+    __tablename__ = "campaign_analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+
+    # Content generation
+    content_generated = Column(Integer, server_default="0", nullable=False)
+    content_by_type = Column(JSONB, nullable=True)
+
+    # AI usage
+    ai_credits_used = Column(Integer, server_default="0", nullable=False)
+    tokens_consumed = Column(Integer, server_default="0", nullable=False)
+
+    # Quality metrics
+    avg_compliance_score = Column(Float, nullable=True)
+    content_variations_created = Column(Integer, server_default="0", nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    campaign = relationship("Campaign", back_populates="analytics")
+
+    __table_args__ = (
+        UniqueConstraint('campaign_id', 'date', name='uq_campaign_analytics_date'),
+    )
+
+
+class AnalyticsEvent(Base):
+    """Track individual events for analytics aggregation"""
+    __tablename__ = "analytics_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(50), nullable=False, index=True)
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="SET NULL"), nullable=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    event_data = Column(JSONB, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Relationships
+    user = relationship("User")
+    product_intelligence = relationship("ProductIntelligence")
+    campaign = relationship("Campaign")
