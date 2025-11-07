@@ -1,6 +1,6 @@
 # app/db/models.py
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, ForeignKey, ARRAY, Date, Boolean, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, INET
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
@@ -36,6 +36,7 @@ class User(Base):
     # Relationships
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     created_products = relationship("ProductIntelligence", back_populates="created_by", foreign_keys="ProductIntelligence.created_by_user_id")
+    shortened_links = relationship("ShortenedLink", back_populates="user", cascade="all, delete-orphan")
 
 # ============================================================================
 # PRODUCT INTELLIGENCE MODEL (Global Shared Intelligence)
@@ -140,6 +141,9 @@ class Campaign(Base):
     # Link to shared product intelligence (set when product is chosen/compiled)
     product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="SET NULL"), nullable=True, index=True)
 
+    # URL Shortener: Primary affiliate link for this campaign
+    affiliate_link_short_code = Column(String(20), nullable=True)
+
     # Legacy: Direct intelligence storage (deprecated, kept for migration)
     intelligence_data = Column(JSONB, nullable=True)
 
@@ -153,6 +157,7 @@ class Campaign(Base):
     knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
     analytics = relationship("CampaignAnalytics", back_populates="campaign", cascade="all, delete-orphan")
+    shortened_links = relationship("ShortenedLink", back_populates="campaign", cascade="all, delete-orphan")
 
 # ============================================================================
 # GENERATED CONTENT MODEL
@@ -303,3 +308,88 @@ class AnalyticsEvent(Base):
     user = relationship("User")
     product_intelligence = relationship("ProductIntelligence")
     campaign = relationship("Campaign")
+
+# ============================================================================
+# URL SHORTENER MODELS
+# ============================================================================
+
+class ShortenedLink(Base):
+    """Shortened URL with click tracking for affiliate links"""
+    __tablename__ = "shortened_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # URL data
+    original_url = Column(Text, nullable=False)  # Full affiliate link
+    short_code = Column(String(20), unique=True, nullable=False, index=True)  # e.g., "abc123"
+    custom_slug = Column(String(100), nullable=True, unique=True, index=True)  # Optional custom slug
+
+    # Link metadata
+    link_type = Column(String(50), server_default="affiliate", nullable=False)  # affiliate, custom, temporary
+    title = Column(String(255), nullable=True)  # Link description
+    tags = Column(ARRAY(String), nullable=True)  # For organizing links
+
+    # Domain settings
+    domain = Column(String(100), server_default="default", nullable=False)  # default, custom domain
+
+    # UTM parameters (auto-append to destination URL)
+    utm_params = Column(JSONB, nullable=True)
+
+    # Status and expiration
+    is_active = Column(Boolean, server_default="true", nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # Optional expiration
+
+    # Analytics counters (cached for performance)
+    total_clicks = Column(Integer, server_default="0", nullable=False, index=True)
+    unique_clicks = Column(Integer, server_default="0", nullable=False)
+    last_clicked_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    campaign = relationship("Campaign", back_populates="shortened_links")
+    user = relationship("User", back_populates="shortened_links")
+    clicks = relationship("LinkClick", back_populates="shortened_link", cascade="all, delete-orphan")
+
+
+class LinkClick(Base):
+    """Individual click event with detailed analytics"""
+    __tablename__ = "link_clicks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shortened_link_id = Column(Integer, ForeignKey("shortened_links.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Click metadata
+    clicked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Visitor information
+    ip_address = Column(INET, nullable=True)
+    user_agent = Column(Text, nullable=True)
+    referer = Column(Text, nullable=True)  # Where they came from
+
+    # Device/browser detection (parsed from user_agent)
+    device_type = Column(String(50), nullable=True, index=True)  # mobile, tablet, desktop
+    browser = Column(String(50), nullable=True)
+    os = Column(String(50), nullable=True)
+
+    # Geographic data (from IP lookup)
+    country_code = Column(String(2), nullable=True, index=True)  # US, GB, CA
+    country_name = Column(String(100), nullable=True)
+    region = Column(String(100), nullable=True)  # State/Province
+    city = Column(String(100), nullable=True)
+
+    # UTM tracking (from referrer URL)
+    utm_source = Column(String(100), nullable=True)
+    utm_medium = Column(String(100), nullable=True)
+    utm_campaign = Column(String(100), nullable=True)
+
+    # Additional metadata
+    is_unique = Column(Boolean, server_default="true", nullable=False)  # First click from this IP
+    click_data = Column(JSONB, nullable=True)  # Additional flexible data
+
+    # Relationships
+    shortened_link = relationship("ShortenedLink", back_populates="clicks")
