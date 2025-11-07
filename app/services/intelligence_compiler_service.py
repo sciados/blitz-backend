@@ -171,8 +171,16 @@ class IntelligenceCompilerService:
             logger.info(f"   Name: {product_intelligence.product_name}")
 
             # Step 2: Check if already compiled (unless force_recompile)
-            if product_intelligence.intelligence_data and not options.get('force_recompile'):
-                logger.info(f"✨ Product already has intelligence data. Skipping compilation.")
+            # Only skip if we have ACTUAL compiled intelligence (sales_page data from scraping)
+            # Don't skip if it only has submission metadata
+            is_fully_compiled = (
+                product_intelligence.intelligence_data and
+                'sales_page' in product_intelligence.intelligence_data and
+                product_intelligence.intelligence_data.get('status') != 'pending_intelligence_compilation'
+            )
+
+            if is_fully_compiled and not options.get('force_recompile'):
+                logger.info(f"✨ Product already has complete intelligence data. Skipping compilation.")
                 processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
 
                 return {
@@ -184,6 +192,10 @@ class IntelligenceCompilerService:
                     'processing_time_ms': round(processing_time),
                     'costs': {'total': 0}
                 }
+
+            # If only has submission metadata, proceed with compilation
+            if product_intelligence.intelligence_data and not is_fully_compiled:
+                logger.info(f"📝 Product has submission metadata but no compiled intelligence. Proceeding with compilation...")
 
             # Step 3: Perform compilation (Scrape → Amplify → RAG)
             costs = {
@@ -246,6 +258,10 @@ class IntelligenceCompilerService:
             product_intelligence.intelligence_data = amplified_intelligence
             product_intelligence.compiled_at = datetime.utcnow()
             product_intelligence.compilation_version = "1.0"
+
+            # Remove pending status if it exists (from initial submission)
+            if 'status' in amplified_intelligence:
+                amplified_intelligence.pop('status', None)
 
             # Extract and save product metadata for library display
             self._extract_and_save_product_metadata_standalone(
