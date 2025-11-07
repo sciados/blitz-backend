@@ -428,24 +428,38 @@ class IntelligentRAGSystem:
         # Generate comprehensive query list
         queries = []
 
-        # 1. Feature queries (top 3 features)
-        for feature in features[:3]:
+        # 1. Feature queries (top 5 features for deeper coverage)
+        for feature in features[:5]:
             queries.append(f"{product_name} {feature} how it works")
+            queries.append(f"{product_name} {feature} tutorial guide")
 
-        # 2. Benefit/use case queries (top 3 benefits)
-        for benefit in benefits[:3]:
+        # 2. Benefit/use case queries (top 5 benefits)
+        for benefit in benefits[:5]:
             queries.append(f"{product_name} {benefit} use cases examples")
+            queries.append(f"{product_name} {benefit} results testimonials")
 
-        # 3. General product queries
+        # 3. Comprehensive general product queries
         queries.extend([
             f"{product_name} features review",
+            f"{product_name} complete features list",
             f"{product_name} customer reviews ratings testimonials",
+            f"{product_name} user reviews feedback",
             f"{product_name} pricing cost plans",
+            f"{product_name} pricing comparison value",
             f"{product_name} vs competitors alternatives comparison",
+            f"{product_name} competitors pros cons",
             f"{product_name} case studies success stories",
+            f"{product_name} real world examples",
             f"{product_name} best practices tips",
+            f"{product_name} advanced tips tricks",
             f"how to use {product_name} effectively",
-            f"{product_name} pros cons advantages disadvantages"
+            f"{product_name} getting started guide",
+            f"{product_name} pros cons advantages disadvantages",
+            f"{product_name} limitations drawbacks",
+            f"{product_name} worth it review",
+            f"{product_name} ROI return on investment",
+            f"{product_name} integrations compatibility",
+            f"{product_name} support documentation quality"
         ])
 
         # Limit to budget (2 results per query)
