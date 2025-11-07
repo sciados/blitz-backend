@@ -19,7 +19,11 @@ from app.db.models import User, Campaign, ShortenedLink
 from app.auth import get_current_active_user
 from app.services.url_shortener import URLShortenerService
 
+# Main router for link management (authenticated endpoints)
 router = APIRouter(prefix="/api/links", tags=["URL Shortener"])
+
+# Separate router for public redirect (no prefix, no auth)
+redirect_router = APIRouter(tags=["URL Shortener"])
 
 
 # ============================================================================
@@ -69,7 +73,7 @@ class LinkAnalyticsResponse(BaseModel):
 # REDIRECT ENDPOINT (Public - No Auth Required)
 # ============================================================================
 
-@router.get("/{short_code}", include_in_schema=False)
+@redirect_router.get("/{short_code}", include_in_schema=False)
 async def redirect_short_link(
     short_code: str,
     request: Request,
@@ -81,7 +85,7 @@ async def redirect_short_link(
     This is the public endpoint that users click on.
     No authentication required.
 
-    Example: GET /api/links/abc123 → Redirects to affiliate link
+    Example: GET /abc123 → Redirects to affiliate link
     """
     shortener = URLShortenerService(db)
 

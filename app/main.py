@@ -151,7 +151,8 @@ app.include_router(products.router)
 app.include_router(content.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
-app.include_router(links.router)
+app.include_router(links.router)  # Link management API under /api/links
+app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(admin_ai_router.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
