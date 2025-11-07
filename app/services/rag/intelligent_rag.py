@@ -170,51 +170,41 @@ class IntelligentRAGSystem:
 
         # 2. Research key features/claims
         # For health products: SKIP feature research (ingredients ARE the proof)
-        # For other products: Research features/benefits
-        if not is_health_product:
-            features = product_data.get("features", [])
-            benefits = product_data.get("benefits", [])
+        # For non-health products: SKIP scholarly research (no academic papers for commercial products)
+        logger.info(f"⏭️  Skipping scholarly feature research (health: ingredient papers, non-health: no academic papers exist)")
+        research_data["research_by_category"]["features"] = {
+            "skipped": True,
+            "reason": "Health: ingredient research covers claims. Non-health: web research more valuable than academic",
+            "sources": [],
+            "searches_conducted": 0
+        }
 
-            # Combine features and benefits for research (both are product claims)
-            all_claims = features + benefits
-            claims_to_research = all_claims[:5]  # Research top 5 claims
-
-            if claims_to_research:
-                logger.info(f"🎯 Researching {len(claims_to_research)} key claims (features + benefits)")
-                feature_research = await self._research_features(
-                    claims_to_research,
-                    product_name=product_data.get("name", "Product"),
-                    max_results=limits["scholarly"] // 3,
-                    is_health_product=False
-                )
-                research_data["research_by_category"]["features"] = feature_research
-                research_data["all_sources"].extend(feature_research.get("sources", []))
-        else:
-            logger.info(f"⏭️  Skipping feature research (health product - ingredient research is sufficient)")
-            research_data["research_by_category"]["features"] = {
-                "skipped": True,
-                "reason": "Health supplement - ingredient research validates all claims",
-                "sources": [],
-                "searches_conducted": 0
-            }
-
-        # 3. Market/business research (web search)
-        # Skip market research for health supplements - scholarly sources are more valuable
+        # 3. Comprehensive web research (non-health products only)
+        # For non-health products: Use ALL search budget on web (features, benefits, reviews, comparisons)
+        # For health products: Skip web (scholarly sources are more valuable)
 
         if not is_health_product:
-            logger.info(f"📊 Conducting market research (non-health product)")
-            market_research = await self._research_market(
+            # Use ALL available searches on web for non-health products
+            # Standard = 20 web searches for comprehensive coverage
+            total_web_searches = limits.get("scholarly", 0) + limits.get("web", 0)
+
+            logger.info(f"🌐 Conducting comprehensive web research (non-health product)")
+            logger.info(f"   - Total web searches: {total_web_searches}")
+
+            market_research = await self._research_product_web(
                 product_name=product_data.get("name", "Product"),
                 product_type=product_type,
-                max_results=limits["web"]
+                features=product_data.get("features", []),
+                benefits=product_data.get("benefits", []),
+                max_results=total_web_searches
             )
             research_data["research_by_category"]["market"] = market_research
             research_data["all_sources"].extend(market_research.get("sources", []))
         else:
-            logger.info(f"⏭️  Skipping market research (health product - scholarly sources prioritized)")
+            logger.info(f"⏭️  Skipping web research (health product - scholarly sources prioritized)")
             research_data["research_by_category"]["market"] = {
                 "skipped": True,
-                "reason": "Health supplement - scholarly research prioritized over market data",
+                "reason": "Health supplement - scholarly research prioritized over web data",
                 "queries": [],
                 "sources": [],
                 "searches_conducted": 0
@@ -404,6 +394,92 @@ class IntelligentRAGSystem:
         logger.info(f"✅ Market research: {len(market_data['sources'])} sources, {market_data['searches_conducted']} searches")
 
         return market_data
+
+    async def _research_product_web(
+        self,
+        product_name: str,
+        product_type: str,
+        features: List[str],
+        benefits: List[str],
+        max_results: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Comprehensive web research for non-health products (SaaS, info products, services)
+
+        Searches for:
+        - Features and how they work
+        - Benefits and use cases
+        - Customer reviews and ratings
+        - Pricing and comparisons
+        - Alternatives and competitors
+        - Case studies and success stories
+        """
+        logger.info(f"🌐 Comprehensive web research for {product_name}")
+
+        research_data = {
+            "queries": [],
+            "sources": [],
+            "searches_conducted": 0
+        }
+
+        # Generate comprehensive query list
+        queries = []
+
+        # 1. Feature queries (top 3 features)
+        for feature in features[:3]:
+            queries.append(f"{product_name} {feature} how it works")
+
+        # 2. Benefit/use case queries (top 3 benefits)
+        for benefit in benefits[:3]:
+            queries.append(f"{product_name} {benefit} use cases examples")
+
+        # 3. General product queries
+        queries.extend([
+            f"{product_name} features review",
+            f"{product_name} customer reviews ratings testimonials",
+            f"{product_name} pricing cost plans",
+            f"{product_name} vs competitors alternatives comparison",
+            f"{product_name} case studies success stories",
+            f"{product_name} best practices tips",
+            f"how to use {product_name} effectively",
+            f"{product_name} pros cons advantages disadvantages"
+        ])
+
+        # Limit to budget (2 results per query)
+        max_queries = max_results // 2
+        queries_to_run = queries[:max_queries]
+
+        logger.info(f"   - Running {len(queries_to_run)} queries (budget: {max_results} searches)")
+
+        for query in queries_to_run:
+            # Check cache
+            cached = self.cache.get(query, "web")
+            if cached:
+                research_data["sources"].extend(cached)
+                research_data["queries"].append({
+                    "query": query,
+                    "sources_found": len(cached),
+                    "cached": True
+                })
+                continue
+
+            # Web search (Tavily - $0.001 per search)
+            results = await self.web.search(query, max_results=2, search_depth="basic")
+            research_data["searches_conducted"] += 1
+
+            if results:
+                self.cache.set(query, "web", results)
+                research_data["sources"].extend(results)
+
+            research_data["queries"].append({
+                "query": query,
+                "sources_found": len(results),
+                "cached": False
+            })
+
+        logger.info(f"✅ Web research: {len(research_data['sources'])} sources, {research_data['searches_conducted']} searches")
+
+        return research_data
 
     async def generate_research_summary(
         self,
