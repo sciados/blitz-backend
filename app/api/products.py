@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.db.models import User, ProductIntelligence
 from app.schemas import MessageResponse
 from app.auth import get_current_active_user
+from app.services.intelligence_compiler_service import IntelligenceCompilerService
 
 router = APIRouter(prefix="/api/products", tags=["Product Library"])
 
@@ -701,9 +702,49 @@ async def submit_product(
     await db.commit()
     await db.refresh(new_product)
 
-    # TODO: Trigger async intelligence compilation here
-    # For now, product is added with basic metadata
-    # Intelligence can be compiled later via admin tools or background job
+    # Trigger automatic intelligence compilation
+    # This runs asynchronously in the background, so the user gets an immediate response
+    # while the compilation happens behind the scenes
+    import asyncio
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    async def background_compile():
+        """Background task to compile intelligence for newly submitted product"""
+        try:
+            # Create a new database session for the background task
+            from app.db.session import SessionLocal
+            async with SessionLocal() as bg_db:
+                compiler = IntelligenceCompilerService(bg_db)
+
+                logger.info(f"🚀 Starting background intelligence compilation for product {new_product.id}")
+
+                result = await compiler.compile_for_product(
+                    product_intelligence_id=new_product.id,
+                    user_id=current_user.id,
+                    options={
+                        'deep_scrape': False,
+                        'scrape_images': True,
+                        'max_images': 10,
+                        'enable_rag': True,
+                        'force_recompile': False
+                    }
+                )
+
+                if result.get('success'):
+                    logger.info(f"✅ Background compilation completed for product {new_product.id}")
+                    logger.info(f"   Cost: ${result.get('costs', {}).get('total', 0):.4f}")
+                else:
+                    logger.error(f"❌ Background compilation failed for product {new_product.id}: {result.get('error')}")
+
+        except Exception as e:
+            logger.error(f"❌ Background compilation error for product {new_product.id}: {str(e)}")
+
+    # Start background task (fire-and-forget)
+    asyncio.create_task(background_compile())
+
+    logger.info(f"📦 Product {new_product.id} created. Intelligence compilation started in background.")
 
     # Extract description and recurring status from intelligence data
     description, is_recurring = extract_product_summary(new_product.intelligence_data)

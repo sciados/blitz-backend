@@ -131,6 +131,162 @@ class IntelligenceCompilerService:
                 'campaign_id': campaign_id
             }
 
+    async def compile_for_product(
+        self,
+        product_intelligence_id: int,
+        user_id: int,
+        options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Compile intelligence directly for a ProductIntelligence record (no campaign required).
+
+        This is used when products are submitted to the library and need immediate intelligence
+        compilation without a campaign context.
+
+        Args:
+            product_intelligence_id: ProductIntelligence record ID
+            user_id: User ID for RAG ingestion
+            options: Compilation options (same as compile_for_campaign)
+
+        Returns:
+            Compilation result with costs and intelligence info
+        """
+        start_time = datetime.utcnow()
+        options = options or {}
+
+        try:
+            # Step 1: Get ProductIntelligence record
+            stmt = select(ProductIntelligence).where(ProductIntelligence.id == product_intelligence_id)
+            result = await self.db.execute(stmt)
+            product_intelligence = result.scalar_one_or_none()
+
+            if not product_intelligence:
+                return {
+                    'success': False,
+                    'error': 'ProductIntelligence record not found'
+                }
+
+            logger.info(f"🚀 Compiling intelligence for product {product_intelligence_id}")
+            logger.info(f"   URL: {product_intelligence.product_url}")
+            logger.info(f"   Name: {product_intelligence.product_name}")
+
+            # Step 2: Check if already compiled (unless force_recompile)
+            if product_intelligence.intelligence_data and not options.get('force_recompile'):
+                logger.info(f"✨ Product already has intelligence data. Skipping compilation.")
+                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+
+                return {
+                    'success': True,
+                    'product_intelligence_id': product_intelligence_id,
+                    'status': 'already_compiled',
+                    'was_cached': True,
+                    'intelligence_summary': self._generate_summary(product_intelligence.intelligence_data),
+                    'processing_time_ms': round(processing_time),
+                    'costs': {'total': 0}
+                }
+
+            # Step 3: Perform compilation (Scrape → Amplify → RAG)
+            costs = {
+                'scraping': 0,
+                'analysis': 0,
+                'embeddings': 0,
+                'storage': 0
+            }
+
+            # Clean up old images if this is a force recompile
+            if options.get('force_recompile') and product_intelligence.intelligence_data:
+                await self._cleanup_old_images(product_intelligence.intelligence_data)
+
+            # Step 3a: Scrape Sales Page
+            logger.info("📄 Step 1/3: Scraping sales page...")
+
+            scraped_data = await self.scraper.scrape_sales_page(
+                url=product_intelligence.product_url,
+                product_intelligence_id=product_intelligence.id,
+                max_images=options.get('max_images', 10),
+                scrape_images=options.get('scrape_images', True)
+            )
+
+            if not scraped_data.get('success'):
+                return {
+                    'success': False,
+                    'error': f"Scraping failed: {scraped_data.get('error')}"
+                }
+
+            logger.info(f"✅ Scraped {scraped_data.get('word_count', 0)} words, {scraped_data.get('image_count', 0)} images")
+
+            # Step 3b: Amplify Intelligence
+            logger.info("🧠 Step 2/3: Amplifying intelligence with Claude...")
+
+            amplified_intelligence = await self.amplifier.amplify_intelligence(scraped_data)
+
+            # Estimate Claude cost
+            costs['analysis'] = 0.05
+
+            logger.info(f"✅ Intelligence amplified")
+
+            # Step 3c: Generate RAG Embeddings
+            if options.get('enable_rag', True):
+                logger.info("🔢 Step 3/3: Generating embeddings...")
+
+                embedding_text = self.embeddings.prepare_text_for_embedding(amplified_intelligence)
+                embedding_vector = await self.embeddings.generate_embedding(embedding_text)
+
+                product_intelligence.intelligence_embedding = embedding_vector
+
+                # Calculate embedding cost
+                token_count = self.embeddings.estimate_tokens(embedding_text)
+                costs['embeddings'] = self.embeddings.get_embedding_cost(token_count)
+
+                logger.info(f"✅ Generated {len(embedding_vector)}D embedding")
+            else:
+                logger.info("⏭️  Step 3/3: Skipping RAG (disabled)")
+
+            # Step 4: Store intelligence in ProductIntelligence
+            product_intelligence.intelligence_data = amplified_intelligence
+            product_intelligence.compiled_at = datetime.utcnow()
+            product_intelligence.compilation_version = "1.0"
+
+            # Extract and save product metadata for library display
+            self._extract_and_save_product_metadata_standalone(
+                product_intelligence,
+                amplified_intelligence,
+                scraped_data
+            )
+
+            # Step 5: Ingest RAG research into KnowledgeBase for content generation
+            if amplified_intelligence.get('research') and options.get('enable_rag', True):
+                await self._ingest_research_to_knowledge_base(
+                    user_id,
+                    product_intelligence.id,
+                    amplified_intelligence
+                )
+
+            await self.db.commit()
+
+            costs['total'] = sum(costs.values())
+            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+
+            logger.info(f"🎉 Compilation complete! Total cost: ${costs['total']:.4f}")
+
+            return {
+                'success': True,
+                'product_intelligence_id': product_intelligence.id,
+                'status': 'completed',
+                'was_cached': False,
+                'intelligence_summary': self._generate_summary(amplified_intelligence),
+                'processing_time_ms': round(processing_time),
+                'costs': costs
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Product intelligence compilation failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'product_intelligence_id': product_intelligence_id
+            }
+
     async def _compile_new_intelligence(
         self,
         campaign: Campaign,
@@ -418,6 +574,67 @@ class IntelligenceCompilerService:
         )
 
         # Mark as public (default)
+        product_intelligence.is_public = "true"
+
+        logger.info(f"📋 Extracted metadata: {product_intelligence.product_name} ({product_intelligence.product_category})")
+        if product_intelligence.thumbnail_image_url:
+            logger.info(f"🖼️  Thumbnail: {product_intelligence.thumbnail_image_url}")
+
+    def _extract_and_save_product_metadata_standalone(
+        self,
+        product_intelligence: ProductIntelligence,
+        intelligence_data: Dict[str, Any],
+        scraped_data: Dict[str, Any]
+    ):
+        """
+        Extract and save product metadata for library display (no campaign required).
+
+        Similar to _extract_and_save_product_metadata but for products submitted
+        directly to the library without a campaign.
+        """
+        # Extract product name
+        product_intelligence.product_name = (
+            intelligence_data.get('product', {}).get('name') or
+            intelligence_data.get('sales_page', {}).get('title', '').strip()[:255] or
+            product_intelligence.product_name or  # Use submitted name as fallback
+            'Unknown Product'
+        )
+
+        # Extract product category
+        product_intelligence.product_category = (
+            intelligence_data.get('market', {}).get('category') or
+            intelligence_data.get('product', {}).get('category') or
+            product_intelligence.product_category or  # Use submitted category as fallback
+            'uncategorized'
+        )
+
+        # Extract thumbnail image (first image from scraped data)
+        images = scraped_data.get('images', [])
+        if images and len(images) > 0:
+            # Get first image that was successfully uploaded to R2
+            for img in images:
+                if img.get('r2_url'):
+                    product_intelligence.thumbnail_image_url = img['r2_url']
+                    break
+
+        # Use existing affiliate_network if set, otherwise try to detect
+        if not product_intelligence.affiliate_network:
+            product_intelligence.affiliate_network = (
+                self._detect_affiliate_network(product_intelligence.product_url) or
+                'unknown'
+            )
+
+        # Extract commission rate (if mentioned in sales page or intelligence)
+        # Only override if not already set during submission
+        if not product_intelligence.commission_rate:
+            product_intelligence.commission_rate = (
+                intelligence_data.get('product', {}).get('commission') or
+                intelligence_data.get('sales_page', {}).get('commission_rate') or
+                intelligence_data.get('market', {}).get('commission_rate') or
+                None
+            )
+
+        # Mark as public
         product_intelligence.is_public = "true"
 
         logger.info(f"📋 Extracted metadata: {product_intelligence.product_name} ({product_intelligence.product_category})")
