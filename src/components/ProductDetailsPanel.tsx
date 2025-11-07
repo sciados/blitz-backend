@@ -290,36 +290,73 @@ export function ProductDetailsPanel({
                     </svg>
                     <span>Edit Product</span>
                   </button>
-                  <button
-                    onClick={handleRecompileIntelligence}
-                    disabled={isRecompiling}
-                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center space-x-2 font-medium"
-                    title="Recompile all intelligence data including RAG research"
-                  >
-                    {isRecompiling ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Recompiling...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                        <span>Refresh Intelligence</span>
-                      </>
-                    )}
-                  </button>
+
+                  {/* Show different buttons based on whether intelligence exists */}
+                  {product.intelligence_data && Object.keys(product.intelligence_data).length > 0 ? (
+                    // Intelligence EXISTS - Show "Refresh Intelligence" button
+                    <button
+                      onClick={handleRecompileIntelligence}
+                      disabled={isRecompiling}
+                      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center space-x-2 font-medium"
+                      title="Recompile all intelligence data including RAG research"
+                    >
+                      {isRecompiling ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Recompiling...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                          <span>Refresh Intelligence</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    // Intelligence DOES NOT EXIST - Show "Compile Intelligence" button
+                    <button
+                      onClick={handleRecompileIntelligence}
+                      disabled={isRecompiling}
+                      className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center space-x-2 font-medium shadow-lg"
+                      title="Generate intelligence data for this product including RAG research"
+                    >
+                      {isRecompiling ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Compiling...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                            />
+                          </svg>
+                          <span>Compile Intelligence</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </>
               )}
               <button
