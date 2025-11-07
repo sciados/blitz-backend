@@ -270,13 +270,11 @@ class IntelligenceCompilerService:
                 scraped_data
             )
 
-            # Step 5: Ingest RAG research into KnowledgeBase for content generation
-            if amplified_intelligence.get('research') and options.get('enable_rag', True):
-                await self._ingest_research_to_knowledge_base(
-                    user_id,
-                    product_intelligence.id,
-                    amplified_intelligence
-                )
+            # Step 5: Skip KnowledgeBase ingestion for product-only compilations
+            # KnowledgeBase is campaign-specific and used for content generation
+            # Products compiled without campaigns don't need this step
+            # The research is still stored in intelligence_data and accessible
+            logger.info(f"⏭️  Skipping KnowledgeBase ingestion (product-only compilation, no campaign context)")
 
             await self.db.commit()
 
@@ -422,9 +420,9 @@ class IntelligenceCompilerService:
         await self._link_campaign_to_intelligence(campaign, product_intelligence)
 
         # Step 4: Ingest RAG research into KnowledgeBase for content generation
-        if amplified_intelligence.get('research') and options.get('enable_rag', False):
+        if amplified_intelligence.get('research') and options.get('enable_rag', True):
             await self._ingest_research_to_knowledge_base(
-                campaign.user_id,
+                campaign.id,  # Pass campaign_id (not user_id)
                 product_intelligence.id,
                 amplified_intelligence
             )
@@ -795,7 +793,7 @@ class IntelligenceCompilerService:
 
     async def _ingest_research_to_knowledge_base(
         self,
-        user_id: int,
+        campaign_id: int,
         product_intelligence_id: int,
         intelligence_data: Dict[str, Any]
     ) -> None:
@@ -804,6 +802,11 @@ class IntelligenceCompilerService:
 
         This makes clinical studies and ingredient evidence available during content
         creation, allowing AI to cite specific studies and use detailed clinical data.
+
+        Args:
+            campaign_id: Campaign ID (KnowledgeBase is campaign-specific)
+            product_intelligence_id: ProductIntelligence record ID
+            intelligence_data: Complete intelligence data including research
         """
         try:
             research_data = intelligence_data.get('research')
@@ -825,22 +828,21 @@ class IntelligenceCompilerService:
 
             # Store in KnowledgeBase
             kb_entry = KnowledgeBase(
-                user_id=user_id,
+                campaign_id=campaign_id,  # Fixed: use campaign_id not user_id
                 content=research_summary,
                 embedding=embedding_vector,
-                source_type="rag_research",
                 source_url=intelligence_data.get('sales_page', {}).get('url', ''),
                 meta_data={
                     "product_intelligence_id": product_intelligence_id,
                     "product_name": product_name,
+                    "source_type": "rag_research",
                     "research_stats": {
                         "total_sources": research_data.get('total_sources', 0),
                         "searches_conducted": research_data.get('searches_conducted', 0),
                         "research_level": research_data.get('research_level', 'standard')
                     },
                     "ingested_at": datetime.utcnow().isoformat()
-                },
-                chunk_count=1
+                }
             )
 
             self.db.add(kb_entry)
