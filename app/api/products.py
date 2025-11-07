@@ -915,8 +915,64 @@ async def delete_product(
             detail="Product not found"
         )
 
-    # Delete the product
+    import logging
+    logger = logging.getLogger(__name__)
+
+    product_name = product.product_name or "Unknown Product"
+    logger.info(f"🗑️  Deleting product {product_id}: {product_name}")
+
+    # Step 1: Delete all R2 images associated with this product
+    from app.services.storage_r2 import R2StorageService
+    r2_storage = R2StorageService()
+
+    deleted_images = 0
+    if product.intelligence_data and 'images' in product.intelligence_data:
+        images = product.intelligence_data.get('images', [])
+        for img in images:
+            if img.get('r2_key'):
+                try:
+                    success = await r2_storage.delete_file(img['r2_key'])
+                    if success:
+                        deleted_images += 1
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to delete image {img['r2_key']}: {str(e)}")
+
+    if deleted_images > 0:
+        logger.info(f"✅ Deleted {deleted_images} images from R2")
+
+    # Step 2: Delete KnowledgeBase entries that reference this product
+    from app.db.models import KnowledgeBase
+    kb_result = await db.execute(
+        select(KnowledgeBase).where(
+            KnowledgeBase.meta_data['product_intelligence_id'].astext == str(product_id)
+        )
+    )
+    kb_entries = kb_result.scalars().all()
+
+    for kb_entry in kb_entries:
+        await db.delete(kb_entry)
+
+    if kb_entries:
+        logger.info(f"✅ Deleted {len(kb_entries)} KnowledgeBase entries")
+
+    # Step 3: Check for campaigns using this product
+    from app.db.models import Campaign
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.product_intelligence_id == product_id)
+    )
+    campaigns = campaign_result.scalars().all()
+
+    if campaigns:
+        # Unlink campaigns from this product (don't delete campaigns)
+        for campaign in campaigns:
+            campaign.product_intelligence_id = None
+            campaign.intelligence_data = None
+        logger.info(f"✅ Unlinked {len(campaigns)} campaigns from product")
+
+    # Step 4: Delete the ProductIntelligence record
     await db.delete(product)
     await db.commit()
 
-    return MessageResponse(message=f"Product '{product.product_name}' deleted successfully")
+    logger.info(f"✅ Product {product_id} completely deleted")
+
+    return MessageResponse(message=f"Product '{product_name}' and all associated data deleted successfully")
