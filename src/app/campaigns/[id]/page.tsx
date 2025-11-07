@@ -8,6 +8,7 @@ import { Campaign } from "src/lib/types";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditCampaignModal } from "src/components/EditCampaignModal";
+import { LinkAnalytics } from "src/components/LinkAnalytics";
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -1043,6 +1044,13 @@ export default function CampaignDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Link Analytics Section */}
+      {campaign.affiliate_link_short_code && (
+        <div className="mt-6">
+          <LinkAnalytics shortCode={campaign.affiliate_link_short_code} />
         </div>
       )}
 

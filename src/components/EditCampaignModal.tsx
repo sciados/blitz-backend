@@ -9,6 +9,7 @@ const campaignEditSchema = z.object({
   name: z.string().min(3, "Campaign name must be at least 3 characters"),
   product_url: z.string().url("Please enter a valid URL"),
   affiliate_network: z.string().min(1, "Please select an affiliate network"),
+  affiliate_link: z.string().url("Please enter a valid affiliate URL").optional().or(z.literal("")),
   keywords: z.string().optional(),
   product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
   product_type: z.string().optional(),
@@ -38,6 +39,7 @@ export function EditCampaignModal({
     name: campaign.name,
     product_url: campaign.product_url || "",
     affiliate_network: campaign.affiliate_network || "",
+    affiliate_link: campaign.affiliate_link || "",
     keywords: campaign.keywords?.join(", ") || "",
     product_description: campaign.product_description || "",
     product_type: campaign.product_type || "",
@@ -54,6 +56,7 @@ export function EditCampaignModal({
       name: campaign.name,
       product_url: campaign.product_url || "",
       affiliate_network: campaign.affiliate_network || "",
+      affiliate_link: campaign.affiliate_link || "",
       keywords: campaign.keywords?.join(", ") || "",
       product_description: campaign.product_description || "",
       product_type: campaign.product_type || "",
@@ -138,6 +141,7 @@ export function EditCampaignModal({
 
     const updateData = {
       name: formData.name,
+      affiliate_link: formData.affiliate_link || undefined,
       keywords: keywords.length > 0 ? keywords : undefined,
       product_description: formData.product_description || undefined,
       product_type: formData.product_type || undefined,
@@ -269,6 +273,38 @@ export function EditCampaignModal({
               disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300 cursor-not-allowed"
             />
+          </div>
+
+          {/* Affiliate Link */}
+          <div>
+            <label
+              htmlFor="affiliate_link"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Affiliate Link <span className="text-gray-400">(Optional)</span>
+            </label>
+            <input
+              type="url"
+              id="affiliate_link"
+              name="affiliate_link"
+              value={formData.affiliate_link}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                errors.affiliate_link ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="https://affiliate-network.com/your-affiliate-link"
+            />
+            {errors.affiliate_link && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.affiliate_link}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Link will be auto-shortened for tracking when you save
+            </p>
           </div>
 
           {/* Keywords */}
