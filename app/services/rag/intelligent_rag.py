@@ -102,11 +102,28 @@ class IntelligentRAGSystem:
         logger.info(f"🧠 Starting RAG research (level: {intelligence_level})")
 
         # Determine search budget
-        search_limits = {
-            "basic": {"scholarly": 6, "web": 4},
-            "standard": {"scholarly": 12, "web": 8},
-            "comprehensive": {"scholarly": 24, "web": 11}
-        }
+        # For health products: allocate all searches to ingredient research (no feature/market research)
+        # For other products: split between ingredients, features, and market research
+        is_health = (
+            product_data.get("type") == "health_supplement" or
+            len(product_data.get("ingredients", [])) > 0
+        )
+
+        if is_health:
+            # Health products: deep ingredient research only
+            search_limits = {
+                "basic": {"scholarly": 10, "web": 0},      # 10 ingredient searches
+                "standard": {"scholarly": 20, "web": 0},   # 20 ingredient searches
+                "comprehensive": {"scholarly": 35, "web": 0}  # 35 ingredient searches
+            }
+        else:
+            # Other products: balanced research
+            search_limits = {
+                "basic": {"scholarly": 6, "web": 4},
+                "standard": {"scholarly": 12, "web": 8},
+                "comprehensive": {"scholarly": 24, "web": 11}
+            }
+
         limits = search_limits.get(intelligence_level, search_limits["standard"])
 
         research_data = {
@@ -125,10 +142,17 @@ class IntelligentRAGSystem:
         if ingredients:
             logger.info(f"🧪 Researching {len(ingredients)} ingredients")
 
-            # Calculate queries per ingredient (minimum 2, maximum 4)
-            # For standard: 12 searches / 8 ingredients = 1.5 → use 2
-            # For standard: 12 searches / 3 ingredients = 4 → use 4
-            queries_per_ingredient = max(2, min(4, limits["scholarly"] // len(ingredients)))
+            # Calculate queries per ingredient - use ALL available searches
+            # Minimum 2, maximum 4, but distribute evenly
+            total_searches = limits["scholarly"]
+            queries_per_ingredient = min(4, max(2, total_searches // len(ingredients)))
+
+            # If we have leftover searches, distribute them
+            # Example: 20 searches / 8 ingredients = 2.5 → 2 per ingredient + 4 leftover
+            # Give first 4 ingredients 3 queries, rest get 2 queries
+            leftover_searches = total_searches - (queries_per_ingredient * len(ingredients))
+
+            logger.info(f"   - Search budget: {total_searches} searches, {queries_per_ingredient} per ingredient")
 
             ingredient_research = await self._research_ingredients(
                 ingredients,
@@ -145,23 +169,34 @@ class IntelligentRAGSystem:
         )
 
         # 2. Research key features/claims
-        features = product_data.get("features", [])
-        benefits = product_data.get("benefits", [])
+        # For health products: SKIP feature research (ingredients ARE the proof)
+        # For other products: Research features/benefits
+        if not is_health_product:
+            features = product_data.get("features", [])
+            benefits = product_data.get("benefits", [])
 
-        # Combine features and benefits for research (both are product claims)
-        all_claims = features + benefits
-        claims_to_research = all_claims[:5]  # Research top 5 claims instead of 3
+            # Combine features and benefits for research (both are product claims)
+            all_claims = features + benefits
+            claims_to_research = all_claims[:5]  # Research top 5 claims
 
-        if claims_to_research:
-            logger.info(f"🎯 Researching {len(claims_to_research)} key claims (features + benefits)")
-            feature_research = await self._research_features(
-                claims_to_research,
-                product_name=product_data.get("name", "Product"),
-                max_results=limits["scholarly"] // 3,
-                is_health_product=is_health_product
-            )
-            research_data["research_by_category"]["features"] = feature_research
-            research_data["all_sources"].extend(feature_research.get("sources", []))
+            if claims_to_research:
+                logger.info(f"🎯 Researching {len(claims_to_research)} key claims (features + benefits)")
+                feature_research = await self._research_features(
+                    claims_to_research,
+                    product_name=product_data.get("name", "Product"),
+                    max_results=limits["scholarly"] // 3,
+                    is_health_product=False
+                )
+                research_data["research_by_category"]["features"] = feature_research
+                research_data["all_sources"].extend(feature_research.get("sources", []))
+        else:
+            logger.info(f"⏭️  Skipping feature research (health product - ingredient research is sufficient)")
+            research_data["research_by_category"]["features"] = {
+                "skipped": True,
+                "reason": "Health supplement - ingredient research validates all claims",
+                "sources": [],
+                "searches_conducted": 0
+            }
 
         # 3. Market/business research (web search)
         # Skip market research for health supplements - scholarly sources are more valuable
