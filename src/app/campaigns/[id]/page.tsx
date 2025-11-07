@@ -436,8 +436,7 @@ export default function CampaignDetailPage() {
                 {/* Step 2: Compile Intelligence */}
                 {(() => {
                   const isCompleted =
-                    (campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0) ||
-                    campaign.product_intelligence_id;
+                    campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
                   const isActive = true; // Always available after campaign creation
 
                   return (
