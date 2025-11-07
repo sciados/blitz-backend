@@ -19,9 +19,9 @@ class OpenAIEmbeddingService:
         """Initialize OpenAI client"""
         self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = "text-embedding-3-large"
-        # PostgreSQL vector indexes (HNSW and IVFFlat) have a 2000 dimension limit
+        # Match database Vector column size (knowledge_base.embedding is Vector(1024))
         # text-embedding-3-large supports dimension reduction with minimal performance loss
-        self.dimensions = 2000  # Reduced from 3072 to fit PostgreSQL limits
+        self.dimensions = 1024  # Match database column
 
     async def generate_embedding(
         self,
