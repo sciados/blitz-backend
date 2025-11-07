@@ -130,17 +130,23 @@ class IntelligenceAmplifier:
                     logger.info(f"🔍 Starting RAG research with clean product data (level: {intelligence_level})...")
 
                     # Build product data from clean intelligence
+                    # Try both 'ingredients' and 'ingredients_or_components' fields
+                    product_obj = intelligence.get('product', {})
+                    ingredients = product_obj.get('ingredients') or product_obj.get('ingredients_or_components', [])
+
                     product_data = {
-                        "name": intelligence.get('product', {}).get('name', 'Product'),
-                        "type": "health_supplement" if intelligence.get('product', {}).get('ingredients') else "product",
-                        "ingredients": intelligence.get('product', {}).get('ingredients', []),
-                        "features": intelligence.get('product', {}).get('features', []),
-                        "benefits": intelligence.get('product', {}).get('benefits', []),
+                        "name": product_obj.get('name', 'Product'),
+                        "type": "health_supplement" if ingredients else "product",
+                        "ingredients": ingredients,
+                        "features": product_obj.get('features', []),
+                        "benefits": product_obj.get('benefits', []),
                         "url": scraped_data['metadata']['url']
                     }
 
                     logger.info(f"   - Product: {product_data['name']}")
                     logger.info(f"   - Ingredients: {len(product_data['ingredients'])} found")
+                    if ingredients:
+                        logger.info(f"   - Ingredient list: {', '.join(ingredients[:6])}")
                     logger.info(f"   - Features: {len(product_data['features'])} found")
                     logger.info(f"   - Benefits: {len(product_data['benefits'])} found")
 
@@ -359,7 +365,7 @@ Extract the following intelligence and return as valid JSON (no markdown formatt
     "benefits": ["Benefit 1", "Benefit 2", ...],  // 5-10 primary benefits
     "pain_points": ["Pain 1", "Pain 2", ...],     // 5-10 pain points addressed
     "solutions": ["Solution 1", "Solution 2", ...], // How product solves each pain point
-    "ingredients_or_components": ["Component 1", "Component 2", ...],  // If applicable
+    "ingredients": ["Ingredient 1", "Ingredient 2", ...],  // For health/wellness products: list specific ingredient names
     "technical_specs": {{}},                       // Technical details if available
     "unique_mechanism": "What makes this product different/unique"
   }},
