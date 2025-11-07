@@ -329,8 +329,9 @@ class IntelligentRAGSystem:
 
             # Search scholarly sources
             # For health products: use PubMed only (clinical evidence)
-            # For other products: use both PubMed + Semantic Scholar
-            sources = ["pubmed"] if is_health_product else ["pubmed", "semantic_scholar"]
+            # For other products: use Semantic Scholar only (tech/business papers)
+            # NEVER use PubMed for non-health products (it's biomedical only)
+            sources = ["pubmed"] if is_health_product else ["semantic_scholar"]
             results = await self.scholarly.search(query, max_results=max_results, sources=sources)
             feature_data["searches_conducted"] += 1
 
