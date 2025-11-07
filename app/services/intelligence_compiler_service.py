@@ -853,10 +853,10 @@ class IntelligenceCompilerService:
         intelligence_data: Dict[str, Any]
     ) -> None:
         """
-        Ingest RAG research summaries into KnowledgeBase for content generation access.
+        Ingest RAG research sources into KnowledgeBase for content generation access.
 
-        This makes clinical studies and ingredient evidence available during content
-        creation, allowing AI to cite specific studies and use detailed clinical data.
+        Creates individual KnowledgeBase entries for each research source to enable
+        precise semantic search and retrieval during content generation.
 
         Args:
             campaign_id: Campaign ID (KnowledgeBase is campaign-specific)
@@ -868,43 +868,83 @@ class IntelligenceCompilerService:
             if not research_data:
                 return
 
-            logger.info(f"📚 Ingesting RAG research into KnowledgeBase...")
+            all_sources = research_data.get('all_sources', [])
+            if not all_sources:
+                logger.warning(f"⚠️  No sources found in research data")
+                return
 
-            # Generate full research summary with complete abstracts
-            research_summary = await rag_system.generate_research_summary(
-                research_data,
-                max_length="full"  # Include complete abstracts for content generation
-            )
+            logger.info(f"📚 Ingesting {len(all_sources)} research sources into KnowledgeBase...")
 
             product_name = intelligence_data.get('product', {}).get('name', 'Product')
 
-            # Create embedding for research summary
-            embedding_vector = await self.embeddings.generate_embedding(research_summary)
+            ingested_count = 0
+            failed_count = 0
 
-            # Store in KnowledgeBase
-            kb_entry = KnowledgeBase(
-                campaign_id=campaign_id,  # Fixed: use campaign_id not user_id
-                content=research_summary,
-                embedding=embedding_vector,
-                source_url=intelligence_data.get('sales_page', {}).get('url', ''),
-                meta_data={
-                    "product_intelligence_id": product_intelligence_id,
-                    "product_name": product_name,
-                    "source_type": "rag_research",
-                    "research_stats": {
-                        "total_sources": research_data.get('total_sources', 0),
-                        "searches_conducted": research_data.get('searches_conducted', 0),
-                        "research_level": research_data.get('research_level', 'standard')
-                    },
-                    "ingested_at": datetime.utcnow().isoformat()
-                }
-            )
+            # Process each source individually for granular semantic search
+            for idx, source in enumerate(all_sources, 1):
+                try:
+                    # Build content for embedding from source data
+                    content_parts = []
 
-            self.db.add(kb_entry)
+                    if source.get('title'):
+                        content_parts.append(f"Title: {source['title']}")
+
+                    if source.get('snippet'):
+                        content_parts.append(f"Summary: {source['snippet']}")
+
+                    if source.get('abstract'):
+                        content_parts.append(f"Abstract: {source['abstract']}")
+
+                    # Add context about the product
+                    content_parts.append(f"Product: {product_name}")
+
+                    content = "\n\n".join(content_parts)
+
+                    if not content.strip():
+                        logger.warning(f"⚠️  Skipping source {idx} - no content")
+                        continue
+
+                    # Generate embedding for this specific source
+                    embedding_vector = await self.embeddings.generate_embedding(content)
+
+                    # Store individual source in KnowledgeBase
+                    kb_entry = KnowledgeBase(
+                        campaign_id=campaign_id,
+                        content=content,
+                        embedding=embedding_vector,
+                        source_url=source.get('url', ''),
+                        meta_data={
+                            "product_intelligence_id": product_intelligence_id,
+                            "product_name": product_name,
+                            "source_type": "rag_research_source",
+                            "source_index": idx,
+                            "source_title": source.get('title', ''),
+                            "source_journal": source.get('journal'),
+                            "source_pub_date": source.get('pub_date'),
+                            "ingested_at": datetime.utcnow().isoformat()
+                        }
+                    )
+
+                    self.db.add(kb_entry)
+                    ingested_count += 1
+
+                    # Flush every 10 entries to avoid memory issues
+                    if ingested_count % 10 == 0:
+                        await self.db.flush()
+                        logger.info(f"   ✓ Ingested {ingested_count}/{len(all_sources)} sources...")
+
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"❌ Failed to ingest source {idx}: {str(e)}")
+                    continue
+
+            # Final flush
             await self.db.flush()
 
-            logger.info(f"✅ RAG research ingested into KnowledgeBase (ID: {kb_entry.id})")
-            logger.info(f"   - {research_data.get('total_sources', 0)} sources available for content generation")
+            logger.info(f"✅ RAG research ingested into KnowledgeBase:")
+            logger.info(f"   - Ingested: {ingested_count} sources")
+            if failed_count > 0:
+                logger.warning(f"   - Failed: {failed_count} sources")
 
         except Exception as e:
             logger.error(f"❌ Failed to ingest research to KnowledgeBase: {str(e)}")
