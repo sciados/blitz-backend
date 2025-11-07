@@ -13,11 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, HttpUrl
+import logging
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, ShortenedLink
 from app.auth import get_current_active_user
 from app.services.url_shortener import URLShortenerService
+
+logger = logging.getLogger(__name__)
 
 # Main router for link management (authenticated endpoints)
 router = APIRouter(prefix="/api/links", tags=["URL Shortener"])
@@ -113,10 +116,12 @@ async def redirect_short_link(
     try:
         await shortener.track_click(shortened_link, request_data)
         await db.commit()
+        logger.info(f"✅ Tracked click for {short_code} from {request_data.get('ip_address')}")
     except Exception as e:
         # Don't fail redirect if tracking fails
-        import logging
-        logging.error(f"Failed to track click: {str(e)}")
+        logger.error(f"❌ Failed to track click for {short_code}: {str(e)}", exc_info=True)
+        # Rollback the failed transaction
+        await db.rollback()
 
     # Build redirect URL with UTM parameters
     redirect_url = shortener.build_redirect_url(
@@ -129,6 +134,61 @@ async def redirect_short_link(
         url=redirect_url,
         status_code=status.HTTP_307_TEMPORARY_REDIRECT
     )
+
+
+# ============================================================================
+# DEBUG ENDPOINT
+# ============================================================================
+
+@router.get("/{short_code}/debug", response_model=Dict[str, Any])
+async def debug_link(
+    short_code: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Debug endpoint to check link and click data
+    """
+    from app.db.models import LinkClick
+
+    shortener = URLShortenerService(db)
+
+    # Get link
+    shortened_link = await shortener.get_link_by_code(short_code)
+
+    if not shortened_link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    # Verify ownership
+    if shortened_link.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get all clicks for this link
+    clicks_result = await db.execute(
+        select(LinkClick)
+        .where(LinkClick.shortened_link_id == shortened_link.id)
+        .order_by(LinkClick.clicked_at.desc())
+    )
+    clicks = clicks_result.scalars().all()
+
+    return {
+        "short_code": short_code,
+        "link_id": shortened_link.id,
+        "original_url": shortened_link.original_url,
+        "total_clicks": shortened_link.total_clicks,
+        "unique_clicks": shortened_link.unique_clicks,
+        "is_active": shortened_link.is_active,
+        "clicks_in_db": len(clicks),
+        "recent_clicks": [
+            {
+                "ip": str(click.ip_address),
+                "clicked_at": click.clicked_at.isoformat(),
+                "device": click.device_type,
+                "is_unique": click.is_unique
+            }
+            for click in clicks[:10]
+        ]
+    }
 
 
 # ============================================================================
