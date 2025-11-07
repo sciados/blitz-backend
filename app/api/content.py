@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from datetime import datetime
+import os
+import logging
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedContent
@@ -20,6 +22,34 @@ from app.services.prompt_builder import PromptBuilder
 from app.services.compliance_checker import ComplianceChecker
 
 router = APIRouter(prefix="/api/content", tags=["content"])
+logger = logging.getLogger(__name__)
+
+
+def replace_affiliate_urls(content: str, campaign: Campaign) -> str:
+    """
+    Replace any affiliate URLs in content with shortened links.
+
+    Args:
+        content: Generated content text
+        campaign: Campaign object with affiliate_link and affiliate_link_short_code
+
+    Returns:
+        Content with affiliate URLs replaced by shortened links
+    """
+    if not campaign.affiliate_link or not campaign.affiliate_link_short_code:
+        return content
+
+    # Get short link domain from environment or use default
+    short_domain = os.getenv("SHORT_LINK_DOMAIN", "https://blitz.link")
+    short_url = f"{short_domain}/{campaign.affiliate_link_short_code}"
+
+    # Replace full affiliate link with short link
+    updated_content = content.replace(campaign.affiliate_link, short_url)
+
+    if updated_content != content:
+        logger.info(f"✨ Replaced affiliate URLs with short link: {short_url}")
+
+    return updated_content
 
 
 # Dependency to get RAGService instance
@@ -95,10 +125,13 @@ async def generate_content(
         max_tokens=request.length or 1000,
         temperature=0.7
     )
-    
+
+    # Replace affiliate URLs with shortened links
+    generated_text = replace_affiliate_urls(generated_text, campaign)
+
     # Check compliance
     compliance_result = compliance_checker.check_content(generated_text)
-    
+
     # Save to database
     content = GeneratedContent(
         campaign_id=request.campaign_id,
@@ -206,13 +239,19 @@ async def refine_content(
         )
     )
     content = result.scalar_one_or_none()
-    
+
     if not content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Content not found"
         )
-    
+
+    # Get campaign for URL replacement
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == content.campaign_id)
+    )
+    campaign = campaign_result.scalar_one()
+
     # Build refinement prompt
     refinement_prompt = f"""Refine the following content based on this feedback: {request.feedback}
 
@@ -220,17 +259,20 @@ Original content:
 {content.content}
 
 Provide the refined version:"""
-    
+
     # Generate refined content
     refined_text = await ai_router.generate_text(
         prompt=refinement_prompt,
         max_tokens=2000,
         temperature=0.7
     )
-    
+
+    # Replace affiliate URLs with shortened links
+    refined_text = replace_affiliate_urls(refined_text, campaign)
+
     # Check compliance
     compliance_result = compliance_checker.check_content(refined_text)
-    
+
     # Update content
     content.content = refined_text
     content.compliance_score = compliance_result.get("score", 0.0)
@@ -274,15 +316,21 @@ async def create_variations(
         )
     )
     content = result.scalar_one_or_none()
-    
+
     if not content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Content not found"
         )
-    
+
+    # Get campaign for URL replacement
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == content.campaign_id)
+    )
+    campaign = campaign_result.scalar_one()
+
     variations = []
-    
+
     for i in range(request.count):
         # Build variation prompt
         variation_prompt = f"""Create a variation of the following content with a different approach but same message:
@@ -291,14 +339,17 @@ Original content:
 {content.content}
 
 Variation {i+1}:"""
-        
+
         # Generate variation
         variation_text = await ai_router.generate_text(
             prompt=variation_prompt,
             max_tokens=2000,
             temperature=0.8
         )
-        
+
+        # Replace affiliate URLs with shortened links
+        variation_text = replace_affiliate_urls(variation_text, campaign)
+
         # Check compliance
         compliance_result = compliance_checker.check_content(variation_text)
         
