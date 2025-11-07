@@ -2,6 +2,11 @@ export type User = {
     id: number;
     email: string;
     full_name?: string | null;
+    role: string; // "user" | "admin"
+    user_type: string; // "product_creator" | "affiliate_marketer"
+    developer_tier?: string | null; // "new" | "verified" | "premium"
+    developer_tier_upgraded_at?: string | null;
+    stripe_subscription_id?: string | null;
     created_at: string;
 };
 
@@ -11,6 +16,8 @@ export type Campaign = {
     product_url?: string | null; // Now optional - campaigns can be created without URL
     affiliate_network?: string | null;
     commission_rate?: string | null;
+    affiliate_link?: string | null; // User's full affiliate URL
+    affiliate_link_short_code?: string | null; // Auto-generated short code (e.g., "abc123")
     keywords?: string[];
     product_description?: string;
     product_type?: string;
@@ -29,6 +36,7 @@ export type CampaignCreate = {
     product_url?: string | null; // Optional - can add later or browse library
     affiliate_network?: string | null;
     commission_rate?: string | null;
+    affiliate_link?: string | null; // Optional - user's affiliate URL (will be auto-shortened)
     keywords?: string[];
     product_description?: string;
     product_type?: string;
@@ -84,4 +92,50 @@ export type ProductLibraryStats = {
 export type ProductCategory = {
     category: string;
     count: number;
+};
+
+// ============================================================================
+// URL SHORTENER TYPES
+// ============================================================================
+
+export type ShortenedLink = {
+    id: number;
+    short_code: string;
+    short_url: string; // Full URL like "https://blitz.link/abc123"
+    original_url: string;
+    title?: string | null;
+    campaign_id: number;
+    total_clicks: number;
+    unique_clicks: number;
+    is_active: boolean;
+    created_at: string;
+};
+
+export type CreateShortLinkRequest = {
+    original_url: string;
+    campaign_id: number;
+    custom_slug?: string | null;
+    title?: string | null;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+};
+
+export type LinkAnalytics = {
+    short_code: string;
+    total_clicks: number;
+    unique_clicks: number;
+    clicks_by_country: Array<{
+        country_code: string | null;
+        country_name: string | null;
+        clicks: number;
+    }>;
+    clicks_by_device: {
+        [key: string]: number; // mobile, tablet, desktop, bot, unknown
+    };
+    clicks_by_date: Array<{
+        date: string;
+        clicks: number;
+    }>;
+    period_days: number;
 };
