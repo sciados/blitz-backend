@@ -70,10 +70,51 @@ class IntelligenceCompilerService:
             logger.info(f"🚀 Compiling intelligence for campaign {campaign_id}: {campaign.name}")
             logger.info(f"   URL: {campaign.product_url}")
 
-            # Step 2: Generate URL hash
+            # Step 2: Check if campaign already linked to product intelligence
+            # This happens when campaign is created from product library
+            if campaign.product_intelligence_id:
+                logger.info(f"📎 Campaign already linked to ProductIntelligence {campaign.product_intelligence_id}")
+
+                # Fetch the existing intelligence
+                stmt = select(ProductIntelligence).where(ProductIntelligence.id == campaign.product_intelligence_id)
+                result = await self.db.execute(stmt)
+                existing_intelligence = result.scalar_one_or_none()
+
+                if existing_intelligence and existing_intelligence.intelligence_data:
+                    logger.info(f"✨ Using existing product intelligence (cached)")
+
+                    # Ingest RAG research into KnowledgeBase for THIS campaign
+                    if existing_intelligence.intelligence_data.get('research') and options.get('enable_rag', True):
+                        await self._ingest_research_to_knowledge_base(
+                            campaign.id,
+                            existing_intelligence.id,
+                            existing_intelligence.intelligence_data
+                        )
+
+                    await self.db.commit()
+
+                    processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+
+                    return {
+                        'success': True,
+                        'campaign_id': campaign_id,
+                        'status': 'completed',
+                        'was_cached': True,
+                        'product_intelligence_id': existing_intelligence.id,
+                        'intelligence_summary': self._generate_summary(existing_intelligence.intelligence_data),
+                        'processing_time_ms': round(processing_time),
+                        'costs': {
+                            'scraping': 0,
+                            'analysis': 0,
+                            'embeddings': 0,
+                            'total': 0
+                        }
+                    }
+
+            # Step 3: Generate URL hash
             url_hash = self._generate_url_hash(campaign.product_url)
 
-            # Step 3: Check for existing intelligence
+            # Step 4: Check for existing intelligence by URL hash
             existing_intelligence, is_complete = await self._find_existing_intelligence(url_hash)
 
             if existing_intelligence and is_complete and not options.get('force_recompile'):
