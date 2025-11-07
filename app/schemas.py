@@ -76,6 +76,7 @@ class CampaignBase(BaseModel):
     product_url: Optional[HttpUrl] = None  # Optional - can create campaign before choosing product
     affiliate_network: Optional[str] = None
     commission_rate: Optional[str] = None  # "50%", "$37/sale", etc.
+    affiliate_link: Optional[str] = None  # Optional - user's affiliate URL (auto-shortened)
     keywords: Optional[List[str]] = []
     product_description: Optional[str] = None
     product_type: Optional[str] = None
@@ -91,6 +92,7 @@ class CampaignUpdate(BaseModel):
     product_url: Optional[HttpUrl] = None
     affiliate_network: Optional[str] = None
     commission_rate: Optional[str] = None
+    affiliate_link: Optional[str] = None  # Update affiliate link (will auto-shorten)
     status: Optional[CampaignStatus] = None
     keywords: Optional[List[str]] = None
     product_description: Optional[str] = None
@@ -103,6 +105,7 @@ class CampaignResponse(CampaignBase):
     user_id: int
     status: CampaignStatus
     product_intelligence_id: Optional[int] = None  # Link to product library
+    affiliate_link_short_code: Optional[str] = None  # Shortened link code
     intelligence_data: Optional[Dict[str, Any]] = None
     thumbnail_image_url: Optional[str] = None  # Product thumbnail from ProductIntelligence
     created_at: datetime

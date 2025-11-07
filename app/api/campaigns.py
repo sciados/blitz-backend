@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional, Dict, Any
 import hashlib
+import logging
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedContent, ProductIntelligence
@@ -15,6 +16,9 @@ from app.schemas import (
     MessageResponse
 )
 from app.auth import get_current_active_user
+from app.services.url_shortener import URLShortenerService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/campaigns", tags=["Campaigns"])
 
@@ -47,6 +51,7 @@ async def create_campaign(
         name=campaign_data.name,
         product_url=product_url,
         affiliate_network=campaign_data.affiliate_network,
+        affiliate_link=campaign_data.affiliate_link,
         keywords=campaign_data.keywords,
         product_description=campaign_data.product_description,
         product_type=campaign_data.product_type,
@@ -57,6 +62,24 @@ async def create_campaign(
     )
 
     db.add(new_campaign)
+    await db.flush()  # Flush to get campaign.id before creating shortened link
+
+    # Auto-shorten affiliate link if provided
+    if campaign_data.affiliate_link:
+        try:
+            shortener = URLShortenerService(db)
+            shortened_link = await shortener.shorten_url(
+                original_url=campaign_data.affiliate_link,
+                campaign_id=new_campaign.id,
+                user_id=current_user.id,
+                title=f"{new_campaign.name} - Affiliate Link"
+            )
+            new_campaign.affiliate_link_short_code = shortened_link.short_code
+            logger.info(f"✅ Auto-shortened affiliate link for campaign {new_campaign.id}: {shortened_link.short_code}")
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-shorten affiliate link: {str(e)}")
+            # Don't fail campaign creation if shortening fails
+
     await db.commit()
     await db.refresh(new_campaign)
 
@@ -154,6 +177,8 @@ async def list_campaigns(
             name=campaign.name,
             product_url=campaign.product_url,
             affiliate_network=campaign.affiliate_network,
+            affiliate_link=campaign.affiliate_link,
+            affiliate_link_short_code=campaign.affiliate_link_short_code,
             keywords=campaign.keywords,
             product_description=campaign.product_description,
             product_type=campaign.product_type,
@@ -226,6 +251,8 @@ async def get_campaign(
         name=campaign.name,
         product_url=campaign.product_url,
         affiliate_network=campaign.affiliate_network,
+        affiliate_link=campaign.affiliate_link,
+        affiliate_link_short_code=campaign.affiliate_link_short_code,
         keywords=campaign.keywords,
         product_description=campaign.product_description,
         product_type=campaign.product_type,
@@ -276,9 +303,35 @@ async def update_campaign(
         if not url.endswith('/'):
             update_data['product_url'] = url + '/'
 
+    # Handle affiliate_link separately for auto-shortening
+    affiliate_link_updated = False
+    if 'affiliate_link' in update_data:
+        affiliate_link = update_data.pop('affiliate_link')
+        if affiliate_link:
+            affiliate_link_updated = True
+            campaign.affiliate_link = affiliate_link
+
     for field, value in update_data.items():
         setattr(campaign, field, value)
-    
+
+    await db.flush()
+
+    # Auto-shorten affiliate link if it was updated
+    if affiliate_link_updated and campaign.affiliate_link:
+        try:
+            shortener = URLShortenerService(db)
+            shortened_link = await shortener.shorten_url(
+                original_url=campaign.affiliate_link,
+                campaign_id=campaign.id,
+                user_id=current_user.id,
+                title=f"{campaign.name} - Affiliate Link"
+            )
+            campaign.affiliate_link_short_code = shortened_link.short_code
+            logger.info(f"✅ Auto-shortened affiliate link for campaign {campaign.id}: {shortened_link.short_code}")
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-shorten affiliate link: {str(e)}")
+            # Don't fail update if shortening fails
+
     await db.commit()
     await db.refresh(campaign)
 
