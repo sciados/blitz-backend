@@ -1059,6 +1059,69 @@ export default function IntelligencePage() {
                   </div>
                 )}
 
+                {/* Web Research (Market Data) for Non-Health Products */}
+                {intelligenceData.research.research_by_category?.market?.sources &&
+                 Array.isArray(intelligenceData.research.research_by_category.market.sources) &&
+                 intelligenceData.research.research_by_category.market.sources.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold mb-4 flex items-center" style={{ color: 'var(--text-primary)' }}>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                      </svg>
+                      Web Research
+                    </h3>
+
+                    <div className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+                      {intelligenceData.research.research_by_category.market.searches_conducted || 0} searches conducted • {intelligenceData.research.research_by_category.market.sources.length} sources found
+                    </div>
+
+                    <details className="border rounded-lg" style={{ borderColor: 'var(--border-color)' }} open>
+                      <summary className="cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg">
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                          View {intelligenceData.research.research_by_category.market.sources.length} Web Sources
+                        </span>
+                      </summary>
+                      <div className="p-4 pt-0 space-y-3">
+                        {intelligenceData.research.research_by_category.market.sources.map((source: any, idx: number) => (
+                          <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border" style={{ borderColor: 'var(--border-color)' }}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                                {source.title || 'Untitled'}
+                              </div>
+                              <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium flex-shrink-0">
+                                Web
+                              </span>
+                            </div>
+
+                            {source.content && (
+                              <p className="text-xs mb-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                                {source.content.length > 300 ? source.content.substring(0, 300) + '...' : source.content}
+                              </p>
+                            )}
+
+                            {source.url && (
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                              >
+                                {source.url}
+                              </a>
+                            )}
+
+                            {source.score && (
+                              <div className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                                Relevance: {(source.score * 100).toFixed(0)}%
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                )}
+
                 {/* Cache Stats */}
                 {intelligenceData.research.cache_stats && (
                   <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
