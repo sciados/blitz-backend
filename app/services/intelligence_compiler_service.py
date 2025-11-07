@@ -889,11 +889,13 @@ class IntelligenceCompilerService:
                     if source.get('title'):
                         content_parts.append(f"Title: {source['title']}")
 
-                    if source.get('snippet'):
-                        content_parts.append(f"Summary: {source['snippet']}")
-
-                    if source.get('abstract'):
+                    # Web sources use 'content', scholarly use 'abstract', some use 'snippet'
+                    if source.get('content'):
+                        content_parts.append(f"Content: {source['content']}")
+                    elif source.get('abstract'):
                         content_parts.append(f"Abstract: {source['abstract']}")
+                    elif source.get('snippet'):
+                        content_parts.append(f"Summary: {source['snippet']}")
 
                     # Add context about the product
                     content_parts.append(f"Product: {product_name}")
