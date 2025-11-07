@@ -110,18 +110,20 @@ class IntelligentRAGSystem:
         )
 
         if is_health:
-            # Health products: deep ingredient research only
+            # Health products: deep ingredient research only (PubMed clinical studies)
             search_limits = {
                 "basic": {"scholarly": 10, "web": 0},      # 10 ingredient searches
                 "standard": {"scholarly": 20, "web": 0},   # 20 ingredient searches
                 "comprehensive": {"scholarly": 35, "web": 0}  # 35 ingredient searches
             }
         else:
-            # Other products: balanced research
+            # Non-health products: comprehensive web research only
+            # Cost is not a concern since each product is only researched once (cached forever)
+            # Focus on getting maximum quality and coverage
             search_limits = {
-                "basic": {"scholarly": 6, "web": 4},
-                "standard": {"scholarly": 12, "web": 8},
-                "comprehensive": {"scholarly": 24, "web": 11}
+                "basic": {"scholarly": 0, "web": 15},       # 15 web searches (~30 sources)
+                "standard": {"scholarly": 0, "web": 30},    # 30 web searches (~60 sources) - $0.03
+                "comprehensive": {"scholarly": 0, "web": 50}  # 50 web searches (~100 sources) - $0.05
             }
 
         limits = search_limits.get(intelligence_level, search_limits["standard"])
@@ -185,7 +187,7 @@ class IntelligentRAGSystem:
 
         if not is_health_product:
             # Use ALL available searches on web for non-health products
-            # Standard = 20 web searches for comprehensive coverage
+            # Standard = 30 web searches (~60 sources), $0.03 per product (one-time cost)
             total_web_searches = limits.get("scholarly", 0) + limits.get("web", 0)
 
             logger.info(f"🌐 Conducting comprehensive web research (non-health product)")
@@ -377,8 +379,9 @@ class IntelligentRAGSystem:
                 })
                 continue
 
-            # Web search (Tavily - $0.001 per search)
-            results = await self.web.search(query, max_results=2, search_depth="basic")
+            # Web search (Tavily - cost not a concern since each product researched once)
+            # Use "advanced" for better quality: deeper crawling, better extraction
+            results = await self.web.search(query, max_results=2, search_depth="advanced")
             market_data["searches_conducted"] += 1
 
             if results:
@@ -463,8 +466,9 @@ class IntelligentRAGSystem:
                 })
                 continue
 
-            # Web search (Tavily - $0.001 per search)
-            results = await self.web.search(query, max_results=2, search_depth="basic")
+            # Web search (Tavily - cost not a concern since each product researched once)
+            # Use "advanced" for better quality: deeper crawling, better extraction
+            results = await self.web.search(query, max_results=2, search_depth="advanced")
             research_data["searches_conducted"] += 1
 
             if results:
