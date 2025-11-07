@@ -83,13 +83,27 @@ class IntelligenceCompilerService:
                 if existing_intelligence and existing_intelligence.intelligence_data:
                     logger.info(f"✨ Using existing product intelligence (cached)")
 
-                    # Ingest RAG research into KnowledgeBase for THIS campaign
+                    # Check if RAG research already ingested for this product
+                    # Prevents duplicate storage when multiple campaigns use same product
                     if existing_intelligence.intelligence_data.get('research') and options.get('enable_rag', True):
-                        await self._ingest_research_to_knowledge_base(
-                            campaign.id,
-                            existing_intelligence.id,
-                            existing_intelligence.intelligence_data
+                        # Check if research for this product already exists in KnowledgeBase
+                        kb_check = await self.db.execute(
+                            select(KnowledgeBase).where(
+                                KnowledgeBase.meta_data['product_intelligence_id'].astext == str(existing_intelligence.id)
+                            ).limit(1)
                         )
+                        existing_kb = kb_check.scalar_one_or_none()
+
+                        if existing_kb:
+                            logger.info(f"⏭️  RAG research already in KnowledgeBase (shared across campaigns)")
+                            logger.info(f"   - Skipping ingestion to avoid duplicates")
+                        else:
+                            logger.info(f"📚 First campaign using this product - ingesting RAG research")
+                            await self._ingest_research_to_knowledge_base(
+                                campaign.id,
+                                existing_intelligence.id,
+                                existing_intelligence.intelligence_data
+                            )
 
                     await self.db.commit()
 
