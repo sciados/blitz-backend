@@ -1,7 +1,7 @@
 """KnowledgeBase product ownership
 
-Revision ID: 008_knowledgebase_product_ownership
-Revises: 007_add_affiliate_link_url
+Revision ID: 008
+Revises: 007
 Create Date: 2025-11-07
 
 Changes:
@@ -18,8 +18,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '008_knowledgebase_product_ownership'
-down_revision = '007_add_affiliate_link_url'
+revision = '008'
+down_revision = '007'
 branch_labels = None
 depends_on = None
 
