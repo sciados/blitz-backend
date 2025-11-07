@@ -217,26 +217,6 @@ async def recompile_product_intelligence(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Find any campaign that uses this product (need campaign_id for compiler)
-    from app.db.models import Campaign
-    campaign_result = await db.execute(
-        select(Campaign).where(Campaign.product_intelligence_id == product_id).limit(1)
-    )
-    campaign = campaign_result.scalar_one_or_none()
-
-    if not campaign:
-        # No campaign uses this product yet - create a temporary one for recompilation
-        campaign = Campaign(
-            user_id=current_user.id,
-            name=f"[TEMP] {product.product_name or 'Product'} - Recompile",
-            product_url=product.product_url,
-            product_intelligence_id=product_id,
-            status="draft"
-        )
-        db.add(campaign)
-        await db.flush()  # Get campaign ID
-        logger.info(f"✓ Created temporary campaign {campaign.id} for recompilation")
-
     # Import here to avoid circular dependency
     from app.services.intelligence_compiler_service import IntelligenceCompilerService
 
@@ -244,9 +224,11 @@ async def recompile_product_intelligence(
     compiler = IntelligenceCompilerService(db)
 
     try:
-        # Compile with force_recompile=True
-        result = await compiler.compile_for_campaign(
-            campaign_id=campaign.id,
+        # Use compile_for_product which works directly with ProductIntelligence records
+        # This avoids the need for temporary campaigns and handles updates correctly
+        result = await compiler.compile_for_product(
+            product_intelligence_id=product_id,
+            user_id=current_user.id,
             options={
                 'deep_scrape': True,
                 'scrape_images': True,
@@ -255,8 +237,6 @@ async def recompile_product_intelligence(
                 'force_recompile': True  # Force recompilation
             }
         )
-
-        await db.commit()  # Commit the changes
 
         logger.info(f"✅ Product {product_id} recompiled successfully")
 
