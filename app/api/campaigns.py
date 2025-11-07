@@ -7,7 +7,7 @@ import hashlib
 import logging
 
 from app.db.session import get_db
-from app.db.models import User, Campaign, GeneratedContent, ProductIntelligence
+from app.db.models import User, Campaign, GeneratedContent, ProductIntelligence, ShortenedLink
 from app.schemas import (
     CampaignCreate,
     CampaignUpdate,
@@ -303,22 +303,41 @@ async def update_campaign(
         if not url.endswith('/'):
             update_data['product_url'] = url + '/'
 
-    # Handle affiliate_link separately for auto-shortening
-    affiliate_link_updated = False
+    # Handle affiliate_link separately for auto-shortening or deletion
+    affiliate_link_action = None  # 'add', 'remove', or None
     if 'affiliate_link' in update_data:
         affiliate_link = update_data.pop('affiliate_link')
         if affiliate_link:
-            affiliate_link_updated = True
+            # User is adding/updating the affiliate link
+            affiliate_link_action = 'add'
             campaign.affiliate_link = affiliate_link
+        else:
+            # User is clearing the affiliate link
+            affiliate_link_action = 'remove'
 
     for field, value in update_data.items():
         setattr(campaign, field, value)
 
     await db.flush()
 
-    # Auto-shorten affiliate link if it was updated
-    if affiliate_link_updated and campaign.affiliate_link:
+    # Handle affiliate link actions
+    if affiliate_link_action == 'add':
+        # Auto-shorten the new affiliate link
         try:
+            # Delete old shortened link if it exists
+            if campaign.affiliate_link_short_code:
+                old_link_result = await db.execute(
+                    select(ShortenedLink).where(
+                        ShortenedLink.short_code == campaign.affiliate_link_short_code,
+                        ShortenedLink.campaign_id == campaign.id
+                    )
+                )
+                old_shortened_link = old_link_result.scalar_one_or_none()
+                if old_shortened_link:
+                    await db.delete(old_shortened_link)
+                    logger.info(f"🗑️ Deleted old shortened link {campaign.affiliate_link_short_code}")
+
+            # Create new shortened link
             shortener = URLShortenerService(db)
             shortened_link = await shortener.shorten_url(
                 original_url=campaign.affiliate_link,
@@ -331,6 +350,25 @@ async def update_campaign(
         except Exception as e:
             logger.error(f"❌ Failed to auto-shorten affiliate link: {str(e)}")
             # Don't fail update if shortening fails
+
+    elif affiliate_link_action == 'remove':
+        # Delete the shortened link if it exists
+        if campaign.affiliate_link_short_code:
+            short_link_result = await db.execute(
+                select(ShortenedLink).where(
+                    ShortenedLink.short_code == campaign.affiliate_link_short_code,
+                    ShortenedLink.campaign_id == campaign.id
+                )
+            )
+            shortened_link = short_link_result.scalar_one_or_none()
+            if shortened_link:
+                await db.delete(shortened_link)
+                logger.info(f"🗑️ Deleted shortened link {campaign.affiliate_link_short_code} for campaign {campaign.id}")
+
+        # Clear affiliate link fields
+        campaign.affiliate_link = None
+        campaign.affiliate_link_short_code = None
+        logger.info(f"✅ Removed affiliate link from campaign {campaign.id}")
 
     await db.commit()
     await db.refresh(campaign)
@@ -532,8 +570,68 @@ async def delete_campaign(
     
     await db.delete(campaign)
     await db.commit()
-    
+
     return MessageResponse(message="Campaign deleted successfully")
+
+# ============================================================================
+# DELETE AFFILIATE LINK
+# ============================================================================
+
+@router.delete("/{campaign_id}/affiliate-link", response_model=CampaignResponse)
+async def delete_affiliate_link(
+    campaign_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete the affiliate link from a campaign.
+
+    This will:
+    - Remove the affiliate_link and affiliate_link_short_code from the campaign
+    - Delete the associated shortened link record
+    - Delete all click tracking data (cascade delete)
+    """
+
+    # Get campaign (user can only delete their own affiliate links)
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Delete the shortened link if it exists
+    if campaign.affiliate_link_short_code:
+        # Find and delete the shortened link
+        short_link_result = await db.execute(
+            select(ShortenedLink).where(
+                ShortenedLink.short_code == campaign.affiliate_link_short_code,
+                ShortenedLink.campaign_id == campaign_id
+            )
+        )
+        shortened_link = short_link_result.scalar_one_or_none()
+
+        if shortened_link:
+            await db.delete(shortened_link)
+            logger.info(f"🗑️ Deleted shortened link {campaign.affiliate_link_short_code} for campaign {campaign_id}")
+
+    # Clear affiliate link fields from campaign
+    campaign.affiliate_link = None
+    campaign.affiliate_link_short_code = None
+
+    await db.commit()
+    await db.refresh(campaign)
+
+    logger.info(f"✅ Removed affiliate link from campaign {campaign_id}")
+
+    return campaign
 
 # ============================================================================
 # GET CAMPAIGN ANALYTICS
