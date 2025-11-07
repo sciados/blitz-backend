@@ -12,6 +12,7 @@ const campaignSchema = z.object({
   product_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
   affiliate_network: z.string().optional().or(z.literal("")),
   commission_rate: z.string().optional().or(z.literal("")),
+  affiliate_link: z.string().url("Please enter a valid affiliate URL").optional().or(z.literal("")),
   keywords: z.string().optional(),
   product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
   product_type: z.string().optional(),
@@ -38,6 +39,7 @@ export function CreateCampaignModal({
     product_url: "",
     affiliate_network: "",
     commission_rate: "",
+    affiliate_link: "",
     keywords: "",
     product_description: "",
     product_type: "",
@@ -153,6 +155,7 @@ export function CreateCampaignModal({
         product_url: formData.product_url,
         affiliate_network: formData.affiliate_network,
         commission_rate: formData.commission_rate || undefined,
+        affiliate_link: formData.affiliate_link || undefined,
         keywords: keywords.length > 0 ? keywords : undefined,
         product_description: formData.product_description || undefined,
         product_type: formData.product_type || undefined,
@@ -168,6 +171,7 @@ export function CreateCampaignModal({
         product_url: "",
         affiliate_network: "",
         commission_rate: "",
+        affiliate_link: "",
         keywords: "",
         product_description: "",
         product_type: "",
@@ -341,6 +345,38 @@ export function CreateCampaignModal({
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Enter the commission structure (e.g., 50%, $37/sale, or 40% recurring)
+            </p>
+          </div>
+
+          {/* Affiliate Link */}
+          <div>
+            <label
+              htmlFor="affiliate_link"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Affiliate Link <span className="text-gray-400">(Optional)</span>
+            </label>
+            <input
+              type="url"
+              id="affiliate_link"
+              name="affiliate_link"
+              value={formData.affiliate_link}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                errors.affiliate_link ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="https://affiliate-network.com/your-affiliate-link"
+            />
+            {errors.affiliate_link && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.affiliate_link}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Your link will be automatically shortened to blitz.link/xxxxx for tracking
             </p>
           </div>
 
