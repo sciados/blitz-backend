@@ -10,11 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.future import select
 
-from app.db.models import Campaign, ProductIntelligence
+from app.db.models import Campaign, ProductIntelligence, KnowledgeBase
 from app.services.scraper_service import SalesPageScraper
 from app.services.intelligence_amplifier import IntelligenceAmplifier
 from app.services.embeddings_openai import OpenAIEmbeddingService
 from app.services.storage_r2 import R2StorageService
+from app.services.rag.intelligent_rag import rag_system
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +248,14 @@ class IntelligenceCompilerService:
 
         # Link campaign to intelligence
         await self._link_campaign_to_intelligence(campaign, product_intelligence)
+
+        # Step 4: Ingest RAG research into KnowledgeBase for content generation
+        if amplified_intelligence.get('research') and options.get('enable_rag', False):
+            await self._ingest_research_to_knowledge_base(
+                campaign.user_id,
+                product_intelligence.id,
+                amplified_intelligence
+            )
 
         await self.db.commit()
 
@@ -550,3 +559,63 @@ class IntelligenceCompilerService:
             logger.info(f"✅ Deleted {deleted_count} old images from R2")
         if failed_count > 0:
             logger.warning(f"⚠️  Failed to delete {failed_count} images")
+
+    async def _ingest_research_to_knowledge_base(
+        self,
+        user_id: int,
+        product_intelligence_id: int,
+        intelligence_data: Dict[str, Any]
+    ) -> None:
+        """
+        Ingest RAG research summaries into KnowledgeBase for content generation access.
+
+        This makes clinical studies and ingredient evidence available during content
+        creation, allowing AI to cite specific studies and use detailed clinical data.
+        """
+        try:
+            research_data = intelligence_data.get('research')
+            if not research_data:
+                return
+
+            logger.info(f"📚 Ingesting RAG research into KnowledgeBase...")
+
+            # Generate full research summary with complete abstracts
+            research_summary = await rag_system.generate_research_summary(
+                research_data,
+                max_length="full"  # Include complete abstracts for content generation
+            )
+
+            product_name = intelligence_data.get('product', {}).get('name', 'Product')
+
+            # Create embedding for research summary
+            embedding_vector = await self.embeddings.generate_embedding(research_summary)
+
+            # Store in KnowledgeBase
+            kb_entry = KnowledgeBase(
+                user_id=user_id,
+                content=research_summary,
+                embedding=embedding_vector,
+                source_type="rag_research",
+                source_url=intelligence_data.get('sales_page', {}).get('url', ''),
+                meta_data={
+                    "product_intelligence_id": product_intelligence_id,
+                    "product_name": product_name,
+                    "research_stats": {
+                        "total_sources": research_data.get('total_sources', 0),
+                        "searches_conducted": research_data.get('searches_conducted', 0),
+                        "research_level": research_data.get('research_level', 'standard')
+                    },
+                    "ingested_at": datetime.utcnow().isoformat()
+                },
+                chunk_count=1
+            )
+
+            self.db.add(kb_entry)
+            await self.db.flush()
+
+            logger.info(f"✅ RAG research ingested into KnowledgeBase (ID: {kb_entry.id})")
+            logger.info(f"   - {research_data.get('total_sources', 0)} sources available for content generation")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to ingest research to KnowledgeBase: {str(e)}")
+            # Don't raise - this is not critical for compilation

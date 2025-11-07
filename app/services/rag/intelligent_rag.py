@@ -371,42 +371,76 @@ class IntelligentRAGSystem:
 
     async def generate_research_summary(
         self,
-        research_data: Dict[str, Any]
+        research_data: Dict[str, Any],
+        max_length: str = "full"
     ) -> str:
-        """Generate a text summary of all research for AI consumption"""
+        """
+        Generate a text summary of all research for AI consumption
+
+        Args:
+            research_data: Research data from research_product()
+            max_length: "brief" (200 chars), "medium" (500 chars), "full" (complete abstracts)
+        """
         summary_parts = []
+
+        # Determine truncation length
+        truncate_at = {
+            "brief": 200,
+            "medium": 500,
+            "full": None  # No truncation
+        }.get(max_length, None)
 
         # Ingredient research
         ingredient_data = research_data.get("research_by_category", {}).get("ingredients", {})
         if ingredient_data and ingredient_data.get("researched"):
-            summary_parts.append("=== INGREDIENT RESEARCH ===\n")
+            summary_parts.append("=== INGREDIENT CLINICAL EVIDENCE ===\n")
             for ing in ingredient_data.get("researched", []):
                 ingredient = ing.get("ingredient", "")
                 sources = ing.get("sources", [])
 
-                summary_parts.append(f"\n**{ingredient}**")
-                for source in sources[:3]:  # Top 3 per ingredient
-                    summary_parts.append(f"- {source.get('title', '')}")
-                    if source.get("abstract"):
-                        summary_parts.append(f"  {source['abstract'][:200]}...")
+                summary_parts.append(f"\n**{ingredient}** ({len(sources)} studies)")
+                for idx, source in enumerate(sources[:5], 1):  # Top 5 per ingredient
+                    summary_parts.append(f"\n{idx}. {source.get('title', '')}")
+                    summary_parts.append(f"   Journal: {source.get('journal', 'N/A')}")
+                    summary_parts.append(f"   Date: {source.get('pub_date', 'N/A')}")
+                    summary_parts.append(f"   URL: {source.get('url', '')}")
 
-        # Feature research
+                    # Include full abstract for content generation
+                    if source.get("abstract"):
+                        abstract = source['abstract']
+                        if truncate_at:
+                            abstract = abstract[:truncate_at] + "..." if len(abstract) > truncate_at else abstract
+                        summary_parts.append(f"   Abstract: {abstract}")
+
+        # Feature/Benefit research
         feature_data = research_data.get("research_by_category", {}).get("features", {})
         if feature_data and feature_data.get("sources"):
-            summary_parts.append("\n\n=== FEATURE RESEARCH ===\n")
-            for source in feature_data.get("sources", [])[:5]:  # Top 5
-                summary_parts.append(f"- {source.get('title', '')}")
+            summary_parts.append("\n\n=== FEATURE/BENEFIT VALIDATION ===\n")
+            for idx, source in enumerate(feature_data.get("sources", [])[:8], 1):  # Top 8
+                summary_parts.append(f"\n{idx}. {source.get('title', '')}")
+                if source.get("url"):
+                    summary_parts.append(f"   URL: {source['url']}")
+
                 if source.get("content"):
-                    summary_parts.append(f"  {source['content'][:200]}...")
+                    content = source['content']
+                    if truncate_at:
+                        content = content[:truncate_at] + "..." if len(content) > truncate_at else content
+                    summary_parts.append(f"   {content}")
 
         # Market research
         market_data = research_data.get("research_by_category", {}).get("market", {})
         if market_data and market_data.get("sources"):
-            summary_parts.append("\n\n=== MARKET RESEARCH ===\n")
-            for source in market_data.get("sources", [])[:5]:  # Top 5
-                summary_parts.append(f"- {source.get('title', '')}")
+            summary_parts.append("\n\n=== MARKET INTELLIGENCE ===\n")
+            for idx, source in enumerate(market_data.get("sources", [])[:5], 1):  # Top 5
+                summary_parts.append(f"\n{idx}. {source.get('title', '')}")
+                if source.get("url"):
+                    summary_parts.append(f"   URL: {source['url']}")
+
                 if source.get("content"):
-                    summary_parts.append(f"  {source['content'][:200]}...")
+                    content = source['content']
+                    if truncate_at:
+                        content = content[:truncate_at] + "..." if len(content) > truncate_at else content
+                    summary_parts.append(f"   {content}")
 
         return "\n".join(summary_parts)
 
