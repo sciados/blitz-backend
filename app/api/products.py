@@ -1051,3 +1051,88 @@ async def delete_product(
     logger.info(f"✅ Product {product_id} completely deleted")
 
     return MessageResponse(message=f"Product '{product_name}' and all associated data deleted successfully")
+
+# ============================================================================
+# PRODUCT COMPLIANCE CHECK
+# ============================================================================
+
+@router.post("/{product_id}/check-compliance")
+async def check_product_compliance(
+    product_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check product description and metadata for FTC compliance.
+    
+    Returns compliance score, issues, and suggestions.
+    """
+    from app.services.compliance_checker import ComplianceChecker
+    
+    # Get the product
+    result = await db.execute(
+        select(ProductIntelligence).options(
+            selectinload(ProductIntelligence.created_by)
+        ).where(
+            ProductIntelligence.id == product_id,
+            ProductIntelligence.is_public == "true"
+        )
+    )
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    # Build content to check from product metadata
+    content_parts = []
+    
+    if product.product_name:
+        content_parts.append(f"Product: {product.product_name}")
+    
+    if product.product_description:
+        content_parts.append(f"Description: {product.product_description}")
+    
+    if product.commission_rate:
+        content_parts.append(f"Commission: {product.commission_rate}")
+    
+    content_to_check = "\n\n".join(content_parts)
+    
+    if not content_to_check.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Product has no description or metadata to check"
+        )
+
+    # Determine product category for stricter checks
+    product_category = None
+    if product.product_category:
+        category_lower = product.product_category.lower()
+        if "health" in category_lower or "wellness" in category_lower or "medical" in category_lower:
+            product_category = "health"
+        elif "financ" in category_lower or "invest" in category_lower or "money" in category_lower:
+            product_category = "finance"
+        elif "business" in category_lower or "income" in category_lower:
+            product_category = "business"
+
+    # Check compliance
+    compliance_checker = ComplianceChecker()
+    result = compliance_checker.check_content(
+        content=content_to_check,
+        content_type="landing_page",  # Products are like landing pages
+        product_category=product_category
+    )
+
+    return {
+        "product_id": product_id,
+        "product_name": product.product_name,
+        "product_category": product.product_category,
+        "status": result["status"],
+        "score": result["score"],
+        "issues": result["issues"],
+        "warnings": result.get("warnings", []),
+        "summary": result.get("summary", ""),
+        "compliant": result.get("compliant", False)
+    }
