@@ -270,10 +270,10 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        {/* Campaign Details - 3 Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Left Column: Campaign Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+        {/* Campaign Details - 4 Column Layout (2:1:1 ratio) */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+          {/* Left Column: Campaign Information (double width) */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Campaign Information
             </h2>
