@@ -116,9 +116,21 @@ export function ProductCard({ product, onSelect, showSelectButton = false, onDel
 
         {/* Content */}
         <div className="p-3 flex-1 flex flex-col">
-          <h3 className="text-sm font-semibold mb-2 line-clamp-1" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-sm font-semibold mb-1 line-clamp-1" style={{ color: 'var(--text-primary)' }}>
             {product.product_name || "Unknown Product"}
           </h3>
+
+          {/* Product Developer - Prominent Display */}
+          {product.created_by_name && (
+            <div className="mb-2 flex items-center text-xs">
+              <svg className="w-3 h-3 mr-1.5 flex-shrink-0 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              <span className="font-medium text-purple-700 dark:text-purple-300 truncate">
+                by {product.created_by_name}
+              </span>
+            </div>
+          )}
 
           {/* Metadata - Compact */}
           <div className="space-y-1 mb-3 flex-1">

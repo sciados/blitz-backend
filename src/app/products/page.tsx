@@ -16,6 +16,7 @@ export default function ProductLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCreator, setSelectedCreator] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<"recent" | "popular" | "alphabetical">("recent");
   const [recurringOnly, setRecurringOnly] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +122,11 @@ export default function ProductLibraryPage() {
     return () => clearTimeout(debounce);
   }, [searchQuery]);
 
+  // Client-side filtering by creator
+  const filteredProducts = selectedCreator
+    ? products.filter(p => p.created_by_user_id === selectedCreator)
+    : products;
+
   return (
     <AuthGate requiredRole="user">
       <div className="p-6 h-full overflow-hidden flex flex-col">
@@ -191,6 +197,35 @@ export default function ProductLibraryPage() {
                   <option value="alphabetical">A-Z</option>
                 </select>
               </div>
+            </div>
+
+            {/* Product Developer Filter */}
+            <div className="mt-4">
+              <label htmlFor="creatorFilter" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                Product Developer
+              </label>
+              <select
+                id="creatorFilter"
+                value={selectedCreator || ""}
+                onChange={(e) => setSelectedCreator(e.target.value ? Number(e.target.value) : null)}
+                className="w-full md:w-64 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                style={{
+                  borderColor: 'var(--card-border)',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <option value="">All Developers</option>
+                {Array.from(new Set(products.map(p => p.created_by_user_id).filter(Boolean)))
+                  .map(creatorId => {
+                    const creator = products.find(p => p.created_by_user_id === creatorId);
+                    return creator ? (
+                      <option key={creatorId} value={creatorId}>
+                        {creator.created_by_name || creator.created_by_email || `Developer ${creatorId}`}
+                      </option>
+                    ) : null;
+                  })}
+              </select>
             </div>
 
             {/* Recurring Commission Filter */}
@@ -307,7 +342,7 @@ export default function ProductLibraryPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading products...</p>
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="card rounded-lg p-12 text-center">
                 <div className="mb-4" style={{ color: 'var(--text-secondary)' }}>
                   <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,14 +353,14 @@ export default function ProductLibraryPage() {
                   No Products Found
                 </h3>
                 <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
-                  {searchQuery || selectedCategory
+                  {searchQuery || selectedCategory || selectedCreator
                     ? "Try adjusting your search or filters"
                     : "Be the first to add a product by creating a campaign!"}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
