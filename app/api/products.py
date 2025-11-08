@@ -1068,14 +1068,13 @@ async def check_product_compliance(
     Returns compliance score, issues, and suggestions.
     """
     from app.services.compliance_checker import ComplianceChecker
-    
-    # Get the product
+
+    # Get the product (no is_public filter - allow checking own products)
     result = await db.execute(
         select(ProductIntelligence).options(
             selectinload(ProductIntelligence.created_by)
         ).where(
-            ProductIntelligence.id == product_id,
-            ProductIntelligence.is_public == "true"
+            ProductIntelligence.id == product_id
         )
     )
     product = result.scalar_one_or_none()
@@ -1084,6 +1083,16 @@ async def check_product_compliance(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
+        )
+
+    # Permission check: Admin can check any product, Product Developer can check only their own
+    is_admin = current_user.role == "admin"
+    is_owner = product.created_by_user_id == current_user.id
+
+    if not is_admin and not is_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only check compliance for your own products"
         )
 
     # Build content to check from product metadata
