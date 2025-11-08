@@ -69,6 +69,8 @@ class ProductLibraryItem(BaseModel):
     created_by_name: Optional[str] = None
     created_by_email: Optional[str] = None
     created_by_user_id: Optional[int] = None
+    # Compliance info
+    compliance: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -96,6 +98,8 @@ class ProductDetails(BaseModel):
     created_by_email: Optional[str] = None
     created_by_user_id: Optional[int] = None
     developer_tier: Optional[str] = None
+    # Compliance info
+    compliance: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
