@@ -3,7 +3,7 @@
 import { AuthGate } from "src/components/AuthGate";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "src/lib/appClient";
-import { Campaign, ShortenedLink } from "src/lib/types";
+import { Campaign, ShortenedLink, User } from "src/lib/types";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -36,6 +36,38 @@ interface AnalyticsSummary {
   avg_click_through_rate: number;
 }
 
+interface ProductDeveloperAnalytics {
+  summary: {
+    total_products: number;
+    total_usage: number;
+    visible_to_affiliates: number;
+    avg_usage_per_product: number;
+  };
+  compliance: {
+    compliant: number;
+    needs_review: number;
+    non_compliant: number;
+    not_checked: number;
+  };
+  top_products: Array<{
+    id: number;
+    product_name: string;
+    times_used: number;
+    category: string;
+    compliance_status: string | null;
+    compliance_score: number | null;
+  }>;
+  categories: Array<{
+    category: string;
+    count: number;
+  }>;
+  needs_attention: Array<{
+    id: number;
+    product_name: string;
+    issue: string;
+  }>;
+}
+
 const COLORS = {
   primary: "#3b82f6",
   success: "#10b981",
@@ -47,16 +79,32 @@ const COLORS = {
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState(30);
 
-  // Fetch all user campaigns
+  // Fetch current user to determine user type
+  const { data: currentUser, isLoading: userLoading } = useQuery<User>({
+    queryKey: ["currentUser"],
+    queryFn: async () => (await api.get("/api/auth/me")).data,
+  });
+
+  const isProductDeveloper = currentUser?.user_type === "product_creator";
+
+  // Product Developer Analytics
+  const { data: devAnalytics, isLoading: devAnalyticsLoading } = useQuery<ProductDeveloperAnalytics>({
+    queryKey: ["developerAnalytics"],
+    queryFn: async () => (await api.get("/api/products/analytics/developer")).data,
+    enabled: isProductDeveloper,
+  });
+
+  // Affiliate Marketer Analytics
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<CampaignWithStats[]>({
     queryKey: ["campaigns"],
     queryFn: async () => (await api.get("/api/campaigns")).data,
+    enabled: !isProductDeveloper,
   });
 
-  // Fetch all user's shortened links
   const { data: links = [], isLoading: linksLoading } = useQuery<ShortenedLink[]>({
     queryKey: ["links"],
     queryFn: async () => (await api.get("/api/links")).data,
+    enabled: !isProductDeveloper,
   });
 
   // Calculate summary stats
@@ -93,7 +141,9 @@ export default function AnalyticsPage() {
     { name: "Completed", value: campaigns.filter((c) => c.status === "completed").length, color: COLORS.primary },
   ].filter((item) => item.value > 0);
 
-  if (campaignsLoading || linksLoading) {
+  const isLoading = userLoading || (isProductDeveloper ? devAnalyticsLoading : (campaignsLoading || linksLoading));
+
+  if (isLoading) {
     return (
       <AuthGate requiredRole="user">
         <div className="p-6">
@@ -105,6 +155,258 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
+        </div>
+      </AuthGate>
+    );
+  }
+
+  // Render Product Developer Analytics
+  if (isProductDeveloper && devAnalytics) {
+    return (
+      <AuthGate requiredRole="user">
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Product Analytics
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Track your product performance and usage by affiliates
+            </p>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Products</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                    {devAnalytics.summary.total_products}
+                  </p>
+                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                    {devAnalytics.summary.visible_to_affiliates} visible to affiliates
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Usage</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                    {devAnalytics.summary.total_usage}
+                  </p>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                    By affiliate campaigns
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Usage/Product</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                    {devAnalytics.summary.avg_usage_per_product.toFixed(1)}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Campaigns per product
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Compliant Products</p>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                    {devAnalytics.compliance.compliant}
+                  </p>
+                  <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
+                    {devAnalytics.compliance.not_checked} not checked
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Compliance Status Distribution */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Compliance Status
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Compliant", value: devAnalytics.compliance.compliant, color: COLORS.success },
+                      { name: "Needs Review", value: devAnalytics.compliance.needs_review, color: COLORS.warning },
+                      { name: "Non-Compliant", value: devAnalytics.compliance.non_compliant, color: COLORS.danger },
+                      { name: "Not Checked", value: devAnalytics.compliance.not_checked, color: "#6b7280" },
+                    ].filter(item => item.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry: any) => `${entry.name} (${entry.value})`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {[
+                      { name: "Compliant", value: devAnalytics.compliance.compliant, color: COLORS.success },
+                      { name: "Needs Review", value: devAnalytics.compliance.needs_review, color: COLORS.warning },
+                      { name: "Non-Compliant", value: devAnalytics.compliance.non_compliant, color: COLORS.danger },
+                      { name: "Not Checked", value: devAnalytics.compliance.not_checked, color: "#6b7280" },
+                    ].filter(item => item.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Top Products Bar Chart */}
+            {devAnalytics.top_products.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Top Products by Usage
+                </h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={devAnalytics.top_products}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis
+                      dataKey="product_name"
+                      stroke="#9ca3af"
+                      tick={{ fill: "#9ca3af" }}
+                      angle={-15}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis stroke="#9ca3af" tick={{ fill: "#9ca3af" }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f2937",
+                        border: "1px solid #374151",
+                        borderRadius: "0.5rem",
+                      }}
+                      labelStyle={{ color: "#f3f4f6" }}
+                    />
+                    <Bar dataKey="times_used" fill={COLORS.primary} name="Times Used" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Products Needing Attention */}
+          {devAnalytics.needs_attention.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Products Needing Attention
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Product Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Issue
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {devAnalytics.needs_attention.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {product.product_name}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-red-600 dark:text-red-400">
+                            {product.issue}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          <Link
+                            href={`/products`}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                          >
+                            Check Compliance
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* No Products State */}
+          {devAnalytics.summary.total_products === 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+              <svg
+                className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                No Products Yet
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Submit your first product to start tracking analytics
+              </p>
+              <Link
+                href="/products"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              >
+                Add Product
+              </Link>
+            </div>
+          )}
         </div>
       </AuthGate>
     );
