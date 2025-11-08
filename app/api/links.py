@@ -137,17 +137,17 @@ async def redirect_short_link(
 
 
 # ============================================================================
-# DEBUG ENDPOINT
+# DEBUG ENDPOINTS
 # ============================================================================
 
-@router.get("/{short_code}/debug", response_model=Dict[str, Any])
-async def debug_link(
+@redirect_router.get("/{short_code}/debug", response_model=Dict[str, Any])
+async def debug_link_public(
     short_code: str,
-    current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Debug endpoint to check link and click data
+    Public debug endpoint to check link and click data (NO AUTH REQUIRED)
+    Useful for troubleshooting tracking issues
     """
     from app.db.models import LinkClick
 
@@ -158,10 +158,6 @@ async def debug_link(
 
     if not shortened_link:
         raise HTTPException(status_code=404, detail="Link not found")
-
-    # Verify ownership
-    if shortened_link.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
 
     # Get all clicks for this link
     clicks_result = await db.execute(
