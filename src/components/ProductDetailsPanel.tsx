@@ -375,6 +375,29 @@ export function ProductDetailsPanel({
                   )}
                 </>
               )}
+              {product.affiliate_link_url && (
+                <a
+                  href={product.affiliate_link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  <span>Get Affiliate Link</span>
+                </a>
+              )}
               <button
                 onClick={handleCreateCampaign}
                 className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2 font-medium"
@@ -654,8 +677,8 @@ export function ProductDetailsPanel({
               </div>
             </div>
 
-            {/* Affiliate Link */}
-            {(product.affiliate_link_url || isEditMode) && (
+            {/* Affiliate Link - Edit Mode Only (view mode button is in header) */}
+            {isEditMode && (
               <div className="card rounded-lg p-6">
                 <div
                   className="text-sm font-medium mb-2 flex items-center"
@@ -674,40 +697,16 @@ export function ProductDetailsPanel({
                       d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
                     />
                   </svg>
-                  Get Your Affiliate Link
+                  Affiliate Signup URL
                 </div>
-                {isEditMode ? (
-                  <input
-                    type="url"
-                    value={editedProduct.affiliate_link_url || ""}
-                    onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_link_url: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
-                    style={{ color: "var(--text-primary)" }}
-                    placeholder="https://example.com/affiliate-signup"
-                  />
-                ) : (
-                  <a
-                    href={product.affiliate_link_url || ""}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium"
-                  >
-                    <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                    Get Affiliate Link on {product.affiliate_network}
-                  </a>
-                )}
+                <input
+                  type="url"
+                  value={editedProduct.affiliate_link_url || ""}
+                  onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_link_url: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                  style={{ color: "var(--text-primary)" }}
+                  placeholder="https://example.com/affiliate-signup"
+                />
               </div>
             )}
           </div>
