@@ -965,29 +965,6 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
 
-                {/* Images */}
-                {campaign.intelligence_data.images && campaign.intelligence_data.images.length > 0 && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      Product Images ({campaign.intelligence_data.images.length})
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                      {campaign.intelligence_data.images.slice(0, 4).map((image: any, idx: number) => (
-                        <div key={idx} className="relative group">
-                          <img
-                            src={image.r2_url}
-                            alt={`Product ${idx + 1}`}
-                            className="w-full h-24 object-cover rounded border border-gray-200 dark:border-gray-700"
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded-b">
-                            {image.type} - {image.quality_score}%
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Metadata */}
                 {campaign.intelligence_data.amplified_at && (
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
@@ -1029,6 +1006,30 @@ export default function CampaignDetailPage() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Generated Content
           </h3>
+
+          {/* Product Images */}
+          {campaign.intelligence_data?.images && campaign.intelligence_data.images.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                Product Images ({campaign.intelligence_data.images.length})
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                {campaign.intelligence_data.images.map((image: any, idx: number) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={image.r2_url}
+                      alt={`Product ${idx + 1}`}
+                      className="w-full h-32 object-cover rounded border border-gray-200 dark:border-gray-700"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded-b">
+                      {image.type} - {image.quality_score}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <svg
               className="w-12 h-12 mx-auto mb-3 text-gray-400"
