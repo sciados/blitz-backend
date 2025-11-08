@@ -267,6 +267,24 @@ export default function Layout({ children }: LayoutProps) {
             leftSidebarOpen ? "w-64" : "w-16"
           } transition-all duration-300 border-r border-[var(--border-color)] bg-[var(--bg-primary)] overflow-y-auto`}
         >
+          {/* User Type Badge */}
+          {leftSidebarOpen && userInfo && !isAdmin && (
+            <div className="p-4 border-b border-[var(--border-color)]">
+              <div className="flex items-center space-x-2">
+                <div className="flex-1">
+                  <div className="text-xs text-[var(--text-secondary)] mb-1">Account Type</div>
+                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    userInfo.user_type === "product_creator"
+                      ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                      : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  }`}>
+                    {userInfo.user_type === "product_creator" ? "🎯 Product Developer" : "🚀 Affiliate Marketer"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <nav className="p-2 space-y-1">
             {menuItems.map((item) => {
               const isActive = pathname === item.href;
