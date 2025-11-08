@@ -1018,15 +1018,15 @@ export default function CampaignDetailPage() {
               <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
                 Product Images ({campaign.intelligence_data.images.length})
               </h4>
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
                 {campaign.intelligence_data.images.map((image: any, idx: number) => (
-                  <div key={idx} className="relative group">
+                  <div key={idx} className="relative group p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
                     <img
                       src={image.r2_url}
                       alt={`Product ${idx + 1}`}
-                      className="w-full h-32 object-cover rounded border border-gray-200 dark:border-gray-700"
+                      className="w-full h-24 object-contain rounded"
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded-b">
+                    <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded">
                       {image.type} - {image.quality_score}%
                     </div>
                   </div>
