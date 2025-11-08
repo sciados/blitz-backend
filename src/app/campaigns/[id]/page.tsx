@@ -467,6 +467,263 @@ export default function CampaignDetailPage() {
               </div>
             </div>
 
+            {/* Intelligence Data */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Intelligence Data
+              </h3>
+              {campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0 ? (
+                <div className="space-y-6">
+                  {/* Product Intelligence */}
+                  {campaign.intelligence_data.product && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Product</h4>
+                      <div className="space-y-2 text-sm">
+                        {campaign.intelligence_data.product.name && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Name: </span>
+                            <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.name}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.product.category && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Category: </span>
+                            <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.category}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.product.unique_mechanism && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Unique Mechanism: </span>
+                            <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.unique_mechanism}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.product.features && campaign.intelligence_data.product.features.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Features ({campaign.intelligence_data.product.features.length}): </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {campaign.intelligence_data.product.features.slice(0, 5).map((feature: string, idx: number) => (
+                                <span key={idx} className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">
+                                  {feature}
+                                </span>
+                              ))}
+                              {campaign.intelligence_data.product.features.length > 5 && (
+                                <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                  +{campaign.intelligence_data.product.features.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.product.benefits && campaign.intelligence_data.product.benefits.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Benefits ({campaign.intelligence_data.product.benefits.length}): </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {campaign.intelligence_data.product.benefits.slice(0, 5).map((benefit: string, idx: number) => (
+                                <span key={idx} className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">
+                                  {benefit}
+                                </span>
+                              ))}
+                              {campaign.intelligence_data.product.benefits.length > 5 && (
+                                <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                  +{campaign.intelligence_data.product.benefits.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Market Intelligence */}
+                  {campaign.intelligence_data.market && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Market</h4>
+                      <div className="space-y-2 text-sm">
+                        {campaign.intelligence_data.market.target_audience?.primary && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Target Audience: </span>
+                            <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.market.target_audience.primary}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.market.positioning && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Positioning: </span>
+                            <span className="text-gray-600 dark:text-gray-400 capitalize">{campaign.intelligence_data.market.positioning}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.market.competitive_advantages && campaign.intelligence_data.market.competitive_advantages.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Competitive Advantages: </span>
+                            <ul className="mt-1 list-disc list-inside space-y-1">
+                              {campaign.intelligence_data.market.competitive_advantages.slice(0, 3).map((advantage: string, idx: number) => (
+                                <li key={idx} className="text-gray-600 dark:text-gray-400 text-xs">{advantage}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Marketing Intelligence */}
+                  {campaign.intelligence_data.marketing && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Marketing</h4>
+                      <div className="space-y-2 text-sm">
+                        {campaign.intelligence_data.marketing.primary_emotion && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Primary Emotion: </span>
+                            <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.marketing.primary_emotion}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.marketing.hooks && campaign.intelligence_data.marketing.hooks.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Hooks ({campaign.intelligence_data.marketing.hooks.length}): </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {campaign.intelligence_data.marketing.hooks.slice(0, 3).map((hook: string, idx: number) => (
+                                <span key={idx} className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded text-xs">
+                                  {hook.length > 50 ? hook.substring(0, 50) + '...' : hook}
+                                </span>
+                              ))}
+                              {campaign.intelligence_data.marketing.hooks.length > 3 && (
+                                <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                  +{campaign.intelligence_data.marketing.hooks.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.marketing.angles && campaign.intelligence_data.marketing.angles.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Marketing Angles ({campaign.intelligence_data.marketing.angles.length}): </span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {campaign.intelligence_data.marketing.angles.slice(0, 3).map((angle: string, idx: number) => (
+                                <span key={idx} className="inline-block px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded text-xs">
+                                  {angle.length > 50 ? angle.substring(0, 50) + '...' : angle}
+                                </span>
+                              ))}
+                              {campaign.intelligence_data.marketing.angles.length > 3 && (
+                                <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                                  +{campaign.intelligence_data.marketing.angles.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Analysis */}
+                  {campaign.intelligence_data.analysis && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Analysis</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center space-x-4">
+                          {campaign.intelligence_data.analysis.confidence_score !== undefined && (
+                            <div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300">Confidence: </span>
+                              <span className={`font-semibold ${
+                                campaign.intelligence_data.analysis.confidence_score >= 0.8
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : campaign.intelligence_data.analysis.confidence_score >= 0.6
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {(campaign.intelligence_data.analysis.confidence_score * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          )}
+                          {campaign.intelligence_data.analysis.completeness_score !== undefined && (
+                            <div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300">Completeness: </span>
+                              <span className={`font-semibold ${
+                                campaign.intelligence_data.analysis.completeness_score >= 0.8
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : campaign.intelligence_data.analysis.completeness_score >= 0.6
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {(campaign.intelligence_data.analysis.completeness_score * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {campaign.intelligence_data.analysis.funnel_stage && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Funnel Stage: </span>
+                            <span className="text-gray-600 dark:text-gray-400 capitalize">{campaign.intelligence_data.analysis.funnel_stage}</span>
+                          </div>
+                        )}
+                        {campaign.intelligence_data.analysis.sophistication_level && (
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Market Sophistication: </span>
+                            <span className="text-gray-600 dark:text-gray-400">Level {campaign.intelligence_data.analysis.sophistication_level}/5</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Images */}
+                  {campaign.intelligence_data.images && campaign.intelligence_data.images.length > 0 && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                        Product Images ({campaign.intelligence_data.images.length})
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                        {campaign.intelligence_data.images.slice(0, 4).map((image: any, idx: number) => (
+                          <div key={idx} className="relative group">
+                            <img
+                              src={image.r2_url}
+                              alt={`Product ${idx + 1}`}
+                              className="w-full h-24 object-cover rounded border border-gray-200 dark:border-gray-700"
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded-b">
+                              {image.type} - {image.quality_score}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Metadata */}
+                  {campaign.intelligence_data.amplified_at && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center justify-between">
+                        <span>Compiled: {new Date(campaign.intelligence_data.amplified_at).toLocaleString()}</span>
+                        {campaign.intelligence_data.model && (
+                          <span>Model: {campaign.intelligence_data.model}</span>
+                        )}
+                        {campaign.intelligence_data.estimated_cost_usd !== undefined && (
+                          <span>Cost: ${campaign.intelligence_data.estimated_cost_usd.toFixed(4)}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-3 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                  <p className="text-sm">No intelligence compiled yet</p>
+                </div>
+              )}
+            </div>
+
             {/* Workflow Steps */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -767,286 +1024,26 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        {/* Placeholder Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Generated Content */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Generated Content
-            </h3>
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <svg
-                className="w-12 h-12 mx-auto mb-3 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <p className="text-sm">No content generated yet</p>
-            </div>
-          </div>
-
-          {/* Intelligence Data */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Intelligence Data
-            </h3>
-            {campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0 ? (
-              <div className="space-y-6">
-                {/* Product Intelligence */}
-                {campaign.intelligence_data.product && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Product</h4>
-                    <div className="space-y-2 text-sm">
-                      {campaign.intelligence_data.product.name && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Name: </span>
-                          <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.name}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.product.category && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Category: </span>
-                          <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.category}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.product.unique_mechanism && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Unique Mechanism: </span>
-                          <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.product.unique_mechanism}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.product.features && campaign.intelligence_data.product.features.length > 0 && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Features ({campaign.intelligence_data.product.features.length}): </span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {campaign.intelligence_data.product.features.slice(0, 5).map((feature: string, idx: number) => (
-                              <span key={idx} className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">
-                                {feature}
-                              </span>
-                            ))}
-                            {campaign.intelligence_data.product.features.length > 5 && (
-                              <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
-                                +{campaign.intelligence_data.product.features.length - 5} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.product.benefits && campaign.intelligence_data.product.benefits.length > 0 && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Benefits ({campaign.intelligence_data.product.benefits.length}): </span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {campaign.intelligence_data.product.benefits.slice(0, 5).map((benefit: string, idx: number) => (
-                              <span key={idx} className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">
-                                {benefit}
-                              </span>
-                            ))}
-                            {campaign.intelligence_data.product.benefits.length > 5 && (
-                              <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
-                                +{campaign.intelligence_data.product.benefits.length - 5} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Market Intelligence */}
-                {campaign.intelligence_data.market && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Market</h4>
-                    <div className="space-y-2 text-sm">
-                      {campaign.intelligence_data.market.target_audience?.primary && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Target Audience: </span>
-                          <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.market.target_audience.primary}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.market.positioning && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Positioning: </span>
-                          <span className="text-gray-600 dark:text-gray-400 capitalize">{campaign.intelligence_data.market.positioning}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.market.competitive_advantages && campaign.intelligence_data.market.competitive_advantages.length > 0 && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Competitive Advantages: </span>
-                          <ul className="mt-1 list-disc list-inside space-y-1">
-                            {campaign.intelligence_data.market.competitive_advantages.slice(0, 3).map((advantage: string, idx: number) => (
-                              <li key={idx} className="text-gray-600 dark:text-gray-400 text-xs">{advantage}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Marketing Intelligence */}
-                {campaign.intelligence_data.marketing && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Marketing</h4>
-                    <div className="space-y-2 text-sm">
-                      {campaign.intelligence_data.marketing.primary_emotion && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Primary Emotion: </span>
-                          <span className="text-gray-600 dark:text-gray-400">{campaign.intelligence_data.marketing.primary_emotion}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.marketing.hooks && campaign.intelligence_data.marketing.hooks.length > 0 && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Hooks ({campaign.intelligence_data.marketing.hooks.length}): </span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {campaign.intelligence_data.marketing.hooks.slice(0, 3).map((hook: string, idx: number) => (
-                              <span key={idx} className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded text-xs">
-                                {hook.length > 50 ? hook.substring(0, 50) + '...' : hook}
-                              </span>
-                            ))}
-                            {campaign.intelligence_data.marketing.hooks.length > 3 && (
-                              <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
-                                +{campaign.intelligence_data.marketing.hooks.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.marketing.angles && campaign.intelligence_data.marketing.angles.length > 0 && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Marketing Angles ({campaign.intelligence_data.marketing.angles.length}): </span>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {campaign.intelligence_data.marketing.angles.slice(0, 3).map((angle: string, idx: number) => (
-                              <span key={idx} className="inline-block px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded text-xs">
-                                {angle.length > 50 ? angle.substring(0, 50) + '...' : angle}
-                              </span>
-                            ))}
-                            {campaign.intelligence_data.marketing.angles.length > 3 && (
-                              <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
-                                +{campaign.intelligence_data.marketing.angles.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Analysis */}
-                {campaign.intelligence_data.analysis && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Analysis</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center space-x-4">
-                        {campaign.intelligence_data.analysis.confidence_score !== undefined && (
-                          <div>
-                            <span className="font-medium text-gray-700 dark:text-gray-300">Confidence: </span>
-                            <span className={`font-semibold ${
-                              campaign.intelligence_data.analysis.confidence_score >= 0.8
-                                ? 'text-green-600 dark:text-green-400'
-                                : campaign.intelligence_data.analysis.confidence_score >= 0.6
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                              {(campaign.intelligence_data.analysis.confidence_score * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        )}
-                        {campaign.intelligence_data.analysis.completeness_score !== undefined && (
-                          <div>
-                            <span className="font-medium text-gray-700 dark:text-gray-300">Completeness: </span>
-                            <span className={`font-semibold ${
-                              campaign.intelligence_data.analysis.completeness_score >= 0.8
-                                ? 'text-green-600 dark:text-green-400'
-                                : campaign.intelligence_data.analysis.completeness_score >= 0.6
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                              {(campaign.intelligence_data.analysis.completeness_score * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {campaign.intelligence_data.analysis.funnel_stage && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Funnel Stage: </span>
-                          <span className="text-gray-600 dark:text-gray-400 capitalize">{campaign.intelligence_data.analysis.funnel_stage}</span>
-                        </div>
-                      )}
-                      {campaign.intelligence_data.analysis.sophistication_level && (
-                        <div>
-                          <span className="font-medium text-gray-700 dark:text-gray-300">Market Sophistication: </span>
-                          <span className="text-gray-600 dark:text-gray-400">Level {campaign.intelligence_data.analysis.sophistication_level}/5</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Images */}
-                {campaign.intelligence_data.images && campaign.intelligence_data.images.length > 0 && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      Product Images ({campaign.intelligence_data.images.length})
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                      {campaign.intelligence_data.images.slice(0, 4).map((image: any, idx: number) => (
-                        <div key={idx} className="relative group">
-                          <img
-                            src={image.r2_url}
-                            alt={`Product ${idx + 1}`}
-                            className="w-full h-24 object-cover rounded border border-gray-200 dark:border-gray-700"
-                          />
-                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition rounded-b">
-                            {image.type} - {image.quality_score}%
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Metadata */}
-                {campaign.intelligence_data.amplified_at && (
-                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center justify-between">
-                      <span>Compiled: {new Date(campaign.intelligence_data.amplified_at).toLocaleString()}</span>
-                      {campaign.intelligence_data.model && (
-                        <span>Model: {campaign.intelligence_data.model}</span>
-                      )}
-                      {campaign.intelligence_data.estimated_cost_usd !== undefined && (
-                        <span>Cost: ${campaign.intelligence_data.estimated_cost_usd.toFixed(4)}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                <p className="text-sm">No intelligence compiled yet</p>
-              </div>
-            )}
+        {/* Generated Content - Full Width */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Generated Content
+          </h3>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <svg
+              className="w-12 h-12 mx-auto mb-3 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <p className="text-sm">No content generated yet</p>
           </div>
         </div>
       </div>
