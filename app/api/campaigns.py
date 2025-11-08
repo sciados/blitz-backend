@@ -87,9 +87,6 @@ async def create_campaign(
     # This will reuse cached intelligence but ensure KnowledgeBase ingestion happens
     if new_campaign.product_intelligence_id:
         import asyncio
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         async def background_compile():
             """Background task to compile intelligence for campaign"""
