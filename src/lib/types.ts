@@ -12,6 +12,7 @@ export type User = {
 
 export type Campaign = {
     id: number;
+    user_id: number;
     name: string;
     product_url?: string | null; // Now optional - campaigns can be created without URL
     affiliate_network?: string | null;
