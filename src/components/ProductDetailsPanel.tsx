@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
-import { ProductDetails } from "src/lib/types";
+import { ProductDetails, ComplianceResult } from "src/lib/types";
 import { useRouter } from "next/navigation";
 import { getRoleFromToken } from "src/lib/auth";
 import { toast } from "sonner";
@@ -30,6 +30,8 @@ export function ProductDetailsPanel({
   const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isRecompiling, setIsRecompiling] = useState(false);
+  const [isCheckingCompliance, setIsCheckingCompliance] = useState(false);
+  const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
 
   useEffect(() => {
     // Fetch current user info to get user ID
@@ -155,6 +157,31 @@ export function ProductDetailsPanel({
       toast.error(err.response?.data?.detail || "Failed to recompile intelligence");
     } finally {
       setIsRecompiling(false);
+    }
+  };
+
+  const handleCheckCompliance = async () => {
+    if (!product) return;
+
+    setIsCheckingCompliance(true);
+    toast.info("Checking product compliance...");
+
+    try {
+      const response = await api.post(`/api/products/${product.id}/check-compliance`);
+      setComplianceResult(response.data);
+
+      if (response.data.status === "compliant") {
+        toast.success(`Compliance check complete! Score: ${response.data.score}/100`);
+      } else if (response.data.status === "needs_review") {
+        toast.warning(`Compliance needs review. Score: ${response.data.score}/100`);
+      } else {
+        toast.error(`Non-compliant content detected. Score: ${response.data.score}/100`);
+      }
+    } catch (err: any) {
+      console.error("Failed to check compliance:", err);
+      toast.error(err.response?.data?.detail || "Failed to check compliance");
+    } finally {
+      setIsCheckingCompliance(false);
     }
   };
 
@@ -373,6 +400,38 @@ export function ProductDetailsPanel({
                       )}
                     </button>
                   )}
+
+                  {/* Check Compliance Button */}
+                  <button
+                    onClick={handleCheckCompliance}
+                    disabled={isCheckingCompliance}
+                    className="px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed text-white rounded-lg transition flex items-center space-x-2 font-medium"
+                    title="Check product description for FTC compliance"
+                  >
+                    {isCheckingCompliance ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Checking...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                          />
+                        </svg>
+                        <span>Check Compliance</span>
+                      </>
+                    )}
+                  </button>
                 </>
               )}
               {product.affiliate_link_url && (
@@ -752,6 +811,118 @@ export function ProductDetailsPanel({
                 </p>
               )}
             </div>
+
+            {/* Compliance Results */}
+            {complianceResult && (
+              <div className="card rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4
+                    className="text-lg font-semibold flex items-center"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      />
+                    </svg>
+                    Compliance Check
+                  </h4>
+                  <button
+                    onClick={() => setComplianceResult(null)}
+                    className="p-1 rounded hover:bg-[var(--hover-bg)]"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Score Display */}
+                <div className="mb-4 text-center">
+                  <div
+                    className={`text-5xl font-bold mb-2 ${
+                      complianceResult.score >= 90
+                        ? "text-green-600 dark:text-green-400"
+                        : complianceResult.score >= 70
+                        ? "text-yellow-600 dark:text-yellow-400"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {complianceResult.score}
+                  </div>
+                  <div className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+                    out of 100
+                  </div>
+                  <div
+                    className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${
+                      complianceResult.status === "compliant"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
+                        : complianceResult.status === "needs_review"
+                        ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+                        : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
+                    }`}
+                  >
+                    {complianceResult.status === "compliant" && "✓ Compliant"}
+                    {complianceResult.status === "needs_review" && "⚠ Needs Review"}
+                    {complianceResult.status === "non_compliant" && "✗ Non-Compliant"}
+                  </div>
+                </div>
+
+                {/* Issues List */}
+                {complianceResult.issues && complianceResult.issues.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                      Issues Found ({complianceResult.issues.length})
+                    </div>
+                    <div className="space-y-2">
+                      {complianceResult.issues.map((issue, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg border text-xs ${
+                            issue.severity === "critical"
+                              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700"
+                              : issue.severity === "high"
+                              ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700"
+                              : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
+                          }`}
+                        >
+                          <div className="flex items-start">
+                            <span className="mr-2">
+                              {issue.severity === "critical" ? "🔴" : issue.severity === "high" ? "🟠" : "🟡"}
+                            </span>
+                            <div className="flex-1">
+                              <div className="font-semibold uppercase mb-1">{issue.severity}</div>
+                              <div className="mb-1">{issue.message}</div>
+                              {issue.suggestion && (
+                                <div className="mt-1 opacity-90">
+                                  <strong>Fix:</strong> {issue.suggestion}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary */}
+                {complianceResult.summary && (
+                  <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                    {complianceResult.summary}
+                  </div>
+                )}
+              </div>
+            )}
 
             {product.intelligence_data ? (
               <>

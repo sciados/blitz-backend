@@ -50,6 +50,26 @@ export type CampaignCreate = {
 // PRODUCT LIBRARY TYPES
 // ============================================================================
 
+export type ComplianceIssue = {
+    severity: "critical" | "high" | "medium";
+    type: string;
+    message: string;
+    suggestion?: string;
+    location?: string;
+};
+
+export type ComplianceResult = {
+    product_id?: number;
+    product_name?: string | null;
+    product_category?: string | null;
+    status: "compliant" | "needs_review" | "non_compliant";
+    score: number;
+    issues: ComplianceIssue[];
+    warnings?: string[];
+    summary?: string;
+    compliant?: boolean;
+};
+
 export type ProductLibraryItem = {
     id: number;
     product_name: string | null;
@@ -66,6 +86,8 @@ export type ProductLibraryItem = {
     created_by_name: string | null;
     created_by_email: string | null;
     created_by_user_id: number | null;
+    // Compliance info (optional)
+    compliance?: ComplianceResult | null;
 };
 
 export type ProductDetails = {
@@ -89,6 +111,8 @@ export type ProductDetails = {
     created_by_email: string | null;
     created_by_user_id: number | null;
     developer_tier: string | null;
+    // Compliance info (optional)
+    compliance?: ComplianceResult | null;
 };
 
 export type ProductLibraryStats = {
