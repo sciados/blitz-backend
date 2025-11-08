@@ -30,28 +30,35 @@ export const helpContent: Record<string, HelpContent> = {
   // Dashboard
   "/dashboard": {
     title: "Dashboard Overview",
-    description: "Your central hub for monitoring campaign performance and quick actions.",
+    description: "Your central hub with quick access to key features. Dashboard content varies based on your account type (Product Developer or Affiliate Marketer).",
     steps: [
       {
         number: 1,
-        title: "Review Your Stats",
-        description: "Check your active campaigns, generated content, and compliance status at a glance.",
+        title: "Product Developers",
+        description: "Access Product Library to add your products, and use Product Analytics to track how affiliates are promoting them.",
       },
       {
         number: 2,
-        title: "Quick Actions",
-        description: "Use the quick action buttons to create new campaigns or generate content.",
+        title: "Affiliate Marketers",
+        description: "Create campaigns, browse the Product Library, generate content, and track your marketing performance.",
       },
       {
         number: 3,
-        title: "Monitor Performance",
-        description: "Keep track of your campaign performance metrics and identify areas for improvement.",
+        title: "Quick Navigation",
+        description: "Click any card to navigate directly to that feature. The dashboard shows only the features relevant to your account type.",
+      },
+      {
+        number: 4,
+        title: "Getting Started Guide",
+        description: "Check the 'Getting Started' section at the bottom for helpful tips and next steps.",
       },
     ],
     tips: [
-      "Check your dashboard daily to stay on top of your campaigns",
-      "Use the analytics section to track ROI",
-      "Set up your first campaign if you haven't already",
+      "Your dashboard is personalized based on whether you're a Product Developer or Affiliate Marketer",
+      "Product Developers see: Product Library, Product Analytics, Settings",
+      "Affiliate Marketers see: Campaigns, Content, Intelligence, Compliance, Analytics",
+      "All users can access the Product Library - it's the shared marketplace",
+      "Check your account type badge in the left sidebar (purple for Product Developers, blue for Affiliate Marketers)",
     ],
   },
 
