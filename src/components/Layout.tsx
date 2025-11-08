@@ -7,6 +7,7 @@ import { api } from "src/lib/appClient";
 import { useTheme } from "src/contexts/ThemeContext";
 import { getHelpContent } from "src/config/helpContent";
 import Link from "next/link";
+import { Footer } from "src/components/Footer";
 
 type LayoutProps = {
   children: ReactNode;
@@ -317,8 +318,9 @@ export default function Layout({ children }: LayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)]">
-          {children}
+        <main className="flex-1 overflow-y-auto bg-[var(--bg-secondary)] flex flex-col">
+          <div className="flex-1">{children}</div>
+          <Footer />
         </main>
 
         {/* Right Sidebar */}
