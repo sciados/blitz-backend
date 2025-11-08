@@ -297,13 +297,13 @@ class URLShortenerService:
         if not ip_address:
             return True
 
-        from sqlalchemy import cast, Text
+        from sqlalchemy import func
 
-        # Cast INET to text for comparison since ip_address is a string
+        # Use PostgreSQL's host() function to convert INET to text for comparison
         result = await self.db.execute(
             select(LinkClick).where(
                 LinkClick.shortened_link_id == shortened_link_id,
-                cast(LinkClick.ip_address, Text) == ip_address
+                func.host(LinkClick.ip_address) == ip_address
             ).limit(1)
         )
 
