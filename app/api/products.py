@@ -9,6 +9,7 @@ Product Creators can add products (free), Affiliate Marketers can browse and use
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, desc
+from sqlalchemy.orm import selectinload
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
