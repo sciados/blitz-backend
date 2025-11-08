@@ -270,13 +270,16 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        {/* Campaign Details - 4 Column Layout (2:1:1 ratio) */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-          {/* Left Column: Campaign Information (double width) */}
-          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Campaign Information
-            </h2>
+        {/* Campaign Details - New Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Left Side - Campaign Info + Status/Workflow */}
+          <div className="space-y-6">
+            {/* Campaign Information */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Campaign Information
+              </h2>
+              <div className="space-y-4">
 
             {/* Product URL */}
             <div>
@@ -438,12 +441,13 @@ export default function CampaignDetailPage() {
                 </div>
               </div>
             )}
-          </div>
+              </div>
+            </div>
 
-          {/* Middle Column: Campaign Status + Workflow */}
-          <div className="space-y-6">
-            {/* Campaign Status */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            {/* Status and Workflow Grid - Side by Side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Campaign Status */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Campaign Status
               </h3>
@@ -465,10 +469,10 @@ export default function CampaignDetailPage() {
                   </button>
                 ))}
               </div>
-            </div>
+              </div>
 
-            {/* Workflow Steps */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              {/* Workflow Steps */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Campaign Workflow
               </h3>
@@ -763,10 +767,11 @@ export default function CampaignDetailPage() {
                   );
                 })()}
               </div>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Intelligence Data */}
+          {/* Right Side: Intelligence Data (full height) */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Intelligence Data
