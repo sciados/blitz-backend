@@ -433,14 +433,61 @@ async def delete_knowledge_base_entry(
         )
     )
     entry = result.scalar_one_or_none()
-    
+
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Knowledge base entry not found"
         )
-    
+
     await db.delete(entry)
     await db.commit()
-    
+
     return None
+
+
+@router.get("/my-products")
+async def get_my_products(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all products created by the current user (Product Developer).
+
+    Returns products from the Product Library that were added by this user.
+    Used by Product Developers to track which products they've added and
+    monitor affiliate performance.
+    """
+    from app.db.models import ProductIntelligence
+
+    # Get all products created by this user
+    result = await db.execute(
+        select(ProductIntelligence)
+        .where(ProductIntelligence.created_by_user_id == current_user.id)
+        .order_by(ProductIntelligence.compiled_at.desc())
+    )
+    products = result.scalars().all()
+
+    # Format response with essential fields
+    product_list = []
+    for product in products:
+        product_list.append({
+            "id": product.id,
+            "product_name": product.product_name,
+            "product_url": product.product_url,
+            "product_category": product.product_category,
+            "thumbnail_image_url": product.thumbnail_image_url,
+            "affiliate_network": product.affiliate_network,
+            "commission_rate": product.commission_rate,
+            "times_used": product.times_used,
+            "status": product.status,
+            "quality_score": product.quality_score,
+            "is_public": product.is_public,
+            "compiled_at": product.compiled_at.isoformat() if product.compiled_at else None,
+            "last_accessed_at": product.last_accessed_at.isoformat() if product.last_accessed_at else None,
+        })
+
+    return {
+        "products": product_list,
+        "total": len(product_list)
+    }
