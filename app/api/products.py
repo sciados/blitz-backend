@@ -1251,3 +1251,123 @@ async def check_product_compliance(
         "summary": result.get("summary", ""),
         "compliant": result.get("compliant", False)
     }
+
+# ============================================================================
+# PRODUCT DEVELOPER ANALYTICS
+# ============================================================================
+
+@router.get("/analytics/developer")
+async def get_developer_analytics(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get analytics for Product Developers showing their product performance.
+    
+    Returns:
+    - Total products created
+    - Compliance status distribution
+    - Product usage statistics
+    - Top performing products
+    - Products needing attention
+    """
+    
+    # Only Product Developers can access this endpoint
+    if current_user.user_type != "product_creator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for Product Developers"
+        )
+    
+    # Get all products created by this user
+    result = await db.execute(
+        select(ProductIntelligence).where(
+            ProductIntelligence.created_by_user_id == current_user.id
+        )
+    )
+    products = result.scalars().all()
+    
+    # Calculate basic stats
+    total_products = len(products)
+    total_usage = sum(p.times_used for p in products)
+    
+    # Compliance statistics
+    compliant_count = 0
+    needs_review_count = 0
+    non_compliant_count = 0
+    not_checked_count = 0
+    
+    for p in products:
+        if p.intelligence_data and "compliance" in p.intelligence_data:
+            status = p.intelligence_data["compliance"].get("status")
+            if status == "compliant":
+                compliant_count += 1
+            elif status == "needs_review":
+                needs_review_count += 1
+            elif status == "non_compliant":
+                non_compliant_count += 1
+        else:
+            not_checked_count += 1
+    
+    # Visibility stats (compliant products are visible to affiliates)
+    visible_to_affiliates = 0
+    for p in products:
+        if p.intelligence_data and "compliance" in p.intelligence_data:
+            comp = p.intelligence_data["compliance"]
+            if comp.get("status") == "compliant" or comp.get("score", 0) >= 90:
+                visible_to_affiliates += 1
+    
+    # Top products by usage
+    top_products = sorted(products, key=lambda p: p.times_used, reverse=True)[:5]
+    top_products_data = [
+        {
+            "id": p.id,
+            "product_name": p.product_name,
+            "times_used": p.times_used,
+            "category": p.product_category,
+            "compliance_status": p.intelligence_data.get("compliance", {}).get("status") if p.intelligence_data and "compliance" in p.intelligence_data else None,
+            "compliance_score": p.intelligence_data.get("compliance", {}).get("score") if p.intelligence_data and "compliance" in p.intelligence_data else None
+        }
+        for p in top_products
+    ]
+    
+    # Products by category
+    category_counts = {}
+    for p in products:
+        cat = p.product_category or "Uncategorized"
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+    
+    categories_data = [
+        {"category": cat, "count": count}
+        for cat, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+    ]
+    
+    # Products needing attention (not checked or non-compliant)
+    needs_attention = [
+        {
+            "id": p.id,
+            "product_name": p.product_name,
+            "issue": "Not checked for compliance" if not (p.intelligence_data and "compliance" in p.intelligence_data) else f"Non-compliant (Score: {p.intelligence_data['compliance'].get('score', 0)})"
+        }
+        for p in products
+        if not (p.intelligence_data and "compliance" in p.intelligence_data) or 
+           (p.intelligence_data.get("compliance", {}).get("status") == "non_compliant")
+    ]
+    
+    return {
+        "summary": {
+            "total_products": total_products,
+            "total_usage": total_usage,
+            "visible_to_affiliates": visible_to_affiliates,
+            "avg_usage_per_product": total_usage / total_products if total_products > 0 else 0
+        },
+        "compliance": {
+            "compliant": compliant_count,
+            "needs_review": needs_review_count,
+            "non_compliant": non_compliant_count,
+            "not_checked": not_checked_count
+        },
+        "top_products": top_products_data,
+        "categories": categories_data,
+        "needs_attention": needs_attention[:10]  # Limit to top 10
+    }
