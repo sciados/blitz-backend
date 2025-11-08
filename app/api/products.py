@@ -193,6 +193,10 @@ async def list_products(
 
     products = result.scalars().all()
 
+    # Determine user role for compliance filtering
+    is_admin = current_user.role == "admin"
+    is_product_developer = current_user.user_type == "product_creator"
+
     # Build response with extracted description and recurring status
     product_items = []
     for p in products:
@@ -200,6 +204,7 @@ async def list_products(
 
         # Extract compliance data if available
         compliance_data = None
+        is_compliant = False
         if p.intelligence_data and "compliance" in p.intelligence_data:
             comp = p.intelligence_data["compliance"]
             compliance_data = {
@@ -209,6 +214,21 @@ async def list_products(
                 "warnings": comp.get("warnings", []),
                 "summary": comp.get("summary", "")
             }
+            # Product is compliant if status is "compliant" or score >= 90
+            is_compliant = comp.get("status") == "compliant" or comp.get("score", 0) >= 90
+
+        # Compliance filtering based on user role
+        is_owner = p.created_by_user_id == current_user.id
+
+        if not is_admin:
+            # Product Developers see their own products + compliant products
+            if is_product_developer:
+                if not is_owner and not is_compliant:
+                    continue  # Skip non-compliant products they don't own
+            # Affiliate Marketers see only compliant products
+            else:
+                if not is_compliant:
+                    continue  # Skip all non-compliant products
 
         # Apply recurring filter if specified
         if recurring_only is not None:
@@ -485,6 +505,10 @@ async def search_products(
     result = await db.execute(query)
     products = result.scalars().all()
 
+    # Determine user role for compliance filtering
+    is_admin = current_user.role == "admin"
+    is_product_developer = current_user.user_type == "product_creator"
+
     # Build response with extracted description and recurring status
     product_items = []
     for p in products:
@@ -492,6 +516,7 @@ async def search_products(
 
         # Extract compliance data if available
         compliance_data = None
+        is_compliant = False
         if p.intelligence_data and "compliance" in p.intelligence_data:
             comp = p.intelligence_data["compliance"]
             compliance_data = {
@@ -501,6 +526,21 @@ async def search_products(
                 "warnings": comp.get("warnings", []),
                 "summary": comp.get("summary", "")
             }
+            # Product is compliant if status is "compliant" or score >= 90
+            is_compliant = comp.get("status") == "compliant" or comp.get("score", 0) >= 90
+
+        # Compliance filtering based on user role
+        is_owner = p.created_by_user_id == current_user.id
+
+        if not is_admin:
+            # Product Developers see their own products + compliant products
+            if is_product_developer:
+                if not is_owner and not is_compliant:
+                    continue  # Skip non-compliant products they don't own
+            # Affiliate Marketers see only compliant products
+            else:
+                if not is_compliant:
+                    continue  # Skip all non-compliant products
 
         # Apply recurring filter if specified
         if recurring_only is not None:
