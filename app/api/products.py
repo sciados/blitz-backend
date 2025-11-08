@@ -1129,12 +1129,13 @@ async def check_product_compliance(
         elif "business" in category_lower or "income" in category_lower:
             product_category = "business"
 
-    # Check compliance
+    # Check compliance for product description (skip disclosure requirements)
     compliance_checker = ComplianceChecker()
     result = compliance_checker.check_content(
         content=content_to_check,
-        content_type="landing_page",  # Products are like landing pages
-        product_category=product_category
+        content_type="landing_page",
+        product_category=product_category,
+        is_product_description=True  # Skip affiliate disclosure checks for products
     )
 
     return {

@@ -74,16 +74,19 @@ class ComplianceChecker:
         self,
         content: str,
         content_type: str,
-        product_category: Optional[str] = None
+        product_category: Optional[str] = None,
+        is_product_description: bool = False
     ) -> Dict[str, Any]:
         """
         Comprehensive compliance check for generated content
-        
+
         Args:
             content: Content to check
             content_type: Type of content
             product_category: Optional product category (health, finance, etc.)
-            
+            is_product_description: If True, skips disclosure/disclaimer checks
+                                   (product descriptions don't need affiliate disclosures)
+
         Returns:
             Compliance report with score and issues
         """
@@ -91,19 +94,20 @@ class ComplianceChecker:
             issues = []
             warnings = []
             score = 100  # Start with perfect score
-            
-            # Check for affiliate disclosure
-            disclosure_check = self._check_disclosure(content, content_type)
-            if not disclosure_check['compliant']:
-                issues.append({
-                    'severity': 'critical',
-                    'type': 'missing_disclosure',
-                    'message': disclosure_check['message'],
-                    'suggestion': disclosure_check['suggestion']
-                })
-                score -= 30
-            
-            # Check for prohibited claims
+
+            # Check for affiliate disclosure (SKIP for product descriptions)
+            if not is_product_description:
+                disclosure_check = self._check_disclosure(content, content_type)
+                if not disclosure_check['compliant']:
+                    issues.append({
+                        'severity': 'critical',
+                        'type': 'missing_disclosure',
+                        'message': disclosure_check['message'],
+                        'suggestion': disclosure_check['suggestion']
+                    })
+                    score -= 30
+
+            # Check for prohibited claims (ALWAYS check)
             prohibited_check = self._check_prohibited_claims(content, product_category)
             if prohibited_check['violations']:
                 for violation in prohibited_check['violations']:
@@ -115,8 +119,8 @@ class ComplianceChecker:
                         'suggestion': violation['suggestion']
                     })
                     score -= 20
-            
-            # Check for exaggerated language
+
+            # Check for exaggerated language (ALWAYS check)
             exaggeration_check = self._check_exaggerations(content)
             if exaggeration_check['found']:
                 for exaggeration in exaggeration_check['instances']:
@@ -127,18 +131,19 @@ class ComplianceChecker:
                         'suggestion': 'Consider using more measured language'
                     })
                     score -= 5
-            
-            # Check for required elements
-            required_check = self._check_required_elements(content, content_type)
-            if required_check['missing']:
-                for missing in required_check['missing']:
-                    issues.append({
-                        'severity': 'high',
-                        'type': 'missing_element',
-                        'message': f"Missing required element: {missing}",
-                        'suggestion': required_check['suggestions'].get(missing, '')
-                    })
-                    score -= 15
+
+            # Check for required elements (SKIP for product descriptions)
+            if not is_product_description:
+                required_check = self._check_required_elements(content, content_type)
+                if required_check['missing']:
+                    for missing in required_check['missing']:
+                        issues.append({
+                            'severity': 'high',
+                            'type': 'missing_element',
+                            'message': f"Missing required element: {missing}",
+                            'suggestion': required_check['suggestions'].get(missing, '')
+                        })
+                        score -= 15
             
             # Check for misleading statements
             misleading_check = self._check_misleading_statements(content)
