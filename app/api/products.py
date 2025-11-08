@@ -847,17 +847,11 @@ async def update_product(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Update product metadata (admin only).
+    Update product metadata.
 
-    Allows updating product library fields like name, category, network, etc.
+    Admins can edit any product.
+    Product Developers can edit only their own products.
     """
-    # Only admins can update products (for now)
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update products"
-        )
-
     # Get the product
     result = await db.execute(
         select(ProductIntelligence).where(
@@ -871,6 +865,16 @@ async def update_product(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
+        )
+
+    # Check permissions: Admin can edit any, Product Developer can edit only their own
+    is_admin = current_user.role == "admin"
+    is_owner = product.created_by_user_id == current_user.id
+
+    if not is_admin and not is_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only edit products you created"
         )
 
     # Update fields if provided
