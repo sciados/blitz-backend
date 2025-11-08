@@ -18,6 +18,7 @@ export function ProductDetailsPanel({
 }: ProductDetailsPanelProps) {
   const router = useRouter();
   const isAdmin = getRoleFromToken() === "admin";
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,19 @@ export function ProductDetailsPanel({
   const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isRecompiling, setIsRecompiling] = useState(false);
+
+  useEffect(() => {
+    // Fetch current user info to get user ID
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await api.get("/api/auth/me");
+        setCurrentUserId(response.data.id);
+      } catch (err) {
+        console.error("Failed to fetch current user:", err);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (productId) {
@@ -269,7 +283,8 @@ export function ProductDetailsPanel({
             </>
           ) : (
             <>
-              {isAdmin && (
+              {/* Show edit controls for admins OR product owners */}
+              {(isAdmin || (currentUserId && product && product.created_by_user_id === currentUserId)) && (
                 <>
                   <button
                     onClick={handleEdit}

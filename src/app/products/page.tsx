@@ -216,11 +216,11 @@ export default function ProductLibraryPage() {
                 }}
               >
                 <option value="">All Developers</option>
-                {Array.from(new Set(products.map(p => p.created_by_user_id).filter(Boolean)))
+                {Array.from(new Set(products.map(p => p.created_by_user_id).filter((id): id is number => id !== null)))
                   .map(creatorId => {
                     const creator = products.find(p => p.created_by_user_id === creatorId);
                     return creator ? (
-                      <option key={creatorId} value={creatorId}>
+                      <option key={creatorId} value={creatorId.toString()}>
                         {creator.created_by_name || creator.created_by_email || `Developer ${creatorId}`}
                       </option>
                     ) : null;
