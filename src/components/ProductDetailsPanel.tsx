@@ -108,6 +108,7 @@ export function ProductDetailsPanel({
         commission_rate: product.commission_rate || "",
         affiliate_link_url: product.affiliate_link_url || "",
         product_description: product.product_description || "",
+        is_recurring: product.is_recurring || false,
       });
       setIsEditMode(true);
     }
@@ -574,14 +575,39 @@ export function ProductDetailsPanel({
                   Commission Rate
                 </div>
                 {isEditMode ? (
-                  <input
-                    type="text"
-                    value={editedProduct.commission_rate || ""}
-                    onChange={(e) => setEditedProduct({ ...editedProduct, commission_rate: e.target.value })}
-                    className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
-                    style={{ color: "var(--text-primary)" }}
-                    placeholder="e.g. 50% or $37/sale"
-                  />
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editedProduct.commission_rate || ""}
+                      onChange={(e) => setEditedProduct({ ...editedProduct, commission_rate: e.target.value })}
+                      className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
+                      style={{ color: "var(--text-primary)" }}
+                      placeholder="e.g. 50% or $37/sale"
+                    />
+                    {/* Recurring Commission Toggle */}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editedProduct.is_recurring || false}
+                        onChange={(e) => setEditedProduct({ ...editedProduct, is_recurring: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 bg-[var(--bg-primary)] border-[var(--border-color)] rounded focus:ring-purple-500"
+                      />
+                      <span className="ml-2 text-xs font-medium flex items-center" style={{ color: "var(--text-primary)" }}>
+                        <svg
+                          className="w-3 h-3 mr-1 text-purple-600 dark:text-purple-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Recurring Commission
+                      </span>
+                    </label>
+                  </div>
                 ) : (
                   <div className="font-semibold text-sm text-green-600 dark:text-green-400 flex items-center">
                     {product.commission_rate || "Not specified"}
