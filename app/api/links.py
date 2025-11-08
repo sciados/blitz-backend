@@ -106,14 +106,24 @@ async def redirect_short_link(
     original_url = shortened_link.original_url
     utm_params = shortened_link.utm_params
 
+    # Get real client IP (from X-Forwarded-For header if behind proxy)
+    client_ip = request.headers.get('x-forwarded-for')
+    if client_ip:
+        # X-Forwarded-For can be a comma-separated list; get the first (original client)
+        client_ip = client_ip.split(',')[0].strip()
+    else:
+        # Fallback to direct connection IP
+        client_ip = request.client.host if request.client else None
+
     # Extract request data for analytics
     request_data = {
-        'ip_address': request.client.host if request.client else None,
+        'ip_address': client_ip,
         'user_agent': request.headers.get('user-agent'),
         'referer': request.headers.get('referer'),
         'additional_data': {
             'accept_language': request.headers.get('accept-language'),
-            'accept_encoding': request.headers.get('accept-encoding')
+            'accept_encoding': request.headers.get('accept-encoding'),
+            'x_forwarded_for': request.headers.get('x-forwarded-for')  # Store for debugging
         }
     }
 
