@@ -376,6 +376,7 @@ export default function ProductLibraryPage() {
           <ProductDetailsPanel
             productId={selectedProductId}
             onClose={() => setSelectedProductId(null)}
+            onComplianceCheck={fetchProducts}
           />
         )}
       </div>

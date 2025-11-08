@@ -10,11 +10,13 @@ import { toast } from "sonner";
 interface ProductDetailsPanelProps {
   productId: number;
   onClose: () => void;
+  onComplianceCheck?: () => void;
 }
 
 export function ProductDetailsPanel({
   productId,
   onClose,
+  onComplianceCheck,
 }: ProductDetailsPanelProps) {
   const router = useRouter();
   const isAdmin = getRoleFromToken() === "admin";
@@ -176,6 +178,11 @@ export function ProductDetailsPanel({
         toast.warning(`Compliance needs review. Score: ${response.data.score}/100`);
       } else {
         toast.error(`Non-compliant content detected. Score: ${response.data.score}/100`);
+      }
+
+      // Refresh product list to show updated compliance badges
+      if (onComplianceCheck) {
+        onComplianceCheck();
       }
     } catch (err: any) {
       console.error("Failed to check compliance:", err);
