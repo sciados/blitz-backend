@@ -7,21 +7,28 @@ export function Footer() {
 
   return (
     <footer
-      className="border-t mt-auto pt-24"
+      className="border-t mt-auto pt-48"
       style={{
         borderColor: "var(--border-color)",
-        background: "var(--bg-secondary)"
+        background: "var(--bg-secondary)",
       }}
     >
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Company Info */}
           <div>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            <h3
+              className="font-semibold mb-4"
+              style={{ color: "var(--text-primary)" }}
+            >
               Blitz
             </h3>
-            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-              Streamlined marketing automation platform for affiliate marketers and product creators.
+            <p
+              className="text-sm mb-4"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Streamlined marketing automation platform for affiliate marketers
+              and product creators.
             </p>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
               © {currentYear} Blitz. All rights reserved.
@@ -30,13 +37,16 @@ export function Footer() {
 
           {/* Legal Links */}
           <div>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            <h3
+              className="font-semibold mb-4"
+              style={{ color: "var(--text-primary)" }}
+            >
               Legal
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  href="/legal/privacy-policy"
+                  href={{ pathname: "/legal/privacy-policy" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -45,7 +55,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/legal/terms"
+                  href={{ pathname: "/legal/terms" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -54,7 +64,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/legal/affiliate-disclosure"
+                  href={{ pathname: "/legal/affiliate-disclosure" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -63,7 +73,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/legal/cookie-policy"
+                  href={{ pathname: "/legal/cookie-policy" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -75,13 +85,16 @@ export function Footer() {
 
           {/* Policies */}
           <div>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            <h3
+              className="font-semibold mb-4"
+              style={{ color: "var(--text-primary)" }}
+            >
               Policies
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  href="/legal/earnings-disclaimer"
+                  href={{ pathname: "/legal/earnings-disclaimer" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -90,7 +103,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/legal/refund-policy"
+                  href={{ pathname: "/legal/refund-policy" }}
                   className="hover:underline"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -102,31 +115,28 @@ export function Footer() {
 
           {/* Contact & Resources */}
           <div>
-            <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            <h3
+              className="font-semibold mb-4"
+              style={{ color: "var(--text-primary)" }}
+            >
               Contact
             </h3>
-            <ul className="space-y-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+            <ul
+              className="space-y-2 text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
               <li>
-                <a
-                  href="mailto:support@blitz.app"
-                  className="hover:underline"
-                >
+                <a href="mailto:support@blitz.app" className="hover:underline">
                   support@blitz.app
                 </a>
               </li>
               <li>
-                <a
-                  href="mailto:legal@blitz.app"
-                  className="hover:underline"
-                >
+                <a href="mailto:legal@blitz.app" className="hover:underline">
                   legal@blitz.app
                 </a>
               </li>
               <li>
-                <a
-                  href="mailto:privacy@blitz.app"
-                  className="hover:underline"
-                >
+                <a href="mailto:privacy@blitz.app" className="hover:underline">
                   privacy@blitz.app
                 </a>
               </li>
@@ -139,21 +149,29 @@ export function Footer() {
           className="pt-6 border-t text-center text-xs"
           style={{
             borderColor: "var(--border-color)",
-            color: "var(--text-secondary)"
+            color: "var(--text-secondary)",
           }}
         >
           <p className="mb-2">
-            Blitz is committed to compliance with FTC guidelines, GDPR, CCPA, and affiliate network policies.
+            Blitz is committed to compliance with FTC guidelines, GDPR, CCPA,
+            and affiliate network policies.
           </p>
           <p>
             By using this platform, you agree to our{" "}
-            <Link href="/legal/terms" className="underline hover:text-blue-600">
+            <Link
+              href={{ pathname: "/legal/terms" }}
+              className="underline hover:text-blue-600"
+            >
               Terms & Conditions
             </Link>{" "}
             and{" "}
-            <Link href="/legal/privacy-policy" className="underline hover:text-blue-600">
+            <Link
+              href={{ pathname: "/legal/privacy-policy" }}
+              className="underline hover:text-blue-600"
+            >
               Privacy Policy
-            </Link>.
+            </Link>
+            .
           </p>
         </div>
       </div>

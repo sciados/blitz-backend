@@ -165,7 +165,7 @@ export default function Layout({ children }: LayoutProps) {
               />
             </svg>
           </button>
-          <Link href={isAdmin ? "/admin/dashboard" : "/dashboard"}>
+          <Link href={(isAdmin ? "/admin/dashboard" : "/dashboard") as any}>
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">B</span>
@@ -185,9 +185,11 @@ export default function Layout({ children }: LayoutProps) {
                 {userInfo.email}
               </span>
               <span className="text-xs text-[var(--text-secondary)] capitalize">
-                {userInfo.user_type === "product_creator" ? "Product Developer" :
-                 userInfo.user_type === "affiliate_marketer" ? "Affiliate Marketer" :
-                 userInfo.role}
+                {userInfo.user_type === "product_creator"
+                  ? "Product Developer"
+                  : userInfo.user_type === "affiliate_marketer"
+                  ? "Affiliate Marketer"
+                  : userInfo.role}
               </span>
             </div>
           )}
@@ -229,13 +231,15 @@ export default function Layout({ children }: LayoutProps) {
                       {userInfo?.email || "Loading..."}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)] capitalize">
-                      {userInfo?.user_type === "product_creator" ? "Product Developer" :
-                       userInfo?.user_type === "affiliate_marketer" ? "Affiliate Marketer" :
-                       userInfo?.role || "user"}
+                      {userInfo?.user_type === "product_creator"
+                        ? "Product Developer"
+                        : userInfo?.user_type === "affiliate_marketer"
+                        ? "Affiliate Marketer"
+                        : userInfo?.role || "user"}
                     </p>
                   </div>
                   <Link
-                    href="/profile"
+                    href={"/profile" as any}
                     className="block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
                     onClick={() => setProfileOpen(false)}
                   >
@@ -273,13 +277,19 @@ export default function Layout({ children }: LayoutProps) {
             <div className="p-4 border-b border-[var(--border-color)]">
               <div className="flex items-center space-x-2">
                 <div className="flex-1">
-                  <div className="text-xs text-[var(--text-secondary)] mb-1">Account Type</div>
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                    userInfo.user_type === "product_creator"
-                      ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                      : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  }`}>
-                    {userInfo.user_type === "product_creator" ? "🎯 Product Developer" : "🚀 Affiliate Marketer"}
+                  <div className="text-xs text-[var(--text-secondary)] mb-1">
+                    Account Type
+                  </div>
+                  <div
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                      userInfo.user_type === "product_creator"
+                        ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                    }`}
+                  >
+                    {userInfo.user_type === "product_creator"
+                      ? "🎯 Product Developer"
+                      : "🚀 Affiliate Marketer"}
                   </div>
                 </div>
               </div>

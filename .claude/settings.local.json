@@ -2,7 +2,25 @@
   "permissions": {
     "allow": [
       "Bash(git log:*)",
-      "Bash(python -m alembic revision:*)"
+      "Bash(python -m alembic revision:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(if [ -d \"venv\" ])",
+      "Bash(then echo \"venv exists\")",
+      "Bash(elif [ -d \".venv\" ])",
+      "Bash(then echo \".venv exists\")",
+      "Bash(else echo \"no venv found\")",
+      "Bash(fi)",
+      "Bash(git reset:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:blitzed.up.railway.app)"
     ],
     "deny": [],
     "ask": []
