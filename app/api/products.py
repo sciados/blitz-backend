@@ -63,6 +63,10 @@ class ProductLibraryItem(BaseModel):
     times_used: int
     compiled_at: str
     last_accessed_at: Optional[str]
+    # Product Developer info
+    created_by_name: Optional[str] = None
+    created_by_email: Optional[str] = None
+    created_by_user_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -85,6 +89,11 @@ class ProductDetails(BaseModel):
     compiled_at: str
     last_accessed_at: Optional[str]
     compilation_version: str
+    # Product Developer info
+    created_by_name: Optional[str] = None
+    created_by_email: Optional[str] = None
+    created_by_user_id: Optional[int] = None
+    developer_tier: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -150,8 +159,11 @@ async def list_products(
     - **recurring_only**: If True, show only products with recurring commissions
     """
 
-    # Build query
-    query = select(ProductIntelligence).where(
+    # Build query with eager loading of creator relationship
+    from sqlalchemy.orm import selectinload
+    query = select(ProductIntelligence).options(
+        selectinload(ProductIntelligence.created_by)
+    ).where(
         ProductIntelligence.is_public == "true"
     )
 
@@ -202,7 +214,10 @@ async def list_products(
             is_recurring=is_recurring,
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
-            last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
+            last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
+            created_by_name=p.created_by.full_name if p.created_by else None,
+            created_by_email=p.created_by.email if p.created_by else None,
+            created_by_user_id=p.created_by_user_id
         ))
 
     # Apply pagination to filtered results if recurring filter was used
@@ -228,8 +243,11 @@ async def get_product(
     Used when user clicks on a product to view full details before linking to campaign.
     """
 
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(ProductIntelligence).where(
+        select(ProductIntelligence).options(
+            selectinload(ProductIntelligence.created_by)
+        ).where(
             ProductIntelligence.id == product_id,
             ProductIntelligence.is_public == "true"
         )
@@ -261,7 +279,11 @@ async def get_product(
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
         last_accessed_at=product.last_accessed_at.isoformat() if product.last_accessed_at else None,
-        compilation_version=product.compilation_version
+        compilation_version=product.compilation_version,
+        created_by_name=product.created_by.full_name if product.created_by else None,
+        created_by_email=product.created_by.email if product.created_by else None,
+        created_by_user_id=product.created_by_user_id,
+        developer_tier=product.developer_tier
     )
 
 
@@ -415,7 +437,10 @@ async def search_products(
     # Search in product_name and product_category using ILIKE for case-insensitive search
     search_pattern = f"%{q}%"
 
-    query = select(ProductIntelligence).where(
+    from sqlalchemy.orm import selectinload
+    query = select(ProductIntelligence).options(
+        selectinload(ProductIntelligence.created_by)
+    ).where(
         ProductIntelligence.is_public == "true",
         or_(
             ProductIntelligence.product_name.ilike(search_pattern),
@@ -455,7 +480,10 @@ async def search_products(
             is_recurring=is_recurring,
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
-            last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None
+            last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
+            created_by_name=p.created_by.full_name if p.created_by else None,
+            created_by_email=p.created_by.email if p.created_by else None,
+            created_by_user_id=p.created_by_user_id
         ))
 
     # Apply limit to filtered results if recurring filter was used
@@ -520,8 +548,11 @@ async def get_library_stats(
     most_popular_category = popular_cat[0] if popular_cat else None
 
     # Newest product
+    from sqlalchemy.orm import selectinload
     newest_result = await db.execute(
-        select(ProductIntelligence).where(
+        select(ProductIntelligence).options(
+            selectinload(ProductIntelligence.created_by)
+        ).where(
             ProductIntelligence.is_public == "true"
         ).order_by(
             desc(ProductIntelligence.compiled_at)
@@ -531,7 +562,9 @@ async def get_library_stats(
 
     # Most used product
     most_used_result = await db.execute(
-        select(ProductIntelligence).where(
+        select(ProductIntelligence).options(
+            selectinload(ProductIntelligence.created_by)
+        ).where(
             ProductIntelligence.is_public == "true"
         ).order_by(
             desc(ProductIntelligence.times_used)
@@ -554,7 +587,10 @@ async def get_library_stats(
             is_recurring=is_rec,
             times_used=newest.times_used,
             compiled_at=newest.compiled_at.isoformat() if newest.compiled_at else "",
-            last_accessed_at=newest.last_accessed_at.isoformat() if newest.last_accessed_at else None
+            last_accessed_at=newest.last_accessed_at.isoformat() if newest.last_accessed_at else None,
+            created_by_name=newest.created_by.full_name if newest.created_by else None,
+            created_by_email=newest.created_by.email if newest.created_by else None,
+            created_by_user_id=newest.created_by_user_id
         )
 
     most_used_item = None
@@ -571,7 +607,10 @@ async def get_library_stats(
             is_recurring=is_rec,
             times_used=most_used.times_used,
             compiled_at=most_used.compiled_at.isoformat() if most_used.compiled_at else "",
-            last_accessed_at=most_used.last_accessed_at.isoformat() if most_used.last_accessed_at else None
+            last_accessed_at=most_used.last_accessed_at.isoformat() if most_used.last_accessed_at else None,
+            created_by_name=most_used.created_by.full_name if most_used.created_by else None,
+            created_by_email=most_used.created_by.email if most_used.created_by else None,
+            created_by_user_id=most_used.created_by_user_id
         )
 
     return ProductLibraryStats(
@@ -678,6 +717,8 @@ async def submit_product(
         affiliate_network=submission.affiliate_network,
         commission_rate=submission.commission_rate,
         affiliate_link_url=submission.affiliate_link_url,
+        created_by_user_id=current_user.id,  # Link to Product Developer
+        developer_tier=current_user.developer_tier,  # Copy developer tier
         compilation_version="pending",  # Mark as pending compilation
         is_public="true",  # Make immediately public
         times_used=0,
@@ -764,7 +805,11 @@ async def submit_product(
         times_used=new_product.times_used,
         compiled_at=new_product.compiled_at.isoformat() if new_product.compiled_at else "",
         last_accessed_at=new_product.last_accessed_at.isoformat() if new_product.last_accessed_at else None,
-        compilation_version=new_product.compilation_version
+        compilation_version=new_product.compilation_version,
+        created_by_name=current_user.full_name,
+        created_by_email=current_user.email,
+        created_by_user_id=current_user.id,
+        developer_tier=current_user.developer_tier
     )
 
 
@@ -858,6 +903,15 @@ async def update_product(
     await db.commit()
     await db.refresh(product)
 
+    # Load creator relationship for response
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ProductIntelligence).options(
+            selectinload(ProductIntelligence.created_by)
+        ).where(ProductIntelligence.id == product_id)
+    )
+    product = result.scalar_one()
+
     # Extract description and recurring status
     description, is_recurring = extract_product_summary(product.intelligence_data)
 
@@ -876,7 +930,11 @@ async def update_product(
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
         last_accessed_at=product.last_accessed_at.isoformat() if product.last_accessed_at else None,
-        compilation_version=product.compilation_version
+        compilation_version=product.compilation_version,
+        created_by_name=product.created_by.full_name if product.created_by else None,
+        created_by_email=product.created_by.email if product.created_by else None,
+        created_by_user_id=product.created_by_user_id,
+        developer_tier=product.developer_tier
     )
 
 
