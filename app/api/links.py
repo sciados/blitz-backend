@@ -101,6 +101,11 @@ async def redirect_short_link(
             detail="Link not found or has expired"
         )
 
+    # CRITICAL: Load data from shortened_link BEFORE any async operations
+    # to avoid detached instance errors
+    original_url = shortened_link.original_url
+    utm_params = shortened_link.utm_params
+
     # Extract request data for analytics
     request_data = {
         'ip_address': request.client.host if request.client else None,
@@ -125,8 +130,8 @@ async def redirect_short_link(
 
     # Build redirect URL with UTM parameters
     redirect_url = shortener.build_redirect_url(
-        shortened_link.original_url,
-        shortened_link.utm_params
+        original_url,
+        utm_params
     )
 
     # Redirect to original URL
