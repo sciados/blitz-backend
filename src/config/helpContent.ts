@@ -319,6 +319,41 @@ export const helpContent: Record<string, HelpContent> = {
       "Review your settings periodically",
     ],
   },
+
+  // Product Developer Analytics
+  "/product-analytics": {
+    title: "Product Developer Analytics",
+    description: "Track how affiliates are promoting your products and monitor affiliate performance across your product line.",
+    steps: [
+      {
+        number: 1,
+        title: "Review Affiliate Performance",
+        description: "Check which affiliates are promoting your products and how much traffic they're driving.",
+      },
+      {
+        number: 2,
+        title: "Analyze Product Metrics",
+        description: "See which products are getting the most promotion and generating the most clicks.",
+      },
+      {
+        number: 3,
+        title: "Monitor the Leaderboard",
+        description: "Track top-performing affiliates and identify your best partners in the affiliate leaderboard.",
+      },
+      {
+        number: 4,
+        title: "Track Click-Through Rates",
+        description: "Monitor total clicks vs unique visitors to understand traffic quality from each affiliate.",
+      },
+    ],
+    tips: [
+      "Top affiliates deserve special attention - consider reaching out to them with exclusive offers",
+      "Monitor unique click rates to identify high-quality traffic sources",
+      "Products with many campaigns but low clicks might need better marketing materials",
+      "Use the affiliate leaderboard to create performance-based incentive programs",
+      "Track which products attract the most affiliates to inform future product development",
+    ],
+  },
 };
 
 // Helper function to get help content by pathname

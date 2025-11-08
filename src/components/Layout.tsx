@@ -21,6 +21,7 @@ type MenuItem = {
 type UserInfo = {
   email: string;
   role: string;
+  user_type?: string; // "product_creator" | "affiliate_marketer"
 };
 
 export default function Layout({ children }: LayoutProps) {
@@ -82,8 +83,11 @@ export default function Layout({ children }: LayoutProps) {
     router.push("/login");
   };
 
-  const menuItems: MenuItem[] = isAdmin
-    ? [
+  // Get menu items based on role and user_type
+  const getMenuItems = (): MenuItem[] => {
+    // Admin menu (full access)
+    if (isAdmin) {
+      return [
         { href: "/admin/dashboard", label: "Dashboard", icon: "🏠" },
         { href: "/admin/campaigns", label: "Campaigns", icon: "📢" },
         { href: "/products", label: "Product Library", icon: "📦" },
@@ -94,17 +98,33 @@ export default function Layout({ children }: LayoutProps) {
         { href: "/admin/analytics", label: "Analytics", icon: "📊" },
         { href: "/admin/compliance", label: "Compliance", icon: "🛡️" },
         { href: "/admin/api-keys", label: "API Keys", icon: "🔑" },
-      ]
-    : [
+      ];
+    }
+
+    // Product Creator menu
+    if (userInfo?.user_type === "product_creator") {
+      return [
         { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-        { href: "/campaigns", label: "Campaigns", icon: "📢" },
         { href: "/products", label: "Product Library", icon: "📦" },
-        { href: "/content", label: "Content", icon: "✍️" },
-        { href: "/intelligence", label: "Intelligence", icon: "🧠" },
-        { href: "/compliance", label: "Compliance", icon: "✓" },
-        { href: "/analytics", label: "Analytics", icon: "📈" },
+        { href: "/product-analytics", label: "Product Analytics", icon: "📊" },
         { href: "/settings", label: "Settings", icon: "⚙️" },
       ];
+    }
+
+    // Affiliate Marketer menu (default for regular users)
+    return [
+      { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+      { href: "/campaigns", label: "Campaigns", icon: "📢" },
+      { href: "/products", label: "Product Library", icon: "📦" },
+      { href: "/content", label: "Content", icon: "✍️" },
+      { href: "/intelligence", label: "Intelligence", icon: "🧠" },
+      { href: "/compliance", label: "Compliance", icon: "✓" },
+      { href: "/analytics", label: "Analytics", icon: "📈" },
+      { href: "/settings", label: "Settings", icon: "⚙️" },
+    ];
+  };
+
+  const menuItems = getMenuItems();
 
   if (typeof window !== "undefined") {
     // debug log to verify single render — remove after verification
@@ -164,7 +184,9 @@ export default function Layout({ children }: LayoutProps) {
                 {userInfo.email}
               </span>
               <span className="text-xs text-[var(--text-secondary)] capitalize">
-                {userInfo.role}
+                {userInfo.user_type === "product_creator" ? "Product Developer" :
+                 userInfo.user_type === "affiliate_marketer" ? "Affiliate Marketer" :
+                 userInfo.role}
               </span>
             </div>
           )}
@@ -206,7 +228,9 @@ export default function Layout({ children }: LayoutProps) {
                       {userInfo?.email || "Loading..."}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)] capitalize">
-                      {userInfo?.role || "user"}
+                      {userInfo?.user_type === "product_creator" ? "Product Developer" :
+                       userInfo?.user_type === "affiliate_marketer" ? "Affiliate Marketer" :
+                       userInfo?.role || "user"}
                     </p>
                   </div>
                   <Link
