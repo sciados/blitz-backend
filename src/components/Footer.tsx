@@ -7,7 +7,7 @@ export function Footer() {
 
   return (
     <footer
-      className="border-t mt-auto"
+      className="border-t mt-auto pt-24"
       style={{
         borderColor: "var(--border-color)",
         background: "var(--bg-secondary)"
