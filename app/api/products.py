@@ -12,6 +12,7 @@ from sqlalchemy import select, func, or_, desc
 from sqlalchemy.orm import selectinload
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
+from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models import User, ProductIntelligence
@@ -197,6 +198,18 @@ async def list_products(
     for p in products:
         description, is_recurring = extract_product_summary(p.intelligence_data)
 
+        # Extract compliance data if available
+        compliance_data = None
+        if p.intelligence_data and "compliance" in p.intelligence_data:
+            comp = p.intelligence_data["compliance"]
+            compliance_data = {
+                "status": comp.get("status"),
+                "score": comp.get("score"),
+                "issues": comp.get("issues", []),
+                "warnings": comp.get("warnings", []),
+                "summary": comp.get("summary", "")
+            }
+
         # Apply recurring filter if specified
         if recurring_only is not None:
             if recurring_only and not is_recurring:
@@ -218,7 +231,8 @@ async def list_products(
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
             created_by_name=p.created_by.full_name if p.created_by else None,
             created_by_email=p.created_by.email if p.created_by else None,
-            created_by_user_id=p.created_by_user_id
+            created_by_user_id=p.created_by_user_id,
+            compliance=compliance_data
         ))
 
     # Apply pagination to filtered results if recurring filter was used
@@ -265,6 +279,18 @@ async def get_product(
     # Extract description and recurring status from intelligence data
     description, is_recurring = extract_product_summary(product.intelligence_data)
 
+    # Extract compliance data if available
+    compliance_data = None
+    if product.intelligence_data and "compliance" in product.intelligence_data:
+        comp = product.intelligence_data["compliance"]
+        compliance_data = {
+            "status": comp.get("status"),
+            "score": comp.get("score"),
+            "issues": comp.get("issues", []),
+            "warnings": comp.get("warnings", []),
+            "summary": comp.get("summary", "")
+        }
+
     return ProductDetails(
         id=product.id,
         product_url=product.product_url,
@@ -284,7 +310,8 @@ async def get_product(
         created_by_name=product.created_by.full_name if product.created_by else None,
         created_by_email=product.created_by.email if product.created_by else None,
         created_by_user_id=product.created_by_user_id,
-        developer_tier=product.developer_tier
+        developer_tier=product.developer_tier,
+        compliance=compliance_data
     )
 
 
@@ -463,6 +490,18 @@ async def search_products(
     for p in products:
         description, is_recurring = extract_product_summary(p.intelligence_data)
 
+        # Extract compliance data if available
+        compliance_data = None
+        if p.intelligence_data and "compliance" in p.intelligence_data:
+            comp = p.intelligence_data["compliance"]
+            compliance_data = {
+                "status": comp.get("status"),
+                "score": comp.get("score"),
+                "issues": comp.get("issues", []),
+                "warnings": comp.get("warnings", []),
+                "summary": comp.get("summary", "")
+            }
+
         # Apply recurring filter if specified
         if recurring_only is not None:
             if recurring_only and not is_recurring:
@@ -484,7 +523,8 @@ async def search_products(
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
             created_by_name=p.created_by.full_name if p.created_by else None,
             created_by_email=p.created_by.email if p.created_by else None,
-            created_by_user_id=p.created_by_user_id
+            created_by_user_id=p.created_by_user_id,
+            compliance=compliance_data
         ))
 
     # Apply limit to filtered results if recurring filter was used
@@ -1137,6 +1177,24 @@ async def check_product_compliance(
         product_category=product_category,
         is_product_description=True  # Skip affiliate disclosure checks for products
     )
+
+    # Save compliance result to intelligence_data for future display
+    if product.intelligence_data is None:
+        product.intelligence_data = {}
+
+    product.intelligence_data["compliance"] = {
+        "status": result["status"],
+        "score": result["score"],
+        "issues": result["issues"],
+        "warnings": result.get("warnings", []),
+        "summary": result.get("summary", ""),
+        "checked_at": datetime.now().isoformat()
+    }
+
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(product, "intelligence_data")
+    await db.commit()
+    await db.refresh(product)
 
     return {
         "product_id": product_id,
