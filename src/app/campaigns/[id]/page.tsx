@@ -196,7 +196,7 @@ export default function CampaignDetailPage() {
 
   return (
     <AuthGate requiredRole="user">
-      <div className="p-6 max-w-5xl">
+      <div className="p-6">
         {/* Header */}
         <div className="mb-6">
           <button
