@@ -209,24 +209,24 @@ export default function IntelligencePage() {
                   Product Images ({intelligenceData.images.length})
                 </h2>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {intelligenceData.images.map((image: any, idx: number) => (
-                    <div key={idx} className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border-color)' }}>
-                      <img
-                        src={image.r2_url}
-                        alt={`Product ${idx + 1}`}
-                        className="w-full h-40 object-cover"
-                      />
-                      <div className="p-2 bg-gray-50 dark:bg-gray-800">
-                        <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {image.type || 'Unknown'}
-                        </div>
-                        {image.quality_score && (
-                          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                            Quality: {(image.quality_score * 100).toFixed(0)}%
-                          </div>
-                        )}
+                    <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <div className="mb-2">
+                        <img
+                          src={image.r2_url}
+                          alt={`Product ${idx + 1}`}
+                          className="w-full h-24 object-contain rounded"
+                        />
                       </div>
+                      <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {image.type || 'Unknown'}
+                      </div>
+                      {image.quality_score && (
+                        <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          Quality: {(image.quality_score * 100).toFixed(0)}%
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
