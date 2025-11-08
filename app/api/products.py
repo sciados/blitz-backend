@@ -825,6 +825,7 @@ class ProductUpdate(BaseModel):
     commission_rate: Optional[str] = None
     affiliate_link_url: Optional[str] = None
     product_description: Optional[str] = None
+    is_recurring: Optional[bool] = None
 
     class Config:
         json_schema_extra = {
@@ -834,7 +835,8 @@ class ProductUpdate(BaseModel):
                 "affiliate_network": "ClickBank",
                 "commission_rate": "60%",
                 "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
-                "product_description": "Updated description..."
+                "product_description": "Updated description...",
+                "is_recurring": True
             }
         }
 
@@ -900,6 +902,17 @@ async def update_product(
         if "product" not in product.intelligence_data:
             product.intelligence_data["product"] = {}
         product.intelligence_data["product"]["description"] = update.product_description
+        # Mark as modified so SQLAlchemy detects the change
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(product, "intelligence_data")
+
+    # Update is_recurring in intelligence_data if provided
+    if update.is_recurring is not None:
+        if product.intelligence_data is None:
+            product.intelligence_data = {}
+        if "submission" not in product.intelligence_data:
+            product.intelligence_data["submission"] = {}
+        product.intelligence_data["submission"]["is_recurring"] = update.is_recurring
         # Mark as modified so SQLAlchemy detects the change
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(product, "intelligence_data")
