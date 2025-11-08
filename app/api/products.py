@@ -1098,16 +1098,18 @@ async def check_product_compliance(
 
     # Build content to check from product metadata
     content_parts = []
-    
+
     if product.product_name:
         content_parts.append(f"Product: {product.product_name}")
-    
-    if product.product_description:
-        content_parts.append(f"Description: {product.product_description}")
-    
+
+    # Extract description from intelligence_data using helper function
+    description, _ = extract_product_summary(product.intelligence_data)
+    if description:
+        content_parts.append(f"Description: {description}")
+
     if product.commission_rate:
         content_parts.append(f"Commission: {product.commission_rate}")
-    
+
     content_to_check = "\n\n".join(content_parts)
     
     if not content_to_check.strip():
