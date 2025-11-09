@@ -20,7 +20,8 @@
       "Bash(fi)",
       "Bash(git reset:*)",
       "Bash(npm install:*)",
-      "WebFetch(domain:blitzed.up.railway.app)"
+      "WebFetch(domain:blitzed.up.railway.app)",
+      "Bash(it is not associated with a value\"\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

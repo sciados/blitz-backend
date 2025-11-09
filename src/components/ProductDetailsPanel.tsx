@@ -29,11 +29,14 @@ export function ProductDetailsPanel({
   >(null);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>({});
+  const [editedProduct, setEditedProduct] = useState<Partial<ProductDetails>>(
+    {}
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isRecompiling, setIsRecompiling] = useState(false);
   const [isCheckingCompliance, setIsCheckingCompliance] = useState(false);
-  const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null);
+  const [complianceResult, setComplianceResult] =
+    useState<ComplianceResult | null>(null);
 
   useEffect(() => {
     // Fetch current user info to get user ID
@@ -128,7 +131,10 @@ export function ProductDetailsPanel({
 
     setIsSaving(true);
     try {
-      const response = await api.patch(`/api/products/${product.id}`, editedProduct);
+      const response = await api.patch(
+        `/api/products/${product.id}`,
+        editedProduct
+      );
       setProduct(response.data);
       setIsEditMode(false);
       setEditedProduct({});
@@ -145,18 +151,26 @@ export function ProductDetailsPanel({
     if (!product) return;
 
     setIsRecompiling(true);
-    toast.info("Starting intelligence recompilation... This may take 30-60 seconds.");
+    toast.info(
+      "Starting intelligence recompilation... This may take 30-60 seconds."
+    );
 
     try {
-      const response = await api.post(`/api/admin/products/${product.id}/compile`);
+      const response = await api.post(
+        `/api/admin/products/${product.id}/compile`
+      );
 
       // Refresh product details to get updated intelligence
       await fetchProductDetails();
 
-      toast.success("Intelligence recompiled successfully! All data has been refreshed.");
+      toast.success(
+        "Intelligence recompiled successfully! All data has been refreshed."
+      );
     } catch (err: any) {
       console.error("Failed to recompile intelligence:", err);
-      toast.error(err.response?.data?.detail || "Failed to recompile intelligence");
+      toast.error(
+        err.response?.data?.detail || "Failed to recompile intelligence"
+      );
     } finally {
       setIsRecompiling(false);
     }
@@ -169,15 +183,23 @@ export function ProductDetailsPanel({
     toast.info("Checking product compliance...");
 
     try {
-      const response = await api.post(`/api/products/${product.id}/check-compliance`);
+      const response = await api.post(
+        `/api/products/${product.id}/check-compliance`
+      );
       setComplianceResult(response.data);
 
       if (response.data.status === "compliant") {
-        toast.success(`Compliance check complete! Score: ${response.data.score}/100`);
+        toast.success(
+          `Compliance check complete! Score: ${response.data.score}/100`
+        );
       } else if (response.data.status === "needs_review") {
-        toast.warning(`Compliance needs review. Score: ${response.data.score}/100`);
+        toast.warning(
+          `Compliance needs review. Score: ${response.data.score}/100`
+        );
       } else {
-        toast.error(`Non-compliant content detected. Score: ${response.data.score}/100`);
+        toast.error(
+          `Non-compliant content detected. Score: ${response.data.score}/100`
+        );
       }
 
       // Refresh product list to show updated compliance badges
@@ -319,7 +341,10 @@ export function ProductDetailsPanel({
           ) : (
             <>
               {/* Show edit controls for admins OR product owners */}
-              {(isAdmin || (currentUserId && product && product.created_by_user_id === currentUserId)) && (
+              {(isAdmin ||
+                (currentUserId &&
+                  product &&
+                  product.created_by_user_id === currentUserId)) && (
                 <>
                   <button
                     onClick={handleEdit}
@@ -342,7 +367,8 @@ export function ProductDetailsPanel({
                   </button>
 
                   {/* Show different buttons based on whether intelligence exists */}
-                  {product.intelligence_data && Object.keys(product.intelligence_data).length > 0 ? (
+                  {product.intelligence_data &&
+                  Object.keys(product.intelligence_data).length > 0 ? (
                     // Intelligence EXISTS - Show "Refresh Intelligence" button
                     <button
                       onClick={handleRecompileIntelligence}
@@ -499,7 +525,7 @@ export function ProductDetailsPanel({
                 <img
                   src={product.thumbnail_image_url}
                   alt={product.product_name || "Product"}
-                  className="w-full h-64 object-cover"
+                  className="w-full h-64 object-contain"
                 />
               </div>
             ) : (
@@ -525,13 +551,21 @@ export function ProductDetailsPanel({
             <div className="card rounded-lg p-6">
               {isEditMode ? (
                 <div className="mb-4">
-                  <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>
+                  <label
+                    className="text-xs font-medium mb-2 block"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     Product Name
                   </label>
                   <input
                     type="text"
                     value={editedProduct.product_name || ""}
-                    onChange={(e) => setEditedProduct({ ...editedProduct, product_name: e.target.value })}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        product_name: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 text-xl font-bold rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
                     style={{ color: "var(--text-primary)" }}
                     placeholder="Product Name"
@@ -572,23 +606,33 @@ export function ProductDetailsPanel({
                     className="text-sm leading-relaxed"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    {typeof product.intelligence_data.market.target_audience === "string" ? (
+                    {typeof product.intelligence_data.market.target_audience ===
+                    "string" ? (
                       <p>{product.intelligence_data.market.target_audience}</p>
-                    ) : typeof product.intelligence_data.market.target_audience === "object" ? (
+                    ) : typeof product.intelligence_data.market
+                        .target_audience === "object" ? (
                       <div className="space-y-1">
-                        {Object.entries(product.intelligence_data.market.target_audience).map(([key, value]) => (
+                        {Object.entries(
+                          product.intelligence_data.market.target_audience
+                        ).map(([key, value]) => (
                           <div key={key} className="flex items-start">
                             <span className="font-medium capitalize mr-2">
                               {key.replace(/_/g, " ")}:
                             </span>
                             <span>
-                              {typeof value === "object" ? JSON.stringify(value) : String(value)}
+                              {typeof value === "object"
+                                ? JSON.stringify(value)
+                                : String(value)}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p>{String(product.intelligence_data.market.target_audience)}</p>
+                      <p>
+                        {String(
+                          product.intelligence_data.market.target_audience
+                        )}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -615,7 +659,12 @@ export function ProductDetailsPanel({
                   <input
                     type="text"
                     value={editedProduct.product_category || ""}
-                    onChange={(e) => setEditedProduct({ ...editedProduct, product_category: e.target.value })}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        product_category: e.target.value,
+                      })
+                    }
                     className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
                     style={{ color: "var(--text-primary)" }}
                     placeholder="Category"
@@ -641,7 +690,12 @@ export function ProductDetailsPanel({
                   <input
                     type="text"
                     value={editedProduct.affiliate_network || ""}
-                    onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_network: e.target.value })}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        affiliate_network: e.target.value,
+                      })
+                    }
                     className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
                     style={{ color: "var(--text-primary)" }}
                     placeholder="Affiliate Network"
@@ -668,7 +722,12 @@ export function ProductDetailsPanel({
                     <input
                       type="text"
                       value={editedProduct.commission_rate || ""}
-                      onChange={(e) => setEditedProduct({ ...editedProduct, commission_rate: e.target.value })}
+                      onChange={(e) =>
+                        setEditedProduct({
+                          ...editedProduct,
+                          commission_rate: e.target.value,
+                        })
+                      }
                       className="w-full px-2 py-1 font-semibold text-sm rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
                       style={{ color: "var(--text-primary)" }}
                       placeholder="e.g. 50% or $37/sale"
@@ -678,10 +737,18 @@ export function ProductDetailsPanel({
                       <input
                         type="checkbox"
                         checked={editedProduct.is_recurring || false}
-                        onChange={(e) => setEditedProduct({ ...editedProduct, is_recurring: e.target.checked })}
+                        onChange={(e) =>
+                          setEditedProduct({
+                            ...editedProduct,
+                            is_recurring: e.target.checked,
+                          })
+                        }
                         className="w-4 h-4 text-purple-600 bg-[var(--bg-primary)] border-[var(--border-color)] rounded focus:ring-purple-500"
                       />
-                      <span className="ml-2 text-xs font-medium flex items-center" style={{ color: "var(--text-primary)" }}>
+                      <span
+                        className="ml-2 text-xs font-medium flex items-center"
+                        style={{ color: "var(--text-primary)" }}
+                      >
                         <svg
                           className="w-3 h-3 mr-1 text-purple-600 dark:text-purple-400"
                           fill="currentColor"
@@ -768,7 +835,12 @@ export function ProductDetailsPanel({
                 <input
                   type="url"
                   value={editedProduct.affiliate_link_url || ""}
-                  onChange={(e) => setEditedProduct({ ...editedProduct, affiliate_link_url: e.target.value })}
+                  onChange={(e) =>
+                    setEditedProduct({
+                      ...editedProduct,
+                      affiliate_link_url: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]"
                   style={{ color: "var(--text-primary)" }}
                   placeholder="https://example.com/affiliate-signup"
@@ -803,7 +875,12 @@ export function ProductDetailsPanel({
               {isEditMode ? (
                 <textarea
                   value={editedProduct.product_description || ""}
-                  onChange={(e) => setEditedProduct({ ...editedProduct, product_description: e.target.value })}
+                  onChange={(e) =>
+                    setEditedProduct({
+                      ...editedProduct,
+                      product_description: e.target.value,
+                    })
+                  }
                   className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] min-h-[100px]"
                   style={{ color: "var(--text-primary)" }}
                   placeholder="Enter product description..."
@@ -847,8 +924,18 @@ export function ProductDetailsPanel({
                     className="p-1 rounded hover:bg-[var(--hover-bg)]"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -866,7 +953,10 @@ export function ProductDetailsPanel({
                   >
                     {complianceResult.score}
                   </div>
-                  <div className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+                  <div
+                    className="text-sm mb-3"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     out of 100
                   </div>
                   <div
@@ -879,52 +969,67 @@ export function ProductDetailsPanel({
                     }`}
                   >
                     {complianceResult.status === "compliant" && "✓ Compliant"}
-                    {complianceResult.status === "needs_review" && "⚠ Needs Review"}
-                    {complianceResult.status === "non_compliant" && "✗ Non-Compliant"}
+                    {complianceResult.status === "needs_review" &&
+                      "⚠ Needs Review"}
+                    {complianceResult.status === "non_compliant" &&
+                      "✗ Non-Compliant"}
                   </div>
                 </div>
 
                 {/* Issues List */}
-                {complianceResult.issues && complianceResult.issues.length > 0 && (
-                  <div className="mb-4">
-                    <div className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-                      Issues Found ({complianceResult.issues.length})
-                    </div>
-                    <div className="space-y-2">
-                      {complianceResult.issues.map((issue, index) => (
-                        <div
-                          key={index}
-                          className={`p-3 rounded-lg border text-xs ${
-                            issue.severity === "critical"
-                              ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700"
-                              : issue.severity === "high"
-                              ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700"
-                              : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
-                          }`}
-                        >
-                          <div className="flex items-start">
-                            <span className="mr-2">
-                              {issue.severity === "critical" ? "🔴" : issue.severity === "high" ? "🟠" : "🟡"}
-                            </span>
-                            <div className="flex-1">
-                              <div className="font-semibold uppercase mb-1">{issue.severity}</div>
-                              <div className="mb-1">{issue.message}</div>
-                              {issue.suggestion && (
-                                <div className="mt-1 opacity-90">
-                                  <strong>Fix:</strong> {issue.suggestion}
+                {complianceResult.issues &&
+                  complianceResult.issues.length > 0 && (
+                    <div className="mb-4">
+                      <div
+                        className="text-sm font-semibold mb-2"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Issues Found ({complianceResult.issues.length})
+                      </div>
+                      <div className="space-y-2">
+                        {complianceResult.issues.map((issue, index) => (
+                          <div
+                            key={index}
+                            className={`p-3 rounded-lg border text-xs ${
+                              issue.severity === "critical"
+                                ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700"
+                                : issue.severity === "high"
+                                ? "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-700"
+                                : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
+                            }`}
+                          >
+                            <div className="flex items-start">
+                              <span className="mr-2">
+                                {issue.severity === "critical"
+                                  ? "🔴"
+                                  : issue.severity === "high"
+                                  ? "🟠"
+                                  : "🟡"}
+                              </span>
+                              <div className="flex-1">
+                                <div className="font-semibold uppercase mb-1">
+                                  {issue.severity}
                                 </div>
-                              )}
+                                <div className="mb-1">{issue.message}</div>
+                                {issue.suggestion && (
+                                  <div className="mt-1 opacity-90">
+                                    <strong>Fix:</strong> {issue.suggestion}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Summary */}
                 {complianceResult.summary && (
-                  <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  <div
+                    className="text-sm"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
                     {complianceResult.summary}
                   </div>
                 )}
