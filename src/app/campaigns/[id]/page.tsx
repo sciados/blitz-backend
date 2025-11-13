@@ -671,7 +671,8 @@ export default function CampaignDetailPage() {
                 {/* Step 3: Generate Content */}
                 {(() => {
                   const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
-                  const isCompleted = allContent.length > 0;
+                  // Mark as completed only after generating at least 3 pieces of content
+                  const isCompleted = allContent.length >= 3;
                   const isActive = step2Complete;
 
                   return (
@@ -738,12 +739,19 @@ export default function CampaignDetailPage() {
                             ? "Ready to start"
                             : "Complete Step 2 first"}
                         </div>
-                        {isActive && !isCompleted && (
+                        {/* Button always available when active - generate more content anytime */}
+                        {isActive && (
                           <button
-                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
+                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition flex items-center justify-center gap-1"
                             onClick={() => router.push(`/content?campaign=${id}`)}
                           >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
                             Generate Content
+                            {allContent.length > 0 && (
+                              <span className="text-xs opacity-75">({allContent.length} created)</span>
+                            )}
                           </button>
                         )}
                         {!isActive && (
