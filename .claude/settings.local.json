@@ -22,7 +22,8 @@
       "Bash(git add src/components/ContentRefinementModal.tsx src/components/ContentVariationsModal.tsx src/components/ContentViewModal.tsx src/app/content/page.tsx)",
       "Bash(git commit:*)",
       "Bash(git add:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

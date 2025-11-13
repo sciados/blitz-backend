@@ -1233,7 +1233,7 @@ export default function CampaignDetailPage() {
         onClose={() => setShowVariationsModal(false)}
         content={selectedContent}
         onVariationCreated={handleVariationCreated}
-      )}
+      />
     </AuthGate>
   );
 }
