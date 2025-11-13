@@ -23,6 +23,7 @@ export function ContentViewModal({
     const labels: Record<string, string> = {
       article: "Article",
       email: "Email",
+      email_sequence: "Email Sequence",
       video_script: "Video Script",
       social_post: "Social Post",
       landing_page: "Landing Page",

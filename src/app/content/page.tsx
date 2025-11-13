@@ -16,7 +16,8 @@ import { GeneratedContent, ContentType, MarketingAngle, Campaign } from "src/lib
 
 const CONTENT_TYPES = [
   { value: "article", label: "Article / Blog Post", icon: "📝" },
-  { value: "email", label: "Email", icon: "📧" },
+  { value: "email", label: "Single Email", icon: "📧" },
+  { value: "email_sequence", label: "Email Sequence", icon: "📬" },
   { value: "video_script", label: "Video Script", icon: "🎬" },
   { value: "social_post", label: "Social Media Post", icon: "📱" },
   { value: "landing_page", label: "Landing Page", icon: "🌐" },
@@ -42,11 +43,66 @@ const TONES = [
   { value: "educational", label: "Educational" },
 ];
 
-const LENGTHS = [
-  { value: "short", label: "Short", description: "~100 words" },
-  { value: "medium", label: "Medium", description: "~60 words" },
-  { value: "long", label: "Long", description: "~300 words" },
-];
+// Get appropriate word counts based on content type
+const getLengthOptions = (contentType: ContentType) => {
+  const baseLengths = {
+    short: { value: "short", label: "Short" },
+    medium: { value: "medium", label: "Medium" },
+    long: { value: "long", label: "Long" },
+  };
+
+  // Email-specific lengths
+  if (contentType === "email" || contentType === "email_sequence") {
+    return [
+      { ...baseLengths.short, description: "~60 words (quick read)" },
+      { ...baseLengths.medium, description: "~120 words (standard)" },
+      { ...baseLengths.long, description: "~300 words (detailed)" },
+    ];
+  }
+
+  // Article-specific lengths
+  if (contentType === "article") {
+    return [
+      { ...baseLengths.short, description: "~300 words (brief)" },
+      { ...baseLengths.medium, description: "~800 words (standard)" },
+      { ...baseLengths.long, description: "~2000 words (comprehensive)" },
+    ];
+  }
+
+  // Social post lengths
+  if (contentType === "social_post") {
+    return [
+      { ...baseLengths.short, description: "~50 words (concise)" },
+      { ...baseLengths.medium, description: "~150 words (engaging)" },
+      { ...baseLengths.long, description: "~300 words (detailed)" },
+    ];
+  }
+
+  // Video script lengths
+  if (contentType === "video_script") {
+    return [
+      { ...baseLengths.short, description: "~100 words (30 sec)" },
+      { ...baseLengths.medium, description: "~250 words (1 min)" },
+      { ...baseLengths.long, description: "~750 words (3 min)" },
+    ];
+  }
+
+  // Landing page and ad copy
+  if (contentType === "landing_page" || contentType === "ad_copy") {
+    return [
+      { ...baseLengths.short, description: "~150 words (brief)" },
+      { ...baseLengths.medium, description: "~400 words (standard)" },
+      { ...baseLengths.long, description: "~800 words (detailed)" },
+    ];
+  }
+
+  // Default lengths
+  return [
+    { ...baseLengths.short, description: "~100 words" },
+    { ...baseLengths.medium, description: "~250 words" },
+    { ...baseLengths.long, description: "~500 words" },
+  ];
+};
 
 export default function ContentPage() {
   const searchParams = useSearchParams();
@@ -60,6 +116,10 @@ export default function ContentPage() {
   const [tone, setTone] = useState("professional");
   const [length, setLength] = useState("medium");
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Email sequence configuration
+  const [numEmails, setNumEmails] = useState(5);
+  const [sequenceType, setSequenceType] = useState("cold_to_hot");
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [showComplianceWarning, setShowComplianceWarning] = useState(false);
@@ -138,13 +198,22 @@ export default function ContentPage() {
     setGeneratedContent(null);
 
     try {
-      const { data } = await api.post("/api/content/generate", {
+      // Build request payload
+      const payload: any = {
         campaign_id: campaignId,
         content_type: contentType,
         marketing_angle: marketingAngle,
         tone,
         length,
-      });
+      };
+
+      // Add email sequence parameters if needed
+      if (contentType === "email_sequence") {
+        payload.num_emails = numEmails;
+        payload.sequence_type = sequenceType;
+      }
+
+      const { data } = await api.post("/api/content/generate", payload);
 
       setGeneratedContent(data);
 
@@ -351,13 +420,75 @@ export default function ContentPage() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      {LENGTHS.map((l) => (
+                      {getLengthOptions(contentType).map((l) => (
                         <option key={l.value} value={l.value}>
                           {l.label} ({l.description})
                         </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Email Sequence Configuration */}
+                  {contentType === "email_sequence" && (
+                    <>
+                      <div>
+                        <label htmlFor="numEmails" className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                          Number of Emails
+                        </label>
+                        <select
+                          id="numEmails"
+                          value={numEmails}
+                          onChange={(e) => setNumEmails(Number(e.target.value))}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          style={{
+                            borderColor: "var(--card-border)",
+                            background: "var(--card-bg)",
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          <option value={3}>3 emails (Quick nurture)</option>
+                          <option value={5}>5 emails (Standard sequence)</option>
+                          <option value={7}>7 emails (Extended nurture)</option>
+                          <option value={10}>10 emails (Comprehensive sequence)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="sequenceType" className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                          Sequence Flow
+                        </label>
+                        <select
+                          id="sequenceType"
+                          value={sequenceType}
+                          onChange={(e) => setSequenceType(e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          style={{
+                            borderColor: "var(--card-border)",
+                            background: "var(--card-bg)",
+                            color: "var(--text-primary)",
+                          }}
+                        >
+                          <option value="cold_to_hot">Cold → Warm → Hot (Default)</option>
+                          <option value="warm_to_hot">Warm → Hot (Warm subscribers)</option>
+                          <option value="hot_close">Hot → Closed (Already interested)</option>
+                        </select>
+                      </div>
+
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                          📬 Email Sequence Flow:
+                        </p>
+                        <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
+                          <li>• Email 1: Hook (Problem/Solution)</li>
+                          <li>• Email 2: Education (Authority)</li>
+                          <li>• Email 3: Social Proof (others like them succeeded)</li>
+                          <li>• Email 4: Soft Pitch (Transformation)</li>
+                          <li>• Email 5: Strong CTA (Scarcity/Comparison)</li>
+                          {numEmails > 5 && <li>• Additional emails: Value + Gentle CTAs</li>}
+                        </ul>
+                      </div>
+                    </>
+                  )}
 
                   {/* Generate Button */}
                   <button
