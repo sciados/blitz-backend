@@ -114,18 +114,62 @@ async def generate_content(
         context = []
 
     # Build product info from campaign
+    # Transform campaign fields to match prompt builder expectations
     product_info = {
-        "name": campaign.name,
+        "title": campaign.name,
         "description": campaign.product_description,
         "type": campaign.product_type,
         "target_audience": campaign.target_audience,
         "keywords": campaign.keywords,
-        "url": campaign.product_url
+        "url": campaign.product_url,
+        # Add more fields expected by prompt builder
+        "features": campaign.keywords or [],  # Use keywords as features
+        "benefits": [],  # Can be extracted from description if needed
+        "pain_points": [],  # Can be derived from target_audience
+        "price": None,  # Not always available in campaigns
     }
+
+    # Add intelligence data if available
+    if campaign.intelligence_data:
+        logger.info(f"✅ Using campaign intelligence data for {campaign.name}")
+        if isinstance(campaign.intelligence_data, dict):
+            # Extract key information from intelligence
+            intel = campaign.intelligence_data
+            if intel.get("product_analysis"):
+                product_info["description"] = intel["product_analysis"].get("description", product_info["description"])
+            if intel.get("target_audience"):
+                product_info["target_audience"] = intel["target_audience"]
+            if intel.get("key_benefits"):
+                product_info["benefits"] = intel["key_benefits"]
+            if intel.get("pain_points"):
+                product_info["pain_points"] = intel["pain_points"]
+    else:
+        logger.warning(f"⚠️ No intelligence data available for campaign {campaign.name}")
 
     # Build prompt
     # Format context for additional_context parameter
     context_text = "\n".join([f"- {c.get('text', '')}" for c in context]) if context else None
+
+    # If no RAG context but we have intelligence data, use it
+    if not context_text and campaign.intelligence_data:
+        logger.info("Using campaign intelligence data as additional context")
+        if isinstance(campaign.intelligence_data, dict):
+            # Convert intelligence to readable format
+            intel_parts = []
+            intel = campaign.intelligence_data
+
+            if intel.get("product_analysis"):
+                analysis = intel["product_analysis"]
+                if analysis.get("key_points"):
+                    intel_parts.append("Key Product Points:\n" + "\n".join([f"- {p}" for p in analysis["key_points"]]))
+
+            if intel.get("competitor_insights"):
+                intel_parts.append("Competitor Insights:\n" + str(intel["competitor_insights"]))
+
+            if intel.get("market_positioning"):
+                intel_parts.append("Market Positioning:\n" + str(intel["market_positioning"]))
+
+            context_text = "\n\n".join(intel_parts)
 
     prompt = prompt_builder.build_prompt(
         content_type=request.content_type,
