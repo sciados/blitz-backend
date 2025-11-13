@@ -2,10 +2,16 @@
 
 import { AuthGate } from "src/components/AuthGate";
 import { CampaignSelector } from "src/components/CampaignSelector";
+import { ContentCard } from "src/components/ContentCard";
+import { ContentList } from "src/components/ContentList";
+import { ContentRefinementModal } from "src/components/ContentRefinementModal";
+import { ContentVariationsModal } from "src/components/ContentVariationsModal";
+import { ContentViewModal } from "src/components/ContentViewModal";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "src/lib/appClient";
 import { toast } from "sonner";
-import { GeneratedContent, ContentType, MarketingAngle } from "src/lib/types";
+import { GeneratedContent, ContentType, MarketingAngle, Campaign } from "src/lib/types";
 
 const CONTENT_TYPES = [
   { value: "article", label: "Article / Blog Post", icon: "📝" },
@@ -52,11 +58,67 @@ export default function ContentPage() {
   const [editedContent, setEditedContent] = useState("");
   const [showComplianceWarning, setShowComplianceWarning] = useState(false);
 
+  const [showRefinementModal, setShowRefinementModal] = useState(false);
+  const [showVariationsModal, setShowVariationsModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
+  const [allContent, setAllContent] = useState<GeneratedContent[]>([]);
+
   useEffect(() => {
     if (generatedContent) {
       setEditedContent(generatedContent.content_data.text);
     }
   }, [generatedContent]);
+
+  const { refetch: refetchContent } = useQuery({
+    queryKey: ["content", campaignId],
+    queryFn: async () => {
+      if (!campaignId) return [];
+      const { data } = await api.get(`/api/content/campaign/${campaignId}`);
+      setAllContent(data);
+      return data;
+    },
+    enabled: !!campaignId,
+  });
+
+  const handleViewContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowViewModal(true);
+  };
+
+  const handleEditContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowRefinementModal(true);
+  };
+
+  const handleCreateVariations = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowVariationsModal(true);
+  };
+
+  const handleDeleteContent = async (contentId: number) => {
+    if (!confirm("Are you sure you want to delete this content?")) return;
+
+    try {
+      await api.delete(`/api/content/${contentId}`);
+      toast.success("Content deleted successfully");
+      refetchContent();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Failed to delete content");
+    }
+  };
+
+  const handleContentRefined = (content: GeneratedContent) => {
+    setShowRefinementModal(false);
+    setSelectedContent(null);
+    refetchContent();
+  };
+
+  const handleVariationCreated = (variations: GeneratedContent[]) => {
+    setShowVariationsModal(false);
+    setSelectedContent(null);
+    refetchContent();
+  };
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -403,8 +465,52 @@ export default function ContentPage() {
               )}
             </div>
           </div>
+
+          {campaignId && (
+            <>
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
+                  Previous Content
+                </h2>
+                <p style={{ color: "var(--text-secondary)" }}>
+                  Manage, refine, and create variations of your existing content
+                </p>
+              </div>
+              <ContentList
+                contents={allContent}
+                onView={handleViewContent}
+                onEdit={handleEditContent}
+                onDelete={handleDeleteContent}
+              />
+            </>
+          )}
         </div>
       </div>
+
+      {/* Content View Modal */}
+      <ContentViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        content={selectedContent}
+        onRefine={handleEditContent}
+        onCreateVariations={handleCreateVariations}
+      />
+
+      {/* Content Refinement Modal */}
+      <ContentRefinementModal
+        isOpen={showRefinementModal}
+        onClose={() => setShowRefinementModal(false)}
+        content={selectedContent}
+        onRefined={handleContentRefined}
+      />
+
+      {/* Content Variations Modal */}
+      <ContentVariationsModal
+        isOpen={showVariationsModal}
+        onClose={() => setShowVariationsModal(false)}
+        content={selectedContent}
+        onVariationCreated={handleVariationCreated}
+      />
 
       {/* Compliance Warning Modal */}
       {showComplianceWarning && generatedContent && generatedContent.compliance_status === "violation" && (
