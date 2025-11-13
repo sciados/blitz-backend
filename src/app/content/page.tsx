@@ -123,6 +123,7 @@ export default function ContentPage() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [showComplianceWarning, setShowComplianceWarning] = useState(false);
+  const [focusOnCompliance, setFocusOnCompliance] = useState(false);
 
   const [showRefinementModal, setShowRefinementModal] = useState(false);
   const [showVariationsModal, setShowVariationsModal] = useState(false);
@@ -184,6 +185,54 @@ export default function ContentPage() {
     setShowVariationsModal(false);
     setSelectedContent(null);
     refetchContent();
+  };
+
+  const handleRegenerateForCompliance = async () => {
+    if (!campaignId || !generatedContent) return;
+
+    setIsGenerating(true);
+    setFocusOnCompliance(true);
+
+    try {
+      // Build request payload with compliance focus
+      const payload: any = {
+        campaign_id: campaignId,
+        content_type: contentType,
+        marketing_angle: marketingAngle,
+        tone,
+        length,
+        // Add compliance-focused instruction
+        additional_context: `Please regenerate this content with STRICT FTC compliance. Fix all compliance issues. Previous version had these problems:\n\n${generatedContent.compliance_notes || "Unknown compliance issues"}`,
+      };
+
+      // Add email sequence parameters if needed
+      if (contentType === "email_sequence") {
+        payload.num_emails = numEmails;
+        payload.sequence_type = sequenceType;
+      }
+
+      const { data } = await api.post("/api/content/generate", payload);
+
+      setGeneratedContent(data);
+      setEditedContent(data.content_data.text);
+      setFocusOnCompliance(false);
+
+      // Show warning if still non-compliant
+      if (data.compliance_status === "violation") {
+        setShowComplianceWarning(true);
+        toast.error(`⚠️ Still has compliance violations (${data.compliance_score}/100). Please review manually.`);
+      } else if (data.compliance_status === "compliant") {
+        toast.success(`✅ Compliance issues fixed! New score: ${data.compliance_score}/100`);
+      } else if (data.compliance_status === "warning") {
+        toast.warning(`⚠️ Improved to ${data.compliance_score}/100, but still has warnings. Review before use.`);
+      }
+    } catch (err: any) {
+      console.error("Failed to regenerate content:", err);
+      toast.error(err.response?.data?.detail || "Failed to regenerate content");
+      setFocusOnCompliance(false);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   async function handleGenerate(e: React.FormEvent) {
@@ -311,6 +360,40 @@ export default function ContentPage() {
               </div>
             )}
           </div>
+
+          {/* Compliance Warnings Summary Card */}
+          {(() => {
+            const violations = allContent.filter(c => c.compliance_status === "violation").length;
+            const warnings = allContent.filter(c => c.compliance_status === "warning").length;
+            const compliant = allContent.filter(c => c.compliance_status === "compliant").length;
+
+            if (violations === 0 && warnings === 0) return null;
+
+            return (
+              <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-1">
+                      Compliance Issues in Your Content Library
+                    </h4>
+                    <div className="text-xs text-orange-700 dark:text-orange-400 mb-2 space-y-1">
+                      {violations > 0 && <p>• {violations} content piece{violations > 1 ? 's' : ''} with violations</p>}
+                      {warnings > 0 && <p>• {warnings} content piece{warnings > 1 ? 's' : ''} with warnings</p>}
+                      {compliant > 0 && <p>• {compliant} compliant content piece{compliant > 1 ? 's' : ''}</p>}
+                    </div>
+                    <p className="text-xs text-orange-700 dark:text-orange-400">
+                      Review and fix issues before publishing. Use the "Fix Compliance" button to regenerate content with better compliance.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Settings Panel */}
@@ -573,8 +656,46 @@ export default function ContentPage() {
                           </svg>
                           <span>Download</span>
                         </button>
+                        {/* Regenerate button for compliance issues */}
+                        {generatedContent && (generatedContent.compliance_status === "violation" || generatedContent.compliance_status === "warning") && (
+                          <button
+                            onClick={handleRegenerateForCompliance}
+                            disabled={isGenerating || focusOnCompliance}
+                            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg transition flex items-center space-x-2"
+                            title="Regenerate to fix compliance issues"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Fix Compliance</span>
+                          </button>
+                        )}
                       </div>
                     </div>
+
+                    {/* Compliance Warnings Card */}
+                    {generatedContent && generatedContent.compliance_status !== "compliant" && generatedContent.compliance_notes && (
+                      <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-1">
+                              Compliance {generatedContent.compliance_status === "violation" ? "Violations" : "Warnings"} Detected
+                            </h4>
+                            <p className="text-xs text-orange-700 dark:text-orange-400 mb-2">
+                              Score: {generatedContent.compliance_score}/100 - Please review and fix before publishing
+                            </p>
+                            <div className="text-xs text-orange-700 dark:text-orange-400 whitespace-pre-wrap">
+                              {generatedContent.compliance_notes}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <textarea
                       value={editedContent}
