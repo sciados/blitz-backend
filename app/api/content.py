@@ -160,9 +160,9 @@ async def generate_content(
     if score >= 90:
         compliance_status = "compliant"
     elif score >= 70:
-        compliance_status = "needs_review"
+        compliance_status = "warning"
     else:
-        compliance_status = "non_compliant"
+        compliance_status = "violation"
 
     # Format compliance notes
     issues = compliance_result.get("issues", [])
