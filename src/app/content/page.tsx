@@ -375,8 +375,8 @@ export default function ContentPage() {
                     Compliance Check
                   </h2>
                   <div className="text-center mb-4">
-                    <div className={`text-5xl font-bold mb-2 ${getComplianceColor(generatedContent.compliance_score)}`}>
-                      {generatedContent.compliance_score}
+                    <div className={`text-5xl font-bold mb-2 ${getComplianceColor(generatedContent.compliance_score ?? 0)}`}>
+                      {generatedContent.compliance_score ?? 0}
                     </div>
                     <div className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
                       out of 100
