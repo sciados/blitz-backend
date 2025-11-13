@@ -192,6 +192,44 @@ async def generate_content(
     )
 
 
+@router.get("/{content_id}", response_model=ContentResponse)
+async def get_content(
+    content_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get a single content piece by ID."""
+    # Get content and verify ownership
+    result = await db.execute(
+        select(GeneratedContent)
+        .join(Campaign)
+        .where(
+            GeneratedContent.id == content_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    content = result.scalar_one_or_none()
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+
+    return ContentResponse(
+        id=content.id,
+        campaign_id=content.campaign_id,
+        content_type=content.content_type,
+        marketing_angle=content.marketing_angle,
+        content_data=content.content_data,
+        compliance_status=content.compliance_status,
+        compliance_notes=content.compliance_notes,
+        version=content.version,
+        parent_content_id=content.parent_content_id,
+        created_at=content.created_at
+    )
+
+
 @router.get("/campaign/{campaign_id}", response_model=List[ContentResponse])
 async def list_campaign_content(
     campaign_id: int,
@@ -330,6 +368,99 @@ Provide the refined version:"""
     content.compliance_notes = compliance_notes
 
     # Mark JSONB field as modified for SQLAlchemy
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(content, "content_data")
+
+    await db.commit()
+    await db.refresh(content)
+
+    return ContentResponse(
+        id=content.id,
+        campaign_id=content.campaign_id,
+        content_type=content.content_type,
+        marketing_angle=content.marketing_angle,
+        content_data=content.content_data,
+        compliance_status=content.compliance_status,
+        compliance_notes=content.compliance_notes,
+        version=content.version,
+        parent_content_id=content.parent_content_id,
+        created_at=content.created_at
+    )
+
+
+@router.patch("/{content_id}", response_model=ContentResponse)
+async def update_content(
+    content_id: int,
+    updates: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
+):
+    """Manually update content (for editing)."""
+    # Get content and verify ownership
+    result = await db.execute(
+        select(GeneratedContent)
+        .join(Campaign)
+        .where(
+            GeneratedContent.id == content_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    content = result.scalar_one_or_none()
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+
+    # Get campaign for compliance check
+    campaign_result = await db.execute(
+        select(Campaign).where(Campaign.id == content.campaign_id)
+    )
+    campaign = campaign_result.scalar_one()
+
+    # Update content_data text if provided
+    if "text" in updates:
+        content.content_data["text"] = updates["text"]
+
+        # Re-check compliance on manual edits
+        compliance_result = compliance_checker.check_content(
+            content=updates["text"],
+            content_type=content.content_type,
+            product_category=campaign.product_category
+        )
+
+        # Update compliance status
+        score = compliance_result.get("score", 0)
+        if score >= 90:
+            content.compliance_status = "compliant"
+        elif score >= 70:
+            content.compliance_status = "needs_review"
+        else:
+            content.compliance_status = "non_compliant"
+
+        content.compliance_score = score
+
+        # Format compliance notes
+        issues = compliance_result.get("issues", [])
+        content.compliance_notes = "\n".join([
+            f"[{issue.get('severity', 'medium').upper()}] {issue.get('message', '')}"
+            for issue in issues
+        ]) if issues else None
+
+        # Mark as edited
+        content.content_data["metadata"]["last_edited"] = datetime.utcnow().isoformat()
+
+    # Update other fields if provided
+    if "marketing_angle" in updates:
+        content.marketing_angle = updates["marketing_angle"]
+    if "tone" in updates:
+        content.content_data["tone"] = updates["tone"]
+    if "length" in updates:
+        content.content_data["length"] = updates["length"]
+
+    # Mark JSONB field as modified
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(content, "content_data")
 
