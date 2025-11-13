@@ -4,11 +4,15 @@ import { AuthGate } from "src/components/AuthGate";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "src/lib/appClient";
-import { Campaign } from "src/lib/types";
+import { Campaign, ContentType, MarketingAngle, GeneratedContent } from "src/lib/types";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditCampaignModal } from "src/components/EditCampaignModal";
 import { LinkAnalytics } from "src/components/LinkAnalytics";
+import { ContentRefinementModal } from "src/components/ContentRefinementModal";
+import { ContentVariationsModal } from "src/components/ContentVariationsModal";
+import { ContentViewModal } from "src/components/ContentViewModal";
+import { ContentList } from "src/components/ContentList";
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -19,6 +23,16 @@ export default function CampaignDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+
+  // Content generation state
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [showRefinementModal, setShowRefinementModal] = useState(false);
+  const [showVariationsModal, setShowVariationsModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
+  const [contentType, setContentType] = useState<ContentType>("article");
+  const [marketingAngle, setMarketingAngle] = useState<MarketingAngle>("problem_solution");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Get short link domain from environment variable
   const shortLinkDomain = process.env.NEXT_PUBLIC_SHORT_LINK_DOMAIN || "https://blitzed.up.railway.app";
@@ -93,6 +107,76 @@ export default function CampaignDetailPage() {
     if (confirm("Are you sure you want to remove the affiliate link? All click tracking data will be deleted.")) {
       deleteAffiliateLinkMutation.mutate();
     }
+  };
+
+  // Fetch content for this campaign
+  const { data: allContent = [], refetch: refetchContent } = useQuery({
+    queryKey: ["content", id],
+    queryFn: async () => (await api.get(`/api/content/campaign/${id}`)).data,
+    enabled: !!campaign,
+  });
+
+  // Content generation handlers
+  const handleGenerateContent = async () => {
+    if (!campaign) return;
+
+    setIsGenerating(true);
+
+    try {
+      const { data } = await api.post("/api/content/generate", {
+        campaign_id: id,
+        content_type: contentType,
+        marketing_angle: marketingAngle,
+      });
+
+      toast.success("Content generated successfully!");
+      refetchContent();
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+    } catch (err: any) {
+      console.error("Failed to generate content:", err);
+      toast.error(err.response?.data?.detail || "Failed to generate content");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleViewContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowViewModal(true);
+  };
+
+  const handleEditContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowRefinementModal(true);
+  };
+
+  const handleCreateVariations = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setShowVariationsModal(true);
+  };
+
+  const handleDeleteContent = async (contentId: number) => {
+    if (!confirm("Are you sure you want to delete this content?")) return;
+
+    try {
+      await api.delete(`/api/content/${contentId}`);
+      toast.success("Content deleted successfully");
+      refetchContent();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Failed to delete content");
+    }
+  };
+
+  const handleContentRefined = () => {
+    setShowRefinementModal(false);
+    setSelectedContent(null);
+    refetchContent();
+  };
+
+  const handleVariationCreated = () => {
+    setShowVariationsModal(false);
+    setSelectedContent(null);
+    refetchContent();
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -587,7 +671,7 @@ export default function CampaignDetailPage() {
                 {/* Step 3: Generate Content */}
                 {(() => {
                   const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
-                  const isCompleted = false; // TODO: Check if content exists
+                  const isCompleted = allContent.length > 0;
                   const isActive = step2Complete;
 
                   return (
@@ -657,9 +741,10 @@ export default function CampaignDetailPage() {
                         {isActive && !isCompleted && (
                           <button
                             className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
-                            onClick={() => toast.info("Content generation coming soon!")}
+                            onClick={handleGenerateContent}
+                            disabled={isGenerating}
                           >
-                            Generate Content
+                            {isGenerating ? "Generating..." : "Generate Content"}
                           </button>
                         )}
                         {!isActive && (
@@ -678,7 +763,7 @@ export default function CampaignDetailPage() {
                 {/* Step 4: Check Compliance */}
                 {(() => {
                   const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
-                  const step3Complete = false; // TODO: Check if content exists
+                  const step3Complete = allContent.length > 0;
                   const isCompleted = false; // TODO: Check if compliance check exists
                   const isActive = step2Complete && step3Complete;
 
@@ -1091,6 +1176,30 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
+      {/* Generated Content Section */}
+      {campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0 && (
+        <div className="mt-6">
+          <div className="card rounded-lg p-6">
+            <h2 className="text-xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+              Generated Content
+            </h2>
+            {allContent.length === 0 ? (
+              <div className="text-center py-8" style={{ color: "var(--text-secondary)" }}>
+                <p>No content generated yet for this campaign.</p>
+                <p className="text-sm mt-2">Click "Generate Content" above to get started.</p>
+              </div>
+            ) : (
+              <ContentList
+                contents={allContent}
+                onView={handleViewContent}
+                onEdit={handleEditContent}
+                onDelete={handleDeleteContent}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Edit Campaign Modal */}
       {isEditing && campaign && (
         <EditCampaignModal
@@ -1101,6 +1210,29 @@ export default function CampaignDetailPage() {
           onUpdate={updateMutation.mutateAsync}
           isUpdating={updateMutation.isPending}
         />
+      )}
+
+      {/* Content Modals */}
+      <ContentViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        content={selectedContent}
+        onRefine={handleEditContent}
+        onCreateVariations={handleCreateVariations}
+      />
+
+      <ContentRefinementModal
+        isOpen={showRefinementModal}
+        onClose={() => setShowRefinementModal(false)}
+        content={selectedContent}
+        onRefined={handleContentRefined}
+      />
+
+      <ContentVariationsModal
+        isOpen={showVariationsModal}
+        onClose={() => setShowVariationsModal(false)}
+        content={selectedContent}
+        onVariationCreated={handleVariationCreated}
       )}
     </AuthGate>
   );
