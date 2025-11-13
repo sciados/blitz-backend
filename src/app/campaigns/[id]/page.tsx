@@ -673,7 +673,8 @@ export default function CampaignDetailPage() {
                   const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
                   // Mark as completed only after generating at least 3 pieces of content
                   const isCompleted = allContent.length >= 3;
-                  const isActive = step2Complete;
+                  // Step 3 is ALWAYS active - users can generate content anytime
+                  const isActive = true;
 
                   return (
                     <div
@@ -729,17 +730,21 @@ export default function CampaignDetailPage() {
                             isCompleted
                               ? "text-green-700 dark:text-green-400"
                               : isActive
-                              ? "text-blue-700 dark:text-blue-400"
+                              ? step2Complete
+                                ? "Ready to generate anytime"
+                                : "Available now (compile intelligence first for better results)"
                               : "text-gray-500 dark:text-gray-400"
                           }`}
                         >
                           {isCompleted
                             ? "✓ Completed"
                             : isActive
-                            ? "Ready to start"
+                            ? step2Complete
+                              ? "Generate content anytime"
+                              : "⚠ Intelligence not compiled - results may be generic"
                             : "Complete Step 2 first"}
                         </div>
-                        {/* Button always available when active - generate more content anytime */}
+                        {/* Button ALWAYS available - generate content anytime */}
                         {isActive && (
                           <button
                             className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition flex items-center justify-center gap-1"
@@ -754,14 +759,6 @@ export default function CampaignDetailPage() {
                             )}
                           </button>
                         )}
-                        {!isActive && (
-                          <button
-                            disabled
-                            className="mt-2 w-full px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded text-xs font-medium cursor-not-allowed"
-                          >
-                            Generate Content
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -769,10 +766,10 @@ export default function CampaignDetailPage() {
 
                 {/* Step 4: Check Compliance */}
                 {(() => {
-                  const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
                   const step3Complete = allContent.length > 0;
                   const isCompleted = false; // TODO: Check if compliance check exists
-                  const isActive = step2Complete && step3Complete;
+                  // Step 4 is active as soon as there's content to check
+                  const isActive = step3Complete;
 
                   return (
                     <div
