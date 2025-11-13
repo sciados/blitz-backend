@@ -1,32 +1,11 @@
 "use client";
 
 import { AuthGate } from "src/components/AuthGate";
+import { CampaignSelector } from "src/components/CampaignSelector";
 import { useState, useEffect } from "react";
 import { api } from "src/lib/appClient";
 import { toast } from "sonner";
-
-type ComplianceResult = {
-  status: "compliant" | "needs_review" | "non_compliant";
-  score: number;
-  issues: Array<{
-    severity: "critical" | "high" | "medium";
-    type: string;
-    message: string;
-    suggestion?: string;
-  }>;
-  suggestions: string[];
-  ftc_compliance: boolean;
-  network_compliance: boolean;
-};
-
-type GeneratedContent = {
-  id: number;
-  content: string;
-  content_type: string;
-  marketing_angle: string;
-  compliance_check?: ComplianceResult;
-  created_at: string;
-};
+import { GeneratedContent, ContentType, MarketingAngle } from "src/lib/types";
 
 const CONTENT_TYPES = [
   { value: "article", label: "Article / Blog Post", icon: "📝" },
@@ -63,9 +42,9 @@ const LENGTHS = [
 ];
 
 export default function ContentPage() {
-  const [campaignId, setCampaignId] = useState<number | "">("");
-  const [contentType, setContentType] = useState("article");
-  const [marketingAngle, setMarketingAngle] = useState("problem_solution");
+  const [campaignId, setCampaignId] = useState<number | null>(null);
+  const [contentType, setContentType] = useState<ContentType>("article");
+  const [marketingAngle, setMarketingAngle] = useState<MarketingAngle>("problem_solution");
   const [tone, setTone] = useState("professional");
   const [length, setLength] = useState("medium");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -75,7 +54,7 @@ export default function ContentPage() {
 
   useEffect(() => {
     if (generatedContent) {
-      setEditedContent(generatedContent.content);
+      setEditedContent(generatedContent.content_data.text);
     }
   }, [generatedContent]);
 
@@ -92,7 +71,7 @@ export default function ContentPage() {
 
     try {
       const { data } = await api.post("/api/content/generate", {
-        campaign_id: Number(campaignId),
+        campaign_id: campaignId,
         content_type: contentType,
         marketing_angle: marketingAngle,
         tone,
@@ -102,12 +81,13 @@ export default function ContentPage() {
       setGeneratedContent(data);
 
       // Show warning if non-compliant
-      if (data.compliance_check && data.compliance_check.status === "non_compliant") {
+      if (data.compliance_status === "non_compliant") {
         setShowComplianceWarning(true);
-      } else if (data.compliance_check && data.compliance_check.status === "compliant") {
-        toast.success(`Content generated with ${data.compliance_check.score}/100 compliance score!`);
-      } else if (data.compliance_check) {
-        toast.warning("Content needs review before use");
+        toast.error(`Content is non-compliant (${data.compliance_score}/100). Review issues before use.`);
+      } else if (data.compliance_status === "compliant") {
+        toast.success(`Content generated with ${data.compliance_score}/100 compliance score!`);
+      } else if (data.compliance_status === "needs_review") {
+        toast.warning(`Content needs review (${data.compliance_score}/100) before use`);
       } else {
         toast.success("Content generated successfully!");
       }
@@ -196,29 +176,16 @@ export default function ContentPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  {/* Campaign ID */}
-                  <div>
-                    <label htmlFor="campaignId" className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
-                      Campaign ID *
-                    </label>
-                    <input
-                      id="campaignId"
-                      type="number"
-                      value={campaignId}
-                      onChange={(e) => setCampaignId(e.target.value === "" ? "" : Number(e.target.value))}
-                      placeholder="Enter campaign ID"
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                      style={{
-                        borderColor: "var(--card-border)",
-                        background: "var(--card-bg)",
-                        color: "var(--text-primary)",
-                      }}
-                      required
-                    />
-                    <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-                      Content will be based on campaign's product intelligence
-                    </p>
-                  </div>
+                  {/* Campaign Selector */}
+                  <CampaignSelector
+                    selectedCampaignId={campaignId}
+                    onSelect={setCampaignId}
+                    label="Campaign *"
+                    placeholder="Select a campaign..."
+                  />
+                  <p className="text-xs -mt-2" style={{ color: "var(--text-secondary)" }}>
+                    Content will be based on campaign's product intelligence
+                  </p>
 
                   {/* Content Type */}
                   <div>
@@ -340,46 +307,30 @@ export default function ContentPage() {
               </form>
 
               {/* Compliance Score Card */}
-              {generatedContent?.compliance_check && (
+              {generatedContent && generatedContent.compliance_score !== undefined && (
                 <div className="card rounded-lg p-6">
                   <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
                     Compliance Check
                   </h2>
                   <div className="text-center mb-4">
-                    <div className={`text-5xl font-bold mb-2 ${getComplianceColor(generatedContent.compliance_check.score)}`}>
-                      {generatedContent.compliance_check.score}
+                    <div className={`text-5xl font-bold mb-2 ${getComplianceColor(generatedContent.compliance_score)}`}>
+                      {generatedContent.compliance_score}
                     </div>
                     <div className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
                       out of 100
                     </div>
-                    {getComplianceStatusBadge(generatedContent.compliance_check.status)}
+                    {getComplianceStatusBadge(generatedContent.compliance_status)}
                   </div>
 
-                  {/* FTC & Network Compliance */}
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center justify-between p-2 rounded" style={{ background: "var(--bg-secondary)" }}>
-                      <span className="text-sm" style={{ color: "var(--text-primary)" }}>FTC Compliant</span>
-                      <span className={generatedContent.compliance_check.ftc_compliance ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                        {generatedContent.compliance_check.ftc_compliance ? "✓" : "✗"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded" style={{ background: "var(--bg-secondary)" }}>
-                      <span className="text-sm" style={{ color: "var(--text-primary)" }}>Network Compliant</span>
-                      <span className={generatedContent.compliance_check.network_compliance ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                        {generatedContent.compliance_check.network_compliance ? "✓" : "✗"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Issues Count */}
-                  {generatedContent.compliance_check.issues && generatedContent.compliance_check.issues.length > 0 && (
+                  {/* Compliance Notes */}
+                  {generatedContent.compliance_notes && (
                     <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                      <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-                        {generatedContent.compliance_check.issues.length} issue(s) found
+                      <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                        Issues Found:
                       </p>
-                      <p className="text-xs mt-1 text-yellow-700 dark:text-yellow-400">
-                        Review content before publishing
-                      </p>
+                      <div className="text-xs text-yellow-700 dark:text-yellow-400 whitespace-pre-wrap">
+                        {generatedContent.compliance_notes}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -435,70 +386,6 @@ export default function ContentPage() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Compliance Issues */}
-                  {generatedContent.compliance_check?.issues && generatedContent.compliance_check.issues.length > 0 && (
-                    <div className="card rounded-lg p-6">
-                      <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                        Compliance Issues
-                      </h2>
-                      <div className="space-y-3">
-                        {generatedContent.compliance_check.issues.map((issue, index) => (
-                          <div
-                            key={index}
-                            className={`p-4 rounded-lg border ${
-                              issue.severity === "critical"
-                                ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                                : issue.severity === "high"
-                                ? "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
-                                : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
-                            }`}
-                          >
-                            <div className="flex items-start space-x-2">
-                              <span className="text-lg">
-                                {issue.severity === "critical" ? "🔴" : issue.severity === "high" ? "🟠" : "🟡"}
-                              </span>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs font-semibold uppercase" style={{ color: "var(--text-primary)" }}>
-                                    {issue.severity}
-                                  </span>
-                                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                                    {issue.type.replace(/_/g, " ")}
-                                  </span>
-                                </div>
-                                <p className="text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
-                                  {issue.message}
-                                </p>
-                                {issue.suggestion && (
-                                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                                    <strong>Fix:</strong> {issue.suggestion}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Suggestions */}
-                  {generatedContent.compliance_check?.suggestions && generatedContent.compliance_check.suggestions.length > 0 && (
-                    <div className="card rounded-lg p-6">
-                      <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                        Recommendations
-                      </h2>
-                      <ul className="space-y-2">
-                        {generatedContent.compliance_check.suggestions.map((suggestion, index) => (
-                          <li key={index} className="flex items-start space-x-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-                            <span className="text-blue-600 dark:text-blue-400 mt-0.5">→</span>
-                            <span>{suggestion}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="card rounded-lg p-12 text-center">
@@ -520,7 +407,7 @@ export default function ContentPage() {
       </div>
 
       {/* Compliance Warning Modal */}
-      {showComplianceWarning && generatedContent?.compliance_check && (
+      {showComplianceWarning && generatedContent && generatedContent.compliance_status === "non_compliant" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full p-6">
             <div className="flex items-start space-x-3 mb-4">
@@ -534,19 +421,19 @@ export default function ContentPage() {
                   Non-Compliant Content Warning
                 </h3>
                 <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-                  The generated content has a compliance score of {generatedContent.compliance_check.score}/100
+                  The generated content has a compliance score of {generatedContent.compliance_score ?? 0}/100
                   and does not meet FTC guidelines. Please review and fix the issues before publishing.
                 </p>
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                  <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
-                    {generatedContent.compliance_check.issues.length} Critical Issues Found
-                  </p>
-                  <ul className="text-xs space-y-1 text-red-700 dark:text-red-400">
-                    {generatedContent.compliance_check.issues.slice(0, 3).map((issue, i) => (
-                      <li key={i}>• {issue.message}</li>
-                    ))}
-                  </ul>
-                </div>
+                {generatedContent.compliance_notes && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">
+                      Compliance Issues:
+                    </p>
+                    <div className="text-xs text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                      {generatedContent.compliance_notes}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end space-x-3">
