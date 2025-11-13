@@ -288,6 +288,7 @@ class AIRouter:
         max_tokens: int | str = 1000,
         temperature: float = 0.7,
         use_quality: bool = False,
+        user_tier: str = "free",  # "free", "starter", "pro", "enterprise"
     ) -> str:
         """
         Generate text using AI providers with automatic fallback.
@@ -297,6 +298,7 @@ class AIRouter:
             max_tokens: Maximum tokens to generate (or "short"/"medium"/"long")
             temperature: Generation temperature
             use_quality: Use quality providers instead of fast providers
+            user_tier: User subscription tier ("free", "starter", "pro", "enterprise")
 
         Returns:
             Generated text string
@@ -312,6 +314,54 @@ class AIRouter:
 
         # Determine use case
         use_case = "chat_quality" if use_quality else "chat_fast"
+
+        # Tier-based provider selection (quality over cost for paid tiers)
+        # Free: Only free providers
+        # Starter: Quality providers (OpenAI, Anthropic) - even paid tiers need quality!
+        # Pro: Premium models + reasoning (DeepSeek)
+        # Enterprise: All models including specialized ones
+        tier_providers = {
+            "free": [
+                "groq:llama-3.3-70b-versatile",
+                "xai:grok-beta",
+            ],
+            "starter": [
+                "openai:gpt-4o-mini",
+                "anthropic:claude-3-haiku-20240307",
+                "groq:llama-3.3-70b-versatile",  # Fallback
+                "xai:grok-beta",  # Fallback
+            ],
+            "pro": [
+                "openai:gpt-4o-mini",
+                "anthropic:claude-3-haiku-20240307",
+                "deepseek:deepseek-reasoner",  # Reasoning for complex content
+                "together:llama-3.2-3b-instruct-turbo",
+                "minimax:abab6.5s-chat",
+                "groq:llama-3.3-70b-versatile",
+                "xai:grok-beta",
+            ],
+            "enterprise": [
+                "openai:gpt-4o-mini",
+                "anthropic:claude-3-haiku-20240307",
+                "openai:gpt-4.1",
+                "anthropic:claude-3.5-sonnet-20241022",
+                "deepseek:deepseek-reasoner",
+                "together:llama-3.2-3b-instruct-turbo",
+                "minimax:abab6.5s-chat",
+                "groq:llama-3.3-70b-versatile",
+                "xai:grok-beta",
+            ],
+        }
+
+        # Override use_case environment with tier-based selection
+        tier_key = user_tier.lower()
+        if tier_key not in tier_providers:
+            tier_key = "free"
+
+        # Set tier-specific providers via environment variable
+        tier_provider_list = ",".join(tier_providers[tier_key])
+        os.environ["AI_CHAT_FAST"] = tier_provider_list
+        logger.info(f"[AIRouter] Using tier '{tier_key}' with providers: {tier_provider_list}")
 
         # Extract system and user prompts
         if isinstance(prompt, dict):
