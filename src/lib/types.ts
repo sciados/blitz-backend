@@ -129,6 +129,70 @@ export type ProductCategory = {
 };
 
 // ============================================================================
+// CONTENT GENERATION TYPES
+// ============================================================================
+
+export type ContentType = "article" | "email" | "video_script" | "social_post" | "landing_page" | "ad_copy";
+
+export type MarketingAngle =
+    | "problem_solution"
+    | "transformation"
+    | "scarcity"
+    | "authority"
+    | "social_proof"
+    | "comparison"
+    | "story";
+
+export type ComplianceStatus = "pending" | "compliant" | "needs_review" | "non_compliant";
+
+export type GeneratedContent = {
+    id: number;
+    campaign_id: number;
+    content_type: ContentType;
+    marketing_angle: MarketingAngle;
+    content_data: {
+        text: string;
+        tone?: string;
+        length?: string;
+        metadata?: {
+            prompt?: string;
+            model?: string;
+            context_sources?: string[];
+            generation_time?: string;
+            last_edited?: string;
+            last_refined?: string;
+        };
+        sections?: any[]; // For structured content like landing pages
+    };
+    compliance_status: ComplianceStatus;
+    compliance_score?: number | null;
+    compliance_notes?: string | null;
+    version: number;
+    parent_content_id?: number | null;
+    created_at: string;
+};
+
+export type ContentGenerateRequest = {
+    campaign_id: number;
+    content_type: ContentType;
+    marketing_angle: MarketingAngle;
+    additional_context?: string;
+    tone?: string;
+    length?: string;
+};
+
+export type ContentRefineRequest = {
+    content_id: number;
+    refinement_instructions: string;
+};
+
+export type ContentVariationRequest = {
+    content_id: number;
+    num_variations?: number; // 1-10, default 3
+    variation_type?: "tone" | "length" | "angle"; // What to vary
+};
+
+// ============================================================================
 // URL SHORTENER TYPES
 // ============================================================================
 
