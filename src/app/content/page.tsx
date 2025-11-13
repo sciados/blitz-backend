@@ -81,13 +81,13 @@ export default function ContentPage() {
       setGeneratedContent(data);
 
       // Show warning if non-compliant
-      if (data.compliance_status === "non_compliant") {
+      if (data.compliance_status === "violation") {
         setShowComplianceWarning(true);
-        toast.error(`Content is non-compliant (${data.compliance_score}/100). Review issues before use.`);
+        toast.error(`Content has compliance violations (${data.compliance_score}/100). Review issues before use.`);
       } else if (data.compliance_status === "compliant") {
         toast.success(`Content generated with ${data.compliance_score}/100 compliance score!`);
-      } else if (data.compliance_status === "needs_review") {
-        toast.warning(`Content needs review (${data.compliance_score}/100) before use`);
+      } else if (data.compliance_status === "warning") {
+        toast.warning(`Content has compliance warnings (${data.compliance_score}/100) - review before use`);
       } else {
         toast.success("Content generated successfully!");
       }
@@ -139,17 +139,17 @@ export default function ContentPage() {
         </span>
       );
     }
-    if (status === "needs_review") {
+    if (status === "warning") {
       return (
         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800">
-          ⚠ Needs Review
+          ⚠ Warning
         </span>
       );
     }
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
-        ✗ Non-Compliant
-      </span>
+          ✗ Violation
+        </span>
     );
   }
 
@@ -407,7 +407,7 @@ export default function ContentPage() {
       </div>
 
       {/* Compliance Warning Modal */}
-      {showComplianceWarning && generatedContent && generatedContent.compliance_status === "non_compliant" && (
+      {showComplianceWarning && generatedContent && generatedContent.compliance_status === "violation" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full p-6">
             <div className="flex items-start space-x-3 mb-4">

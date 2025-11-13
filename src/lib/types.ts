@@ -143,7 +143,7 @@ export type MarketingAngle =
     | "comparison"
     | "story";
 
-export type ComplianceStatus = "pending" | "compliant" | "needs_review" | "non_compliant";
+export type ComplianceStatus = "pending" | "compliant" | "warning" | "violation";
 
 export type GeneratedContent = {
     id: number;

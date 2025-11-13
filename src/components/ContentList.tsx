@@ -138,8 +138,8 @@ export function ContentList({ contents, loading = false, onEdit, onDelete, onVie
             >
               <option value="all">All Status</option>
               <option value="compliant">Compliant</option>
-              <option value="needs_review">Needs Review</option>
-              <option value="non_compliant">Non-Compliant</option>
+              <option value="warning">Warning</option>
+              <option value="violation">Violation</option>
             </select>
           </div>
 
