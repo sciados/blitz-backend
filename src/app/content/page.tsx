@@ -43,9 +43,9 @@ const TONES = [
 ];
 
 const LENGTHS = [
-  { value: "short", label: "Short", description: "~300 words" },
-  { value: "medium", label: "Medium", description: "~600 words" },
-  { value: "long", label: "Long", description: "~1200 words" },
+  { value: "short", label: "Short", description: "~100 words" },
+  { value: "medium", label: "Medium", description: "~60 words" },
+  { value: "long", label: "Long", description: "~300 words" },
 ];
 
 export default function ContentPage() {
