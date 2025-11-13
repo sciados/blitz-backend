@@ -217,6 +217,9 @@ export default function ContentPage() {
       setEditedContent(data.content_data.text);
       setFocusOnCompliance(false);
 
+      // Refetch all content to update the Previous Content list
+      refetchContent();
+
       // Show warning if still non-compliant
       if (data.compliance_status === "violation") {
         setShowComplianceWarning(true);
@@ -265,6 +268,9 @@ export default function ContentPage() {
       const { data } = await api.post("/api/content/generate", payload);
 
       setGeneratedContent(data);
+
+      // Refetch all content to update the Previous Content list
+      refetchContent();
 
       // Show warning if non-compliant
       if (data.compliance_status === "violation") {
