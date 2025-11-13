@@ -171,14 +171,24 @@ async def generate_content(
 
             context_text = "\n\n".join(intel_parts)
 
-    prompt = prompt_builder.build_prompt(
-        content_type=request.content_type,
-        product_info=product_info,
-        marketing_angle=request.marketing_angle,
-        tone=request.tone or "professional",
-        additional_context=context_text or request.additional_context,
-        constraints={"length": request.length} if request.length else None
-    )
+    # Build prompt with email sequence support
+    prompt_params = {
+        "content_type": request.content_type,
+        "product_info": product_info,
+        "marketing_angle": request.marketing_angle,
+        "tone": request.tone or "professional",
+        "additional_context": context_text or request.additional_context,
+        "constraints": {"length": request.length} if request.length else None
+    }
+
+    # Add email sequence parameters if needed
+    if request.content_type == "email_sequence":
+        prompt_params["email_sequence_config"] = {
+            "num_emails": request.num_emails,
+            "sequence_type": request.sequence_type
+        }
+
+    prompt = prompt_builder.build_prompt(**prompt_params)
     
     # Generate content using AI router
     generated_text = await ai_router.generate_text(
@@ -215,22 +225,32 @@ async def generate_content(
         for issue in issues
     ]) if issues else None
 
+    # Build content_data with email sequence support
+    content_data = {
+        "text": generated_text,
+        "tone": request.tone,
+        "length": request.length,
+        "metadata": {
+            "prompt": prompt,
+            "model": ai_router.last_used_model,
+            "context_sources": [c.get("source") for c in context],
+            "generation_time": datetime.utcnow().isoformat()
+        }
+    }
+
+    # Add email sequence metadata if applicable
+    if request.content_type == "email_sequence":
+        content_data["email_sequence"] = {
+            "num_emails": request.num_emails,
+            "sequence_type": request.sequence_type
+        }
+
     # Save to database with proper schema
     content = GeneratedContent(
         campaign_id=request.campaign_id,
         content_type=request.content_type,
         marketing_angle=request.marketing_angle,
-        content_data={
-            "text": generated_text,
-            "tone": request.tone,
-            "length": request.length,
-            "metadata": {
-                "prompt": prompt,
-                "model": ai_router.last_used_model,
-                "context_sources": [c.get("source") for c in context],
-                "generation_time": datetime.utcnow().isoformat()
-            }
-        },
+        content_data=content_data,
         compliance_status=compliance_status,
         compliance_score=score,
         compliance_notes=compliance_notes,

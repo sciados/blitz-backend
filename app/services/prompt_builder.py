@@ -113,11 +113,12 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
         marketing_angle: str,
         tone: str = 'professional',
         additional_context: Optional[str] = None,
-        constraints: Optional[Dict[str, Any]] = None
+        constraints: Optional[Dict[str, Any]] = None,
+        email_sequence_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, str]:
         """
         Build a complete prompt for content generation
-        
+
         Args:
             content_type: Type of content to generate
             product_info: Product information dictionary
@@ -125,27 +126,28 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
             tone: Desired tone (professional, casual, enthusiastic, etc.)
             additional_context: Additional context from RAG
             constraints: Content constraints (word count, keywords, etc.)
-            
+            email_sequence_config: Email sequence configuration (num_emails, sequence_type)
+
         Returns:
             Dictionary with system and user prompts
         """
         try:
             template = self.TEMPLATES.get(content_type)
-            
+
             if not template:
                 # Fallback to generic template
                 template = {
                     'system': "You are an expert content writer and affiliate marketer.",
                     'structure': ['introduction', 'main_content', 'conclusion']
                 }
-            
+
             # Build system prompt
             system_prompt = self._build_system_prompt(
                 template['system'],
                 tone,
                 constraints
             )
-            
+
             # Build user prompt
             user_prompt = self._build_user_prompt(
                 content_type=content_type,
@@ -153,16 +155,17 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
                 product_info=product_info,
                 marketing_angle=marketing_angle,
                 additional_context=additional_context,
-                constraints=constraints
+                constraints=constraints,
+                email_sequence_config=email_sequence_config
             )
-            
+
             return {
                 'system': system_prompt,
                 'user': user_prompt,
                 'content_type': content_type,
                 'marketing_angle': marketing_angle
             }
-            
+
         except Exception as e:
             logger.error(f"Error building prompt: {str(e)}")
             raise
@@ -219,60 +222,166 @@ QUALITY STANDARDS:
         product_info: Dict[str, Any],
         marketing_angle: str,
         additional_context: Optional[str],
-        constraints: Optional[Dict[str, Any]]
+        constraints: Optional[Dict[str, Any]],
+        email_sequence_config: Optional[Dict[str, Any]] = None
     ) -> str:
         """Build the user prompt with product info and structure"""
-        
+
+        # Handle email sequence specially
+        if content_type == 'email_sequence' and email_sequence_config:
+            return self._build_email_sequence_prompt(
+                product_info,
+                marketing_angle,
+                additional_context,
+                constraints,
+                email_sequence_config
+            )
+
         user_prompt = f"""Create a {content_type} for the following product using the {marketing_angle} marketing angle.
 
 PRODUCT INFORMATION:
 """
-        
+
         # Add product details
         if product_info.get('title'):
             user_prompt += f"Product Name: {product_info['title']}\n"
-        
+
         if product_info.get('description'):
             user_prompt += f"Description: {product_info['description']}\n"
-        
+
         if product_info.get('price'):
             user_prompt += f"Price: {product_info['price']}\n"
-        
+
         if product_info.get('features'):
             user_prompt += f"\nKey Features:\n"
             for feature in product_info['features'][:10]:  # Limit to top 10
                 user_prompt += f"- {feature}\n"
-        
+
         if product_info.get('benefits'):
             user_prompt += f"\nKey Benefits:\n"
             for benefit in product_info['benefits'][:10]:
                 user_prompt += f"- {benefit}\n"
-        
+
         if product_info.get('target_audience'):
             user_prompt += f"\nTarget Audience: {product_info['target_audience']}\n"
-        
+
         if product_info.get('pain_points'):
             user_prompt += f"\nPain Points Addressed:\n"
             for pain_point in product_info['pain_points'][:5]:
                 user_prompt += f"- {pain_point}\n"
-        
+
         # Add additional context from RAG
         if additional_context:
             user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
-        
+
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"
         user_prompt += "Please organize the content with the following sections:\n"
         for i, section in enumerate(structure, 1):
             section_name = section.replace('_', ' ').title()
             user_prompt += f"{i}. {section_name}\n"
-        
+
         # Add specific instructions based on content type
         user_prompt += self._get_content_type_instructions(content_type)
-        
+
         # Add marketing angle guidance
         user_prompt += self._get_marketing_angle_guidance(marketing_angle)
-        
+
+        return user_prompt
+
+    def _build_email_sequence_prompt(
+        self,
+        product_info: Dict[str, Any],
+        marketing_angle: str,
+        additional_context: Optional[str],
+        constraints: Optional[Dict[str, Any]],
+        email_sequence_config: Dict[str, Any]
+    ) -> str:
+        """Build a prompt specifically for email sequences"""
+
+        num_emails = email_sequence_config.get('num_emails', 5)
+        sequence_type = email_sequence_config.get('sequence_type', 'cold_to_hot')
+
+        user_prompt = f"""Create an email sequence of {num_emails} emails using the {marketing_angle} marketing angle.
+Sequence Type: {sequence_type}
+
+PROGRESSION STRATEGY:
+"""
+
+        # Add progression logic based on sequence type
+        if sequence_type == 'cold_to_hot':
+            user_prompt += """This sequence should guide cold prospects (no prior awareness) to become hot prospects (ready to buy):
+- Early emails: Build awareness, establish problem
+- Middle emails: Provide value, build trust, introduce solution
+- Later emails: Stronger pitch, social proof, urgency, clear CTA
+
+"""
+        elif sequence_type == 'warm_to_hot':
+            user_prompt += """This sequence should nurture warm prospects (some awareness/interest) to become hot prospects:
+- Early emails: Reinforce value, address concerns
+- Middle emails: Social proof, differentiation, benefits
+- Later emails: Strong offer, urgency, clear CTA
+
+"""
+        elif sequence_type == 'hot_close':
+            user_prompt += """This sequence should convert hot prospects (already interested) to buyers:
+- Early emails: Address final objections
+- Middle emails: Social proof, risk reversal, bonuses
+- Later emails: Urgent offer, limited time, clear CTA
+
+"""
+
+        user_prompt += "PRODUCT INFORMATION:\n"
+
+        # Add product details
+        if product_info.get('title'):
+            user_prompt += f"Product Name: {product_info['title']}\n"
+
+        if product_info.get('description'):
+            user_prompt += f"Description: {product_info['description']}\n"
+
+        if product_info.get('features'):
+            user_prompt += f"\nKey Features:\n"
+            for feature in product_info['features'][:10]:
+                user_prompt += f"- {feature}\n"
+
+        if product_info.get('benefits'):
+            user_prompt += f"\nKey Benefits:\n"
+            for benefit in product_info['benefits'][:10]:
+                user_prompt += f"- {benefit}\n"
+
+        if product_info.get('target_audience'):
+            user_prompt += f"\nTarget Audience: {product_info['target_audience']}\n"
+
+        if product_info.get('pain_points'):
+            user_prompt += f"\nPain Points Addressed:\n"
+            for pain_point in product_info['pain_points'][:5]:
+                user_prompt += f"- {pain_point}\n"
+
+        # Add additional context from RAG
+        if additional_context:
+            user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
+
+        user_prompt += f"""
+EMAIL SEQUENCE REQUIREMENTS:
+- Generate exactly {num_emails} separate emails
+- Each email should be 60-120 words (ideal for mobile reading)
+- Include a clear, compelling subject line for each email
+- Include a clear CTA in each email (adapted to the prospect temperature)
+- Maintain consistent tone and voice throughout
+- Progress logically from awareness to action
+- Include affiliate disclosure where appropriate
+- Each email should provide standalone value
+
+FORMAT:
+For each email, provide:
+1. Subject Line: [subject]
+2. Email Body: [content]
+
+Separate each email with: === END OF EMAIL {num_emails} ===
+
+Begin the sequence now:"""
+
         return user_prompt
     
     def _get_content_type_instructions(self, content_type: str) -> str:

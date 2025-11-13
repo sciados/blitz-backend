@@ -11,6 +11,7 @@ from enum import Enum
 class ContentType(str, Enum):
     ARTICLE = "article"
     EMAIL = "email"
+    EMAIL_SEQUENCE = "email_sequence"
     VIDEO_SCRIPT = "video_script"
     SOCIAL_POST = "social_post"
     LANDING_PAGE = "landing_page"
@@ -132,6 +133,9 @@ class ContentGenerateRequest(BaseModel):
     additional_context: Optional[str] = None
     tone: Optional[str] = "professional"
     length: Optional[str] = "medium"  # short, medium, long
+    # Email sequence configuration
+    num_emails: Optional[int] = Field(default=5, ge=3, le=10)
+    sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
 
 class ContentRefineRequest(BaseModel):
     content_id: int
