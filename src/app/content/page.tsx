@@ -9,6 +9,7 @@ import { ContentVariationsModal } from "src/components/ContentVariationsModal";
 import { ContentViewModal } from "src/components/ContentViewModal";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { api } from "src/lib/appClient";
 import { toast } from "sonner";
 import { GeneratedContent, ContentType, MarketingAngle, Campaign } from "src/lib/types";
@@ -48,7 +49,12 @@ const LENGTHS = [
 ];
 
 export default function ContentPage() {
-  const [campaignId, setCampaignId] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const urlCampaignId = searchParams.get("campaign");
+
+  const [campaignId, setCampaignId] = useState<number | null>(
+    urlCampaignId ? Number(urlCampaignId) : null
+  );
   const [contentType, setContentType] = useState<ContentType>("article");
   const [marketingAngle, setMarketingAngle] = useState<MarketingAngle>("problem_solution");
   const [tone, setTone] = useState("professional");
@@ -227,6 +233,14 @@ export default function ContentPage() {
             <p style={{ color: "var(--text-secondary)" }}>
               Generate AI-powered marketing content with automatic compliance checking.
             </p>
+            {urlCampaignId && (
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+                  <span className="font-semibold">📍 Campaign Selected:</span> Generating content using your campaign's intelligence data.
+                  Generate multiple content pieces (articles, emails, videos, social posts, etc.) as needed.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

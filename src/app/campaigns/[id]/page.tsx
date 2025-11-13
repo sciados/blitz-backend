@@ -741,10 +741,9 @@ export default function CampaignDetailPage() {
                         {isActive && !isCompleted && (
                           <button
                             className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
-                            onClick={handleGenerateContent}
-                            disabled={isGenerating}
+                            onClick={() => router.push(`/content?campaign=${id}`)}
                           >
-                            {isGenerating ? "Generating..." : "Generate Content"}
+                            Generate Content
                           </button>
                         )}
                         {!isActive && (
