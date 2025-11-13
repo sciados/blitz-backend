@@ -120,13 +120,16 @@ async def generate_content(
     }
 
     # Build prompt
-    prompt = prompt_builder.build_content_prompt(
+    # Format context for additional_context parameter
+    context_text = "\n".join([f"- {c.get('text', '')}" for c in context]) if context else None
+
+    prompt = prompt_builder.build_prompt(
         content_type=request.content_type,
         product_info=product_info,
-        context=context,
-        angle=request.marketing_angle,
-        tone=request.tone,
-        length=request.length
+        marketing_angle=request.marketing_angle,
+        tone=request.tone or "professional",
+        additional_context=context_text or request.additional_context,
+        constraints={"length": request.length} if request.length else None
     )
     
     # Generate content using AI router

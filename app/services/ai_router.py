@@ -92,6 +92,7 @@ class AIRouter:
         self.fallback_enabled = bool(getattr(settings, "AI_FALLBACK_ENABLED", True))
         self.cost_optimization = bool(getattr(settings, "AI_COST_OPTIMIZATION", True))
         self.health: Dict[tuple[str, str], tuple[bool, float]] = {}  # (name, model) -> (ok, ts)
+        self.last_used_model: Optional[str] = None  # Track last successful model
 
     # ------------- parsing and specs -------------
 
@@ -266,6 +267,109 @@ class AIRouter:
         blended = 0.001
         total_tokens = tokens_in + tokens_out
         return (total_tokens / 1000.0) * blended
+
+    async def generate_text(
+        self,
+        prompt: Dict[str, str] | str,
+        max_tokens: int | str = 1000,
+        temperature: float = 0.7,
+        use_quality: bool = False,
+    ) -> str:
+        """
+        Generate text using AI providers with automatic fallback.
+
+        Args:
+            prompt: Either a string prompt or a dict with 'system' and 'user' keys
+            max_tokens: Maximum tokens to generate (or "short"/"medium"/"long")
+            temperature: Generation temperature
+            use_quality: Use quality providers instead of fast providers
+
+        Returns:
+            Generated text string
+        """
+        # Convert length strings to token counts
+        length_map = {
+            "short": 500,
+            "medium": 1000,
+            "long": 2000,
+        }
+        if isinstance(max_tokens, str):
+            max_tokens = length_map.get(max_tokens, 1000)
+
+        # Determine use case
+        use_case = "chat_quality" if use_quality else "chat_fast"
+
+        # Extract system and user prompts
+        if isinstance(prompt, dict):
+            system_prompt = prompt.get("system", "")
+            user_prompt = prompt.get("user", "")
+        else:
+            system_prompt = ""
+            user_prompt = prompt
+
+        # Define provider-specific call function
+        async def call_provider(spec: ProviderSpec, **kwargs):
+            """Call specific AI provider"""
+            if spec.name == "openai":
+                import openai
+                client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "anthropic":
+                import anthropic
+                client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+                response = await client.messages.create(
+                    model=spec.model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system=system_prompt if system_prompt else None,
+                    messages=[{"role": "user", "content": user_prompt}]
+                )
+                self.last_used_model = spec.model
+                return response.content[0].text
+
+            elif spec.name == "groq":
+                import groq
+                client = groq.AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            else:
+                raise NotImplementedError(f"Provider {spec.name} not yet implemented for text generation")
+
+        # Call with fallback
+        result = await self.call_with_fallback(
+            use_case=use_case,
+            call_func=call_provider,
+            prompt_tokens=len(system_prompt + user_prompt) // 4,  # Rough estimate
+            gen_tokens=max_tokens,
+        )
+
+        return result["result"]
 
 
 # Global router instance
