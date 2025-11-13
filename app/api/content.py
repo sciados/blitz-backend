@@ -102,12 +102,16 @@ async def generate_content(
             detail="Campaign not found"
         )
     
-    # Retrieve context from RAG
-    context = await rag_service.retrieve_context(
-        query=f"{request.content_type} for {campaign.name}",
-        campaign_id=request.campaign_id,
-        limit=5
-    )
+    # Retrieve context from RAG (optional - returns empty list if no knowledge base exists)
+    try:
+        context = await rag_service.retrieve_context(
+            query=f"{request.content_type} for {campaign.name}",
+            user_id=current_user.id,
+            top_k=5
+        )
+    except Exception as e:
+        logger.warning(f"RAG context retrieval failed (continuing without context): {e}")
+        context = []
 
     # Build product info from campaign
     product_info = {
