@@ -132,7 +132,7 @@ export type ProductCategory = {
 // CONTENT GENERATION TYPES
 // ============================================================================
 
-export type ContentType = "article" | "email" | "video_script" | "social_post" | "landing_page" | "ad_copy";
+export type ContentType = "article" | "email" | "email_sequence" | "video_script" | "social_post" | "landing_page" | "ad_copy";
 
 export type MarketingAngle =
     | "problem_solution"
