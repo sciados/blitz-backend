@@ -135,9 +135,9 @@ export function ContentViewModal({
               <div className="flex items-center space-x-2">
                 <span
                   className={`text-lg font-bold ${
-                    content.compliance_score >= 90
+                    (content.compliance_score ?? 0) >= 90
                       ? "text-green-600 dark:text-green-400"
-                      : content.compliance_score >= 70
+                      : (content.compliance_score ?? 0) >= 70
                       ? "text-yellow-600 dark:text-yellow-400"
                       : "text-red-600 dark:text-red-400"
                   }`}
@@ -148,13 +148,13 @@ export function ContentViewModal({
                   <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all ${
-                        content.compliance_score >= 80
+                        (content.compliance_score ?? 0) >= 80
                           ? "bg-green-500"
-                          : content.compliance_score >= 60
+                          : (content.compliance_score ?? 0) >= 60
                           ? "bg-yellow-500"
                           : "bg-red-500"
                       }`}
-                      style={{ width: `${content.compliance_score}%` }}
+                      style={{ width: `${content.compliance_score ?? 0}%` }}
                     />
                   </div>
                 )}

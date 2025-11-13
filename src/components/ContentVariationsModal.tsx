@@ -180,12 +180,12 @@ export function ContentVariationsModal({
                       <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
                         {getVariationTypeLabel(variationType)}
                       </span>
-                      {variation.compliance_score !== undefined && (
+                      {variation.compliance_score !== undefined && variation.compliance_score !== null && (
                         <span
                           className={`text-xs font-bold ${
-                            variation.compliance_score >= 90
+                            (variation.compliance_score ?? 0) >= 90
                               ? "text-green-600 dark:text-green-400"
-                              : variation.compliance_score >= 70
+                              : (variation.compliance_score ?? 0) >= 70
                               ? "text-yellow-600 dark:text-yellow-400"
                               : "text-red-600 dark:text-red-400"
                           }`}
