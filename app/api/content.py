@@ -130,39 +130,65 @@ async def generate_content(
     generated_text = replace_affiliate_urls(generated_text, campaign)
 
     # Check compliance
-    compliance_result = compliance_checker.check_content(generated_text)
+    compliance_result = compliance_checker.check_content(
+        content=generated_text,
+        content_type=request.content_type,
+        product_category=campaign.product_category
+    )
 
-    # Save to database
+    # Determine compliance status based on score
+    score = compliance_result.get("score", 0)
+    if score >= 90:
+        compliance_status = "compliant"
+    elif score >= 70:
+        compliance_status = "needs_review"
+    else:
+        compliance_status = "non_compliant"
+
+    # Format compliance notes
+    issues = compliance_result.get("issues", [])
+    compliance_notes = "\n".join([
+        f"[{issue.get('severity', 'medium').upper()}] {issue.get('message', '')}"
+        for issue in issues
+    ]) if issues else None
+
+    # Save to database with proper schema
     content = GeneratedContent(
         campaign_id=request.campaign_id,
         content_type=request.content_type,
-        content=generated_text,
-        angle=request.angle,
-        tone=request.tone,
-        compliance_score=compliance_result.get("score", 0.0),
-        compliance_issues=compliance_result.get("issues", []),
-        meta_data={
-            "prompt": prompt,
-            "model": ai_router.last_used_model,
-            "context_sources": [c.get("source") for c in context]
-        }
+        marketing_angle=request.marketing_angle,
+        content_data={
+            "text": generated_text,
+            "tone": request.tone,
+            "length": request.length,
+            "metadata": {
+                "prompt": prompt,
+                "model": ai_router.last_used_model,
+                "context_sources": [c.get("source") for c in context],
+                "generation_time": datetime.utcnow().isoformat()
+            }
+        },
+        compliance_status=compliance_status,
+        compliance_score=score,
+        compliance_notes=compliance_notes,
+        version=1
     )
     
     db.add(content)
     await db.commit()
     await db.refresh(content)
-    
+
     return ContentResponse(
         id=content.id,
         campaign_id=content.campaign_id,
         content_type=content.content_type,
-        content=content.content,
-        angle=content.angle,
-        tone=content.tone,
-        compliance_score=content.compliance_score,
-        compliance_issues=content.compliance_issues,
-        created_at=content.created_at,
-        updated_at=content.updated_at
+        marketing_angle=content.marketing_angle,
+        content_data=content.content_data,
+        compliance_status=content.compliance_status,
+        compliance_notes=content.compliance_notes,
+        version=content.version,
+        parent_content_id=content.parent_content_id,
+        created_at=content.created_at
     )
 
 
@@ -201,19 +227,19 @@ async def list_campaign_content(
     
     result = await db.execute(query)
     contents = result.scalars().all()
-    
+
     return [
         ContentResponse(
             id=content.id,
             campaign_id=content.campaign_id,
             content_type=content.content_type,
-            content=content.content,
-            angle=content.angle,
-            tone=content.tone,
-            compliance_score=content.compliance_score,
-            compliance_issues=content.compliance_issues,
-            created_at=content.created_at,
-            updated_at=content.updated_at
+            marketing_angle=content.marketing_angle,
+            content_data=content.content_data,
+            compliance_status=content.compliance_status,
+            compliance_notes=content.compliance_notes,
+            version=content.version,
+            parent_content_id=content.parent_content_id,
+            created_at=content.created_at
         )
         for content in contents
     ]
@@ -252,11 +278,14 @@ async def refine_content(
     )
     campaign = campaign_result.scalar_one()
 
+    # Get original text from content_data
+    original_text = content.content_data.get("text", "")
+
     # Build refinement prompt
-    refinement_prompt = f"""Refine the following content based on this feedback: {request.feedback}
+    refinement_prompt = f"""Refine the following content based on this feedback: {request.refinement_instructions}
 
 Original content:
-{content.content}
+{original_text}
 
 Provide the refined version:"""
 
@@ -271,28 +300,53 @@ Provide the refined version:"""
     refined_text = replace_affiliate_urls(refined_text, campaign)
 
     # Check compliance
-    compliance_result = compliance_checker.check_content(refined_text)
+    compliance_result = compliance_checker.check_content(
+        content=refined_text,
+        content_type=content.content_type,
+        product_category=campaign.product_category
+    )
 
-    # Update content
-    content.content = refined_text
-    content.compliance_score = compliance_result.get("score", 0.0)
-    content.compliance_issues = compliance_result.get("issues", [])
-    content.updated_at = datetime.utcnow()
-    
+    # Determine compliance status
+    score = compliance_result.get("score", 0)
+    if score >= 90:
+        compliance_status = "compliant"
+    elif score >= 70:
+        compliance_status = "needs_review"
+    else:
+        compliance_status = "non_compliant"
+
+    # Format compliance notes
+    issues = compliance_result.get("issues", [])
+    compliance_notes = "\n".join([
+        f"[{issue.get('severity', 'medium').upper()}] {issue.get('message', '')}"
+        for issue in issues
+    ]) if issues else None
+
+    # Update content_data with refined text
+    content.content_data["text"] = refined_text
+    content.content_data["metadata"]["last_refined"] = datetime.utcnow().isoformat()
+    content.compliance_status = compliance_status
+    content.compliance_score = score
+    content.compliance_notes = compliance_notes
+
+    # Mark JSONB field as modified for SQLAlchemy
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(content, "content_data")
+
     await db.commit()
     await db.refresh(content)
-    
+
     return ContentResponse(
         id=content.id,
         campaign_id=content.campaign_id,
         content_type=content.content_type,
-        content=content.content,
-        angle=content.angle,
-        tone=content.tone,
-        compliance_score=content.compliance_score,
-        compliance_issues=content.compliance_issues,
-        created_at=content.created_at,
-        updated_at=content.updated_at
+        marketing_angle=content.marketing_angle,
+        content_data=content.content_data,
+        compliance_status=content.compliance_status,
+        compliance_notes=content.compliance_notes,
+        version=content.version,
+        parent_content_id=content.parent_content_id,
+        created_at=content.created_at
     )
 
 
@@ -329,14 +383,32 @@ async def create_variations(
     )
     campaign = campaign_result.scalar_one()
 
+    # Get original text from content_data
+    original_text = content.content_data.get("text", "")
+
     variations = []
 
-    for i in range(request.count):
-        # Build variation prompt
-        variation_prompt = f"""Create a variation of the following content with a different approach but same message:
+    for i in range(request.num_variations):
+        # Build variation prompt based on type
+        if request.variation_type == "tone":
+            variation_prompt = f"""Create a variation of the following content with a different tone but same message:
 
 Original content:
-{content.content}
+{original_text}
+
+Provide variation {i+1} with a different tone:"""
+        elif request.variation_type == "angle":
+            variation_prompt = f"""Create a variation of the following content with a different marketing angle but same message:
+
+Original content:
+{original_text}
+
+Provide variation {i+1} with a different approach:"""
+        else:
+            variation_prompt = f"""Create a variation of the following content:
+
+Original content:
+{original_text}
 
 Variation {i+1}:"""
 
@@ -351,44 +423,72 @@ Variation {i+1}:"""
         variation_text = replace_affiliate_urls(variation_text, campaign)
 
         # Check compliance
-        compliance_result = compliance_checker.check_content(variation_text)
-        
+        compliance_result = compliance_checker.check_content(
+            content=variation_text,
+            content_type=content.content_type,
+            product_category=campaign.product_category
+        )
+
+        # Determine compliance status
+        score = compliance_result.get("score", 0)
+        if score >= 90:
+            compliance_status = "compliant"
+        elif score >= 70:
+            compliance_status = "needs_review"
+        else:
+            compliance_status = "non_compliant"
+
+        # Format compliance notes
+        issues = compliance_result.get("issues", [])
+        compliance_notes = "\n".join([
+            f"[{issue.get('severity', 'medium').upper()}] {issue.get('message', '')}"
+            for issue in issues
+        ]) if issues else None
+
         # Save variation
         variation = GeneratedContent(
             campaign_id=content.campaign_id,
             content_type=content.content_type,
-            content=variation_text,
-            angle=content.angle,
-            tone=content.tone,
-            compliance_score=compliance_result.get("score", 0.0),
-            compliance_issues=compliance_result.get("issues", []),
-            meta_data={
-                "original_content_id": content_id,
-                "variation_number": i + 1
-            }
+            marketing_angle=content.marketing_angle,
+            content_data={
+                "text": variation_text,
+                "tone": content.content_data.get("tone"),
+                "length": content.content_data.get("length"),
+                "metadata": {
+                    "original_content_id": content_id,
+                    "variation_number": i + 1,
+                    "variation_type": request.variation_type,
+                    "generation_time": datetime.utcnow().isoformat()
+                }
+            },
+            compliance_status=compliance_status,
+            compliance_score=score,
+            compliance_notes=compliance_notes,
+            version=1,
+            parent_content_id=content_id
         )
-        
+
         db.add(variation)
         variations.append(variation)
-    
+
     await db.commit()
-    
+
     # Refresh all variations
     for variation in variations:
         await db.refresh(variation)
-    
+
     return [
         ContentResponse(
             id=var.id,
             campaign_id=var.campaign_id,
             content_type=var.content_type,
-            content=var.content,
-            angle=var.angle,
-            tone=var.tone,
-            compliance_score=var.compliance_score,
-            compliance_issues=var.compliance_issues,
-            created_at=var.created_at,
-            updated_at=var.updated_at
+            marketing_angle=var.marketing_angle,
+            content_data=var.content_data,
+            compliance_status=var.compliance_status,
+            compliance_notes=var.compliance_notes,
+            version=var.version,
+            parent_content_id=var.parent_content_id,
+            created_at=var.created_at
         )
         for var in variations
     ]
