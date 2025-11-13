@@ -257,7 +257,7 @@ export default function ContentPage() {
                     <select
                       id="contentType"
                       value={contentType}
-                      onChange={(e) => setContentType(e.target.value)}
+                      onChange={(e) => setContentType(e.target.value as ContentType)}
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       style={{
                         borderColor: "var(--card-border)",
@@ -281,7 +281,7 @@ export default function ContentPage() {
                     <select
                       id="angle"
                       value={marketingAngle}
-                      onChange={(e) => setMarketingAngle(e.target.value)}
+                      onChange={(e) => setMarketingAngle(e.target.value as MarketingAngle)}
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       style={{
                         borderColor: "var(--card-border)",
