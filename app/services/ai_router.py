@@ -58,7 +58,8 @@ _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
     ("anthropic", "claude-3-haiku-20240307"): {"in": 0.25, "out": 1.25, "ctx": 200_000, "tags": ["fast"]},
     ("anthropic", "claude-3.5-sonnet-20241022"): {"in": 3.00, "out": 15.00, "ctx": 200_000, "tags": ["quality"]},
 
-    ("groq", "llama-3.1-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
+        ("groq", "llama-3.3-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
+        ("xai", "grok-beta"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
     ("groq", "llama-3.2-vision"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["vision"]},
 
     ("cohere", "embed-english-v3.0"): {"in": 0.10, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
@@ -344,6 +345,26 @@ class AIRouter:
             elif spec.name == "groq":
                 import groq
                 client = groq.AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "xai":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("XAI_API_KEY"),
+                    base_url="https://api.x.ai/v1",
+                )
                 messages = []
                 if system_prompt:
                     messages.append({"role": "system", "content": system_prompt})
