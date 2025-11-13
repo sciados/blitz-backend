@@ -6,11 +6,11 @@ Use-case routing, fallback, and basic health-aware selection.
 Environment-driven configuration so you can rotate providers at deploy time.
 
 ENV EXAMPLES (Railway):
-  AI_CHAT_FAST="groq:llama-3.1-70b-versatile, openai:gpt-4o-mini, anthropic:claude-3-haiku-20240307"
-  AI_CHAT_QUALITY="openai:gpt-4.1, anthropic:claude-3.5-sonnet-20241022"
-  AI_EMBEDDINGS="cohere:embed-english-v3.0, openai:text-embedding-3-small"
-  AI_VISION="openai:gpt-4o, groq:llama-3.2-vision"
-  AI_IMAGE_GEN="fal:sdxl-turbo, replicate:flux"
+  AI_CHAT_FAST="groq:llama-3.3-70b-versatile,xai:grok-beta,together:llama-3.2-3b-instruct-turbo,openai:gpt-4o-mini"
+  AI_CHAT_QUALITY="anthropic:claude-3.5-sonnet-20241022,openai:gpt-4.1,deepseek:deepseek-reasoner"
+  AI_EMBEDDINGS="openai:text-embedding-3-small,cohere:embed-english-v3.0"
+  AI_VISION="groq:llama-3.2-vision,openai:gpt-4o"
+  AI_IMAGE_GEN="fal:sdxl-turbo,replicate:flux"
 
 Flags in settings.py:
   AI_COST_OPTIMIZATION: bool
@@ -51,19 +51,32 @@ class ProviderSpec:
 # Minimal built-in cost/context defaults (extend as needed).
 # These are approximate and should be updated as providers change pricing.
 _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
-    ("openai", "gpt-4o-mini"): {"in": 0.15, "out": 0.60, "ctx": 128_000, "tags": ["fast", "vision"]},
-    ("openai", "gpt-4.1"): {"in": 5.00, "out": 15.00, "ctx": 128_000, "tags": ["quality"]},
-    ("openai", "text-embedding-3-small"): {"in": 0.02, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
+    # FREE Providers (Your API keys available)
+    ("groq", "llama-3.3-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
+    ("xai", "grok-beta"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
 
+    # CHEAPEST Paid Providers (Your API keys available)
+    ("together", "llama-3.2-3b-instruct-turbo"): {"in": 0.10, "out": 0.10, "ctx": 128_000, "tags": ["fast"]},
+    ("minimax", "abab6.5s-chat"): {"in": 0.12, "out": 0.12, "ctx": 245_760, "tags": ["fast"]},
+    ("deepseek", "deepseek-reasoner"): {"in": 0.14, "out": 0.28, "ctx": 200_000, "tags": ["fast", "reasoning"]},
+
+    # Popular Providers (Your API keys available)
+    ("openai", "gpt-4o-mini"): {"in": 0.15, "out": 0.60, "ctx": 128_000, "tags": ["fast", "vision"]},
     ("anthropic", "claude-3-haiku-20240307"): {"in": 0.25, "out": 1.25, "ctx": 200_000, "tags": ["fast"]},
+
+    # Quality Models
+    ("openai", "gpt-4.1"): {"in": 5.00, "out": 15.00, "ctx": 128_000, "tags": ["quality"]},
     ("anthropic", "claude-3.5-sonnet-20241022"): {"in": 3.00, "out": 15.00, "ctx": 200_000, "tags": ["quality"]},
 
-        ("groq", "llama-3.3-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
-        ("xai", "grok-beta"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
-    ("groq", "llama-3.2-vision"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["vision"]},
-
+    # Embeddings
+    ("openai", "text-embedding-3-small"): {"in": 0.02, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
     ("cohere", "embed-english-v3.0"): {"in": 0.10, "out": 0.00, "ctx": 8_192, "tags": ["embeddings"]},
 
+    # Vision
+    ("groq", "llama-3.2-vision"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["vision"]},
+    ("openai", "gpt-4o"): {"in": 2.50, "out": 10.00, "ctx": 128_000, "tags": ["vision", "quality"]},
+
+    # Image Generation
     ("fal", "sdxl-turbo"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
     ("replicate", "flux"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
 }
@@ -364,6 +377,66 @@ class AIRouter:
                 client = openai.AsyncOpenAI(
                     api_key=os.getenv("XAI_API_KEY"),
                     base_url="https://api.x.ai/v1",
+                )
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "together":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("TOGETHER_API_KEY"),
+                    base_url="https://api.together.xyz/v1",
+                )
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "minimax":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("MINIMAX_API_KEY"),
+                    base_url="https://api.minimax.chat/v1",
+                )
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "deepseek":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("DEEPSEEK_API_KEY"),
+                    base_url="https://api.deepseek.com/v1",
                 )
                 messages = []
                 if system_prompt:
