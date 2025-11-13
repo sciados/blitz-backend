@@ -104,17 +104,27 @@ async def generate_content(
     
     # Retrieve context from RAG
     context = await rag_service.retrieve_context(
-        query=f"{request.content_type} for {campaign.product_name}",
+        query=f"{request.content_type} for {campaign.name}",
         campaign_id=request.campaign_id,
         limit=5
     )
-    
+
+    # Build product info from campaign
+    product_info = {
+        "name": campaign.name,
+        "description": campaign.product_description,
+        "type": campaign.product_type,
+        "target_audience": campaign.target_audience,
+        "keywords": campaign.keywords,
+        "url": campaign.product_url
+    }
+
     # Build prompt
     prompt = prompt_builder.build_content_prompt(
         content_type=request.content_type,
-        product_info=campaign.product_data or {},
+        product_info=product_info,
         context=context,
-        angle=request.angle,
+        angle=request.marketing_angle,
         tone=request.tone,
         length=request.length
     )
@@ -130,10 +140,12 @@ async def generate_content(
     generated_text = replace_affiliate_urls(generated_text, campaign)
 
     # Check compliance
+    # Use product_type as category if product_category not available
+    product_category = campaign.product_type if campaign.product_type else "general"
     compliance_result = compliance_checker.check_content(
         content=generated_text,
         content_type=request.content_type,
-        product_category=campaign.product_category
+        product_category=product_category
     )
 
     # Determine compliance status based on score
