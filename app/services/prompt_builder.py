@@ -287,6 +287,16 @@ PRODUCT INFORMATION:
         # Add marketing angle guidance
         user_prompt += self._get_marketing_angle_guidance(marketing_angle)
 
+        # Enforce word count for emails
+        if content_type == 'email' and constraints and constraints.get('length'):
+            length = constraints['length']
+            if length == 'short':
+                user_prompt += "\n\nCRITICAL: Email must be exactly 50-70 words."
+            elif length == 'medium':
+                user_prompt += "\n\nCRITICAL: Email must be exactly 100-130 words."
+            elif length == 'long':
+                user_prompt += "\n\nCRITICAL: Email must be exactly 250-350 words."
+
         return user_prompt
 
     def _build_email_sequence_prompt(
@@ -362,10 +372,21 @@ PROGRESSION STRATEGY:
         if additional_context:
             user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
 
+        # Get word count target from constraints or use default
+        word_count_target = "60-120"
+        if constraints and constraints.get('length'):
+            length = constraints['length']
+            if length == 'short':
+                word_count_target = "50-70"
+            elif length == 'medium':
+                word_count_target = "100-130"
+            elif length == 'long':
+                word_count_target = "250-350"
+
         user_prompt += f"""
 EMAIL SEQUENCE REQUIREMENTS:
 - Generate exactly {num_emails} separate emails
-- Each email should be 60-120 words (ideal for mobile reading)
+- STRICT WORD COUNT: Each email body must be {word_count_target} words ONLY
 - Include a clear, compelling subject line for each email
 - Include a clear CTA in each email (adapted to the prospect temperature)
 - Maintain consistent tone and voice throughout
@@ -373,10 +394,12 @@ EMAIL SEQUENCE REQUIREMENTS:
 - Include affiliate disclosure where appropriate
 - Each email should provide standalone value
 
+CRITICAL: Do not exceed the word count limit. Keep emails concise and to the point.
+
 FORMAT:
 For each email, provide:
 1. Subject Line: [subject]
-2. Email Body: [content]
+2. Email Body: [content - exactly {word_count_target} words]
 
 Separate each email with: === END OF EMAIL {num_emails} ===
 
@@ -425,6 +448,15 @@ LANDING PAGE GUIDELINES:
 - Create urgency without being pushy
 - Use social proof strategically""",
             
+            'email': """
+EMAIL GUIDELINES:
+- Keep email body concise and focused (50-150 words)
+- Use short paragraphs for easy mobile reading
+- Include a clear, compelling subject line
+- Have one clear call-to-action
+- Include affiliate disclosure where appropriate
+- Write in a conversational, friendly tone""",
+
             'email_sequence': """
 EMAIL SEQUENCE GUIDELINES:
 - Each email should have one clear purpose
