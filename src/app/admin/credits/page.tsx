@@ -98,6 +98,22 @@ export default function AICreditsPage() {
     },
   });
 
+  const generateTestDataMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post("/api/admin/credits/test-data/generate");
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-usage"] });
+      toast.success(`Generated ${data.deposits_created} deposits and ${data.usage_records_created} usage records`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to generate test data");
+    },
+  });
+
   const handleSubmitDeposit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount_usd || parseFloat(formData.amount_usd) <= 0) {
@@ -145,12 +161,21 @@ export default function AICreditsPage() {
               Track deposits, monitor spending, and manage AI platform credits
             </p>
           </div>
-          <button
-            onClick={() => setShowDepositForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            + Add Deposit
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => generateTestDataMutation.mutate()}
+              disabled={generateTestDataMutation.isPending}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+            >
+              {generateTestDataMutation.isPending ? "Generating..." : "🧪 Generate Test Data"}
+            </button>
+            <button
+              onClick={() => setShowDepositForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              + Add Deposit
+            </button>
+          </div>
         </div>
 
         {/* Provider Balances */}
