@@ -66,12 +66,12 @@ export default function AdminConfigPage() {
   const queryClient = useQueryClient();
 
   // Fetch data
-  const { data: tiers = [], isLoading: tiersLoading } = useQuery<TierConfig[]>({
+  const { data: tiersData, isLoading: tiersLoading } = useQuery<{tiers: TierConfig[]}>({
     queryKey: ["admin-tiers"],
     queryFn: async () => (await api.get("/api/admin/config/tiers")).data,
   });
 
-  const { data: providers = [], isLoading: providersLoading } = useQuery<AIProvider[]>({
+  const { data: providersData, isLoading: providersLoading } = useQuery<{providers: AIProvider[]}>({
     queryKey: ["admin-providers"],
     queryFn: async () => (await api.get("/api/admin/config/providers")).data,
   });
@@ -80,6 +80,9 @@ export default function AdminConfigPage() {
     queryKey: ["admin-global"],
     queryFn: async () => (await api.get("/api/admin/config/global")).data,
   });
+
+  const tiers = tiersData?.tiers || [];
+  const providers = providersData?.providers || [];
 
   // Mutations
   const updateTierMutation = useMutation({
