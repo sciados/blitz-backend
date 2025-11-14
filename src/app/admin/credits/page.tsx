@@ -114,6 +114,22 @@ export default function AICreditsPage() {
     },
   });
 
+  const clearTestDataMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.delete("/api/admin/credits/test-data/clear");
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-deposits"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-credit-usage"] });
+      toast.success(`Cleared ${data.deposits_deleted} test deposits and ${data.usage_records_deleted} test usage records`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || "Failed to clear test data");
+    },
+  });
+
   const handleSubmitDeposit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount_usd || parseFloat(formData.amount_usd) <= 0) {
@@ -168,6 +184,17 @@ export default function AICreditsPage() {
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
             >
               {generateTestDataMutation.isPending ? "Generating..." : "🧪 Generate Test Data"}
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Clear all test data? This will remove test deposits and usage records.")) {
+                  clearTestDataMutation.mutate();
+                }
+              }}
+              disabled={clearTestDataMutation.isPending}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+            >
+              {clearTestDataMutation.isPending ? "Clearing..." : "🗑️ Clear Test Data"}
             </button>
             <button
               onClick={() => setShowDepositForm(true)}
