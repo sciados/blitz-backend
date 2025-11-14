@@ -207,7 +207,7 @@ QUALITY STANDARDS:
         if constraints:
             system_prompt += "\n\nCONSTRAINTS:"
             if constraints.get('word_count'):
-                system_prompt += f"\n- Target word count: {constraints['word_count']} words"
+                system_prompt += f"\n- IMPORTANT: Keep content to EXACTLY {constraints['word_count']} words (±10%). Count your words carefully."
             if constraints.get('keywords'):
                 system_prompt += f"\n- Include keywords: {', '.join(constraints['keywords'])}"
             if constraints.get('avoid_terms'):
@@ -287,15 +287,13 @@ PRODUCT INFORMATION:
         # Add marketing angle guidance
         user_prompt += self._get_marketing_angle_guidance(marketing_angle)
 
-        # Enforce word count for emails
-        if content_type == 'email' and constraints and constraints.get('length'):
-            length = constraints['length']
-            if length == 'short':
-                user_prompt += "\n\nCRITICAL: Email must be exactly 50-70 words."
-            elif length == 'medium':
-                user_prompt += "\n\nCRITICAL: Email must be exactly 100-130 words."
-            elif length == 'long':
-                user_prompt += "\n\nCRITICAL: Email must be exactly 250-350 words."
+        # Enforce word count constraint
+        if constraints and constraints.get('word_count'):
+            word_count = constraints['word_count']
+            user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
+            user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
+            user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words."
+            user_prompt += f"\nCount carefully and adjust before submitting."
 
         return user_prompt
 

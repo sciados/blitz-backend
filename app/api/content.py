@@ -178,7 +178,7 @@ async def generate_content(
         "marketing_angle": request.marketing_angle,
         "tone": request.tone or "professional",
         "additional_context": context_text or request.additional_context,
-        "constraints": {"length": request.length} if request.length else None
+        "constraints": {"word_count": request.length} if request.length else None
     }
 
     # Add email sequence parameters if needed
@@ -189,11 +189,19 @@ async def generate_content(
         }
 
     prompt = prompt_builder.build_prompt(**prompt_params)
-    
+
+    # Calculate max_tokens from word count
+    # Words to tokens conversion: ~1.3-1.5 tokens per word
+    # Add 20% buffer to ensure AI has room to complete
+    if request.length:
+        max_tokens = int(request.length * 1.5 * 1.2)
+    else:
+        max_tokens = 1500  # Default for unspecified length
+
     # Generate content using AI router
     generated_text = await ai_router.generate_text(
         prompt=prompt,
-        max_tokens=request.length or 1000,
+        max_tokens=max_tokens,
         temperature=0.7
     )
 
