@@ -27,7 +27,15 @@
       "Bash(find:*)",
       "Bash(git fetch:*)",
       "Bash(__NEW_LINE__:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(npm run dev:*)",
+      "Bash(python:*)",
+      "Bash(alembic current:*)",
+      "Bash(alembic merge:*)",
+      "Bash(pip install:*)",
+      "Bash(git rm:*)",
+      "Bash(done:*)",
+      "Bash(git ls-tree:*)"
     ],
     "deny": [],
     "ask": []
