@@ -89,12 +89,12 @@ def upgrade():
             tier_name, display_name, monthly_price, words_per_month, words_per_day,
             words_per_generation, images_per_month, videos_per_month, max_campaigns,
             content_pieces_per_campaign, email_sequences, api_calls_per_day,
-            overage_rate_per_1k_words, features
+            overage_rate_per_1k_words, is_active, features
         ) VALUES
-            ('free', 'Free', 0.00, 10000, 330, 2000, -1, 10, 3, 10, 1, 0, 0.50, '["basic_templates", "community_support"]'),
-            ('starter', 'Starter', 19.00, 50000, 1650, 5000, -1, 50, 10, 50, 3, 100, 0.25, '["all_templates", "email_sequences", "priority_support", "compliance_check"]'),
-            ('pro', 'Pro', 59.00, 200000, 6600, 10000, -1, 200, -1, -1, 10, 1000, 0.20, '["advanced_templates", "analytics", "api_access", "content_variations"]'),
-            ('enterprise', 'Enterprise', 129.00, 500000, 16600, 20000, -1, 500, -1, -1, -1, -1, 0.15, '["white_label", "custom_integrations", "dedicated_support", "priority_features"]')
+            ('free', 'Free', 0.00, 10000, 330, 2000, -1, 10, 3, 10, 1, 0, 0.50, TRUE, '["basic_templates", "community_support"]'),
+            ('starter', 'Starter', 19.00, 50000, 1650, 5000, -1, 50, 10, 50, 3, 100, 0.25, TRUE, '["all_templates", "email_sequences", "priority_support", "compliance_check"]'),
+            ('pro', 'Pro', 59.00, 200000, 6600, 10000, -1, 200, -1, -1, 10, 1000, 0.20, TRUE, '["advanced_templates", "analytics", "api_access", "content_variations"]'),
+            ('enterprise', 'Enterprise', 129.00, 500000, 16600, 20000, -1, 500, -1, -1, -1, -1, 0.15, TRUE, '["white_label", "custom_integrations", "dedicated_support", "priority_features"]')
     """)
 
     """Insert default AI provider configurations"""
