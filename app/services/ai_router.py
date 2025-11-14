@@ -10,7 +10,8 @@ ENV EXAMPLES (Railway):
   AI_CHAT_QUALITY="anthropic:claude-3.5-sonnet-20241022,openai:gpt-4.1,deepseek:deepseek-reasoner"
   AI_EMBEDDINGS="openai:text-embedding-3-small,cohere:embed-english-v3.0"
   AI_VISION="groq:llama-3.2-vision,openai:gpt-4o"
-  AI_IMAGE_GEN="fal:sdxl-turbo,replicate:flux"
+  AI_IMAGE_GEN="fal:sdxl-turbo,stability:sd-3.5-medium,replicate:flux"
+  AI_VIDEO_GEN="replicate:luma-dream-machine,aimlapi:runway-gen3a-turbo,fal:video-01"
 
 Flags in settings.py:
   AI_COST_OPTIMIZATION: bool
@@ -79,6 +80,16 @@ _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
     # Image Generation
     ("fal", "sdxl-turbo"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
     ("replicate", "flux"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+    ("stability", "sd-3.5-large"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+    ("stability", "sd-3.5-medium"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+    ("replicate", "sdxl"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen"]},
+    ("fal", "fal-3d"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["image_gen", "3d"]},
+
+    # Video Generation (NEW!)
+    ("aimlapi", "runway-gen3a-turbo"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
+    ("replicate", "luma-dream-machine"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
+    ("fal", "video-01"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
+    ("fal", "stable-video-diffusion"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
 }
 
 
@@ -89,6 +100,7 @@ _USECASE_ENV_MAP: Dict[str, str] = {
     "embeddings": "AI_EMBEDDINGS",
     "vision": "AI_VISION",
     "image_gen": "AI_IMAGE_GEN",
+    "video_gen": "AI_VIDEO_GEN",
 }
 
 
@@ -487,6 +499,46 @@ class AIRouter:
                 client = openai.AsyncOpenAI(
                     api_key=os.getenv("DEEPSEEK_API_KEY"),
                     base_url="https://api.deepseek.com/v1",
+                )
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "stability":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("STABILITY_API_KEY"),
+                    base_url="https://api.stability.ai/v1",
+                )
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": user_prompt})
+
+                response = await client.chat.completions.create(
+                    model=spec.model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature
+                )
+                self.last_used_model = spec.model
+                return response.choices[0].message.content
+
+            elif spec.name == "aimlapi":
+                import openai
+                client = openai.AsyncOpenAI(
+                    api_key=os.getenv("AIMLAPI_API_KEY"),
+                    base_url="https://api.aimlapi.com/v1",
                 )
                 messages = []
                 if system_prompt:
