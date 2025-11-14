@@ -14,7 +14,7 @@ from app.db.models import User
 from app.db.models import Campaign
 from app.db.models import GeneratedContent as Content
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/analytics", tags=["admin-analytics"])
 

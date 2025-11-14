@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 
 from app.db.models import User, Campaign
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
 

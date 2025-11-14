@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 from app.db.models import User, Campaign, GeneratedContent
 from app.models.campaign import Campaign
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/dashboard", tags=["admin-dashboard"])
 

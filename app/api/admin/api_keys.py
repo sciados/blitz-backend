@@ -11,7 +11,7 @@ import os
 
 from app.models.user import User
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/api-keys", tags=["admin-api-keys"])
 
