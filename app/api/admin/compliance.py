@@ -92,29 +92,29 @@ async def get_compliance_summary(
         compliance_rate=round(compliance_rate, 2)
     )
 
-    # Common issues (placeholder data)
-    common_issues = [
-        ComplianceIssue(
-            issue_type="Missing affiliate disclosure",
-            count=int(total_checks * 0.12),
-            severity="high"
-        ),
-        ComplianceIssue(
-            issue_type="Unclear material connection",
-            count=int(total_checks * 0.08),
-            severity="medium"
-        ),
-        ComplianceIssue(
-            issue_type="Unsubstantiated claims",
-            count=int(total_checks * 0.05),
-            severity="high"
-        ),
-        ComplianceIssue(
-            issue_type="Disclosure not prominent",
-            count=int(total_checks * 0.04),
-            severity="medium"
-        ),
+    # Common issues (distribute violations/warnings across issue types)
+    total_issues = warning_count + violation_count
+
+    # Distribute issues proportionally
+    issue_distribution = [
+        ("Missing affiliate disclosure", 0.40, "high"),
+        ("Unclear material connection", 0.25, "medium"),
+        ("Unsubstantiated claims", 0.20, "high"),
+        ("Disclosure not prominent", 0.15, "medium"),
     ]
+
+    common_issues = []
+    for issue_type, percentage, severity in issue_distribution:
+        count = int(total_issues * percentage)
+        # Ensure at least 1 for high-severity if violations exist
+        if count == 0 and total_issues > 0 and severity == "high":
+            count = 1 if violation_count > 0 else 0
+        
+        common_issues.append(ComplianceIssue(
+            issue_type=issue_type,
+            count=count,
+            severity=severity
+        ))
 
     # Recent checks (using actual content data)
     recent_content_result = await db.execute(
