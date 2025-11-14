@@ -367,6 +367,41 @@ async def get_alerts_history(
 # HELPER ENDPOINT FOR TESTING
 # ============================================================================
 
+@router.delete("/test-data/clear")
+async def clear_test_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Clear all test data (deposits and usage records marked as test)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Delete test deposits
+    deposits_result = await db.execute(
+        select(AICreditDeposit).where(AICreditDeposit.notes == "Test deposit")
+    )
+    test_deposits = deposits_result.scalars().all()
+    for deposit in test_deposits:
+        await db.delete(deposit)
+
+    # Delete test usage records
+    usage_result = await db.execute(
+        select(AIUsageTracking).where(AIUsageTracking.task_type == "test_data")
+    )
+    test_usage = usage_result.scalars().all()
+    for usage in test_usage:
+        await db.delete(usage)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "deposits_deleted": len(test_deposits),
+        "usage_records_deleted": len(test_usage),
+        "message": "Test data cleared successfully",
+    }
+
+
 @router.post("/test-data/generate")
 async def generate_test_data(
     db: AsyncSession = Depends(get_db),
@@ -376,9 +411,21 @@ async def generate_test_data(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Clear existing test data
-    await db.execute(select(AICreditDeposit).where(AICreditDeposit.notes == "Test deposit"))
-    await db.execute(select(AIUsageTracking).where(AIUsageTracking.task_type == "test_data"))
+    # Clear existing test data first
+    deposits_result = await db.execute(
+        select(AICreditDeposit).where(AICreditDeposit.notes == "Test deposit")
+    )
+    test_deposits = deposits_result.scalars().all()
+    for deposit in test_deposits:
+        await db.delete(deposit)
+
+    usage_result = await db.execute(
+        select(AIUsageTracking).where(AIUsageTracking.task_type == "test_data")
+    )
+    test_usage = usage_result.scalars().all()
+    for usage in test_usage:
+        await db.delete(usage)
+
     await db.commit()
 
     # Add sample deposits
