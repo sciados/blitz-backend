@@ -14,6 +14,7 @@ from app.api.admin import ai_router as admin_ai_router
 from app.api.admin import products as admin_products
 from app.api.admin import campaigns as admin_campaigns
 from app.api.admin import config as admin_config
+from app.api.admin import users as admin_users
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -156,6 +157,7 @@ app.include_router(links.router)  # Link management API under /api/links
 app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(admin_ai_router.router)
 app.include_router(admin_config.router)
+app.include_router(admin_users.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 
