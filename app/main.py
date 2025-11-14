@@ -19,7 +19,7 @@ from app.api.admin import dashboard as admin_dashboard
 from app.api.admin import analytics as admin_analytics
 from app.api.admin import api_keys as admin_api_keys
 from app.api.admin import compliance as admin_compliance
-from app.api.admin import compliance as admin_compliance
+from app.api.admin import credits as admin_credits
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -168,6 +168,7 @@ app.include_router(admin_analytics.router)
 app.include_router(admin_api_keys.router)
 app.include_router(admin_compliance.router)
 app.include_router(admin_compliance.router)
+app.include_router(admin_credits.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 
