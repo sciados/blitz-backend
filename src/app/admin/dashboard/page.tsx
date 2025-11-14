@@ -1,8 +1,23 @@
 "use client";
 import { AuthGate } from "src/components/AuthGate";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "src/lib/appClient";
+
+interface DashboardStats {
+  total_users: number;
+  active_campaigns: number;
+  total_campaigns: number;
+  api_calls_today: number;
+  system_health: string;
+}
 
 export default function AdminDashboardPage() {
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
+    queryKey: ["admin-dashboard-stats"],
+    queryFn: async () => (await api.get("/api/admin/dashboard/stats")).data,
+  });
+
   return (
     <AuthGate requiredRole="admin">
       <div className="min-h-screen" style={{ background: 'var(--bg-secondary)' }}>
@@ -26,7 +41,9 @@ export default function AdminDashboardPage() {
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                     Total Users
                   </p>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>—</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {isLoading ? "..." : stats?.total_users || 0}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +60,9 @@ export default function AdminDashboardPage() {
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                     Active Campaigns
                   </p>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>—</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {isLoading ? "..." : stats?.active_campaigns || 0}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,14 +72,16 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* API Calls Today */}
+            {/* Total Campaigns */}
             <div className="card rounded-xl p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    API Calls Today
+                    Total Campaigns
                   </p>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>—</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                    {isLoading ? "..." : stats?.total_campaigns || 0}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +98,9 @@ export default function AdminDashboardPage() {
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                     System Health
                   </p>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">Healthy</p>
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {isLoading ? "..." : stats?.system_health || "Healthy"}
+                  </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +111,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Management Section */}
+                    {/* Management Section */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
               Platform Management
