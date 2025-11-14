@@ -104,17 +104,22 @@ async def get_compliance_summary(
     ]
 
     common_issues = []
+    distributed_count = 0
+    
     for issue_type, percentage, severity in issue_distribution:
         count = int(total_issues * percentage)
-        # Ensure at least 1 for high-severity if violations exist
-        if count == 0 and total_issues > 0 and severity == "high":
-            count = 1 if violation_count > 0 else 0
+        distributed_count += count
         
         common_issues.append(ComplianceIssue(
             issue_type=issue_type,
             count=count,
             severity=severity
         ))
+    
+    # Distribute any remainder to the first issue (highest percentage)
+    remainder = total_issues - distributed_count
+    if remainder > 0 and len(common_issues) > 0:
+        common_issues[0].count += remainder
 
     # Recent checks (using actual content data)
     recent_content_result = await db.execute(
