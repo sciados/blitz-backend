@@ -7,7 +7,7 @@
 
 ```sql
 -- =====================================================
--- UPDATE FREE TIER
+-- UPDATE FREE TIER (30-DAY TRIAL)
 -- =====================================================
 UPDATE tier_configs
 SET
@@ -16,10 +16,13 @@ SET
     words_per_month = 12000,           -- 1 campaign × 12K words
     words_per_day = 400,               -- 12000 ÷ 30 days
     words_per_generation = 2000,
-    images_per_month = 80,              -- 1 campaign × 80 images
-    videos_per_month = 20,              -- 1 campaign × 20 videos
+    images_per_month = 20,              -- 1 campaign × 20 images (limited)
+    videos_per_month = 2,               -- 1 campaign × 2 videos (limited)
     overage_rate_per_1k_words = 0.50
 WHERE tier_name = 'free';
+
+-- NOTE: Trial duration (30 days) should be handled in application logic
+-- or add trial_duration_days field to tier_configs table
 
 -- =====================================================
 -- UPDATE STARTER TIER
@@ -91,12 +94,12 @@ ORDER BY monthly_price;
 
 **Expected Output:**
 ```
-tier_name  | display_name | monthly_price | max_campaigns | words_per_month | images_per_month | videos_per_month
------------|--------------|---------------|---------------|-----------------|------------------|------------------
-free       | Free         | 0.00          | 1             | 12000           | 80               | 20
-starter    | Starter      | 25.00         | 5             | 60000           | 400              | 100
-pro        | Pro          | 79.00         | 12            | 144000          | 960              | 240
-enterprise | Enterprise   | 249.00        | 40            | 480000          | 3200             | 800
+tier_name  | display_name | monthly_price | max_campaigns | words_per_month | images_per_month | videos_per_month | notes
+-----------|--------------|---------------|---------------|-----------------|------------------|------------------|------------------
+free       | Free         | 0.00          | 1             | 12000           | 20               | 2                | 30-day trial
+starter    | Starter      | 25.00         | 5             | 60000           | 400              | 100              | monthly
+pro        | Pro          | 79.00         | 12            | 144000          | 960              | 240              | monthly
+enterprise | Enterprise   | 249.00        | 40            | 480000          | 3200             | 800              | monthly
 ```
 
 ---
@@ -165,6 +168,35 @@ UPDATE tier_configs SET monthly_price = 119.00 WHERE tier_name = 'pro';
 -- ENTERPRISE PREMIUM
 UPDATE tier_configs SET monthly_price = 349.00 WHERE tier_name = 'enterprise';
 ```
+
+---
+
+## 30-DAY TRIAL HANDLING
+
+### Option 1: Application Logic (Recommended)
+Store trial start/end dates in user record:
+```sql
+-- Add to users table (if not exists)
+ALTER TABLE users ADD COLUMN trial_start_date TIMESTAMP;
+ALTER TABLE users ADD COLUMN trial_end_date TIMESTAMP;
+ALTER TABLE users ADD COLUMN trial_used BOOLEAN DEFAULT FALSE;
+
+-- On signup, set trial dates
+UPDATE users
+SET trial_start_date = NOW(),
+    trial_end_date = NOW() + INTERVAL '30 days',
+    trial_used = TRUE
+WHERE id = ? AND trial_used = FALSE;
+```
+
+### Option 2: Add Field to tier_configs
+```sql
+ALTER TABLE tier_configs ADD COLUMN trial_duration_days INTEGER;
+
+UPDATE tier_configs SET trial_duration_days = 30 WHERE tier_name = 'free';
+```
+
+**Recommendation:** Use Option 1 (application logic) for flexibility
 
 ---
 
