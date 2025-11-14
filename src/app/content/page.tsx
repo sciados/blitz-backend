@@ -413,13 +413,29 @@ export default function ContentPage() {
                   {/* Campaign Selector */}
                   <CampaignSelector
                     selectedCampaignId={campaignId}
-                    onSelect={setCampaignId}
+                    onSelect={(id) => {
+                      setCampaignId(id);
+                      if (id) {
+                        toast.success("Campaign selected - ready to generate content!");
+                      }
+                    }}
                     label="Campaign *"
                     placeholder="Select a campaign..."
                   />
-                  <p className="text-xs -mt-2" style={{ color: "var(--text-secondary)" }}>
-                    Content will be based on campaign's product intelligence
-                  </p>
+                  {campaignId ? (
+                    <div className="flex items-center gap-2 p-2 -mt-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-xs">
+                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span style={{ color: "var(--text-primary)" }}>
+                        Campaign selected - content will use campaign intelligence
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs -mt-2" style={{ color: "var(--text-secondary)" }}>
+                      Content will be based on campaign's product intelligence
+                    </p>
+                  )}
 
                   {/* Content Type */}
                   <div>
