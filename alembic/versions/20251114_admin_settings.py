@@ -101,29 +101,29 @@ def upgrade():
     op.execute("""
         INSERT INTO ai_provider_configs (
             provider_name, model_name, cost_per_input_token, cost_per_output_token,
-            context_length, tags, environment_variable, priority
+            context_length, tags, environment_variable, is_active, priority
         ) VALUES
-            ('groq', 'llama-3.3-70b-versatile', 0.00, 0.00, 128000, '["fast", "free"]', 'GROQ_API_KEY', 100),
-            ('xai', 'grok-beta', 0.00, 0.00, 128000, '["fast", "free"]', 'XAI_API_KEY', 100),
-            ('openai', 'gpt-4o-mini', 0.15, 0.60, 128000, '["fast", "premium"]', 'OPENAI_API_KEY', 80),
-            ('anthropic', 'claude-3-haiku-20240307', 0.25, 1.25, 200000, '["fast", "premium"]', 'ANTHROPIC_API_KEY', 75),
-            ('deepseek', 'deepseek-reasoner', 0.14, 0.28, 200000, '["fast", "reasoning"]', 'DEEPSEEK_API_KEY', 70),
-            ('together', 'llama-3.2-3b-instruct-turbo', 0.10, 0.10, 128000, '["fast"]', 'TOGETHER_API_KEY', 65),
-            ('minimax', 'abab6.5s-chat', 0.12, 0.12, 245760, '["fast", "long_context"]', 'MINIMAX_API_KEY', 60),
-            ('openai', 'gpt-4o', 2.50, 10.00, 128000, '["quality", "premium"]', 'OPENAI_API_KEY', 55),
-            ('openai', 'gpt-4.1', 5.00, 15.00, 128000, '["quality", "premium"]', 'OPENAI_API_KEY', 50),
-            ('anthropic', 'claude-3.5-sonnet-20241022', 3.00, 15.00, 200000, '["quality", "premium"]', 'ANTHROPIC_API_KEY', 50),
-            ('together', 'llama-3.1-70b-instruct-turbo', 0.22, 0.22, 128000, '["quality"]', 'TOGETHER_API_KEY', 45),
-            ('together', 'qwen-2.5-72b-instruct', 0.18, 0.18, 131072, '["quality", "multilingual"]', 'TOGETHER_API_KEY', 45),
-            ('groq', 'mixtral-8x7b-32768', 0.00, 0.00, 32768, '["fast", "free"]', 'GROQ_API_KEY', 100),
-            ('replicate', 'llama-2-70b-chat', 0.40, 0.40, 4096, '["conversational"]', 'REPLICATE_API_TOKEN', 40),
-            ('replicate', 'mistral-7b-instruct', 0.15, 0.15, 32768, '["fast"]', 'REPLICATE_API_TOKEN', 40),
-            ('aimlapi', 'gpt-3.5-turbo', 0.50, 0.50, 4096, '["budget"]', 'AIMLAPI_API_KEY', 35),
-            ('aimlapi', 'llama-2-7b-chat', 0.30, 0.30, 4096, '["budget"]', 'AIMLAPI_API_KEY', 35),
-            ('fal-ai', 'falcon3-11b', 0.25, 0.25, 8192, '["fast"]', 'FAL_KEY', 40),
-            ('fal-ai', 'llama-3.1-8b-instruct', 0.20, 0.20, 8192, '["fast"]', 'FAL_KEY', 40),
-            ('stability', 'stable-diffusion-xl', 0.04, 0.04, 1024, '["image", "generation"]', 'STABILITY_API_KEY', 30),
-            ('stability', 'stable-diffusion-3-medium', 0.03, 0.03, 1024, '["image", "generation"]', 'STABILITY_API_KEY', 30)
+            ('groq', 'llama-3.3-70b-versatile', 0.00, 0.00, 128000, '["fast", "free"]', 'GROQ_API_KEY', TRUE, 100),
+            ('xai', 'grok-beta', 0.00, 0.00, 128000, '["fast", "free"]', 'XAI_API_KEY', TRUE, 100),
+            ('openai', 'gpt-4o-mini', 0.15, 0.60, 128000, '["fast", "premium"]', 'OPENAI_API_KEY', TRUE, 80),
+            ('anthropic', 'claude-3-haiku-20240307', 0.25, 1.25, 200000, '["fast", "premium"]', 'ANTHROPIC_API_KEY', TRUE, 75),
+            ('deepseek', 'deepseek-reasoner', 0.14, 0.28, 200000, '["fast", "reasoning"]', 'DEEPSEEK_API_KEY', TRUE, 70),
+            ('together', 'llama-3.2-3b-instruct-turbo', 0.10, 0.10, 128000, '["fast"]', 'TOGETHER_API_KEY', TRUE, 65),
+            ('minimax', 'abab6.5s-chat', 0.12, 0.12, 245760, '["fast", "long_context"]', 'MINIMAX_API_KEY', TRUE, 60),
+            ('openai', 'gpt-4o', 2.50, 10.00, 128000, '["quality", "premium"]', 'OPENAI_API_KEY', TRUE, 55),
+            ('openai', 'gpt-4.1', 5.00, 15.00, 128000, '["quality", "premium"]', 'OPENAI_API_KEY', TRUE, 50),
+            ('anthropic', 'claude-3.5-sonnet-20241022', 3.00, 15.00, 200000, '["quality", "premium"]', 'ANTHROPIC_API_KEY', TRUE, 50),
+            ('together', 'llama-3.1-70b-instruct-turbo', 0.22, 0.22, 128000, '["quality"]', 'TOGETHER_API_KEY', TRUE, 45),
+            ('together', 'qwen-2.5-72b-instruct', 0.18, 0.18, 131072, '["quality", "multilingual"]', 'TOGETHER_API_KEY', TRUE, 45),
+            ('groq', 'mixtral-8x7b-32768', 0.00, 0.00, 32768, '["fast", "free"]', 'GROQ_API_KEY', TRUE, 100),
+            ('replicate', 'llama-2-70b-chat', 0.40, 0.40, 4096, '["conversational"]', 'REPLICATE_API_TOKEN', TRUE, 40),
+            ('replicate', 'mistral-7b-instruct', 0.15, 0.15, 32768, '["fast"]', 'REPLICATE_API_TOKEN', TRUE, 40),
+            ('aimlapi', 'gpt-3.5-turbo', 0.50, 0.50, 4096, '["budget"]', 'AIMLAPI_API_KEY', TRUE, 35),
+            ('aimlapi', 'llama-2-7b-chat', 0.30, 0.30, 4096, '["budget"]', 'AIMLAPI_API_KEY', TRUE, 35),
+            ('fal-ai', 'falcon3-11b', 0.25, 0.25, 8192, '["fast"]', 'FAL_KEY', TRUE, 40),
+            ('fal-ai', 'llama-3.1-8b-instruct', 0.20, 0.20, 8192, '["fast"]', 'FAL_KEY', TRUE, 40),
+            ('stability', 'stable-diffusion-xl', 0.04, 0.04, 1024, '["image", "generation"]', 'STABILITY_API_KEY', TRUE, 30),
+            ('stability', 'stable-diffusion-3-medium', 0.03, 0.03, 1024, '["image", "generation"]', 'STABILITY_API_KEY', TRUE, 30)
     """)
 
     """Insert default admin settings"""
