@@ -229,7 +229,7 @@ export function EditCampaignModal({
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="e.g., Weight Loss Summer Campaign"
@@ -397,7 +397,7 @@ export function EditCampaignModal({
               value={formData.product_description}
               onChange={handleChange}
               rows={4}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.product_description ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Describe the product or offer..."

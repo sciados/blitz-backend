@@ -242,7 +242,7 @@ export function CreateCampaignModal({
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="e.g., Weight Loss Summer Campaign"
@@ -275,7 +275,7 @@ export function CreateCampaignModal({
               name="product_url"
               value={formData.product_url}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.product_url ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="https://example.com/product (or browse library)"
@@ -333,7 +333,7 @@ export function CreateCampaignModal({
               name="commission_rate"
               value={formData.commission_rate}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.commission_rate ? "border-red-500" : "border-gray-300"
               }`}
               placeholder='e.g., "50%", "$37 per sale", "40% recurring"'
@@ -362,7 +362,7 @@ export function CreateCampaignModal({
               name="affiliate_link"
               value={formData.affiliate_link}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.affiliate_link ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="https://affiliate-network.com/your-affiliate-link"
@@ -440,7 +440,7 @@ export function CreateCampaignModal({
               value={formData.product_description}
               onChange={handleChange}
               rows={4}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-gray-900 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
                 errors.product_description ? "border-red-500" : "border-gray-300"
               }`}
               placeholder="Describe the product or offer..."
