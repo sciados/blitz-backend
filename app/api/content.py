@@ -171,16 +171,25 @@ async def generate_content(
 
             context_text = "\n\n".join(intel_parts)
 
-    # Convert length string to word count
-    length_to_words = {
-        "short": 100,
-        "medium": 300,
-        "long": 600
+    # Convert length string to word count based on content type
+    length_to_words_by_type = {
+        "article": {"short": 300, "medium": 600, "long": 1200},
+        "email": {"short": 75, "medium": 150, "long": 300},
+        "email_sequence": {"short": 75, "medium": 150, "long": 300},
+        "video_script": {"short": 100, "medium": 200, "long": 400},
+        "social_post": {"short": 30, "medium": 75, "long": 150},
+        "landing_page": {"short": 400, "medium": 800, "long": 1500},
+        "ad_copy": {"short": 25, "medium": 50, "long": 100},
     }
+
+    # Get content type specific mapping or use default
+    content_type_key = request.content_type.value if hasattr(request.content_type, 'value') else str(request.content_type)
+    length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
+
     word_count = None
     if request.length:
-        if isinstance(request.length, str) and request.length in length_to_words:
-            word_count = length_to_words[request.length]
+        if isinstance(request.length, str) and request.length in length_mapping:
+            word_count = length_mapping[request.length]
         elif isinstance(request.length, int):
             word_count = request.length
         else:
@@ -188,7 +197,7 @@ async def generate_content(
             try:
                 word_count = int(request.length)
             except (ValueError, TypeError):
-                word_count = 300  # Default to medium
+                word_count = length_mapping.get("medium", 300)  # Default to medium for content type
 
     # Build prompt with email sequence support
     prompt_params = {
