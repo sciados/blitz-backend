@@ -32,6 +32,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.core.config.settings import settings
 from app.models.admin_settings import AIProviderConfig
 from app.db.session import AsyncSessionLocal
+from app.models.ai_credits import AIUsageTracking
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +251,40 @@ class AIRouter:
     def report_success(self, spec: ProviderSpec):
         self.health[(spec.name, spec.model)] = (True, time.time())
 
+    async def _record_usage(
+        self,
+        provider_name: str,
+        model_name: str,
+        cost_usd: float,
+        tokens_input: int = 0,
+        tokens_output: int = 0,
+        task_type: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+        content_id: Optional[int] = None,
+        user_id: Optional[int] = None,
+    ):
+        """Record AI usage to database for cost tracking."""
+        try:
+            async with AsyncSessionLocal() as session:
+                usage = AIUsageTracking(
+                    provider_name=provider_name,
+                    model_name=model_name,
+                    cost_usd=cost_usd,
+                    tokens_input=tokens_input,
+                    tokens_output=tokens_output,
+                    requests_count=1,
+                    task_type=task_type,
+                    campaign_id=campaign_id,
+                    content_id=content_id,
+                    user_id=user_id,
+                )
+                session.add(usage)
+                await session.commit()
+                logger.info(f"[AIRouter] Recorded usage: {provider_name}:{model_name} ${cost_usd:.4f}")
+        except Exception as e:
+            logger.error(f"[AIRouter] Failed to record usage: {e}")
+            # Don't fail the main request if usage tracking fails
+
     # ------------- public API -------------
 
     def pick(
@@ -302,6 +337,10 @@ class AIRouter:
         prompt_tokens: int = 1000,
         gen_tokens: int = 500,
         budget_usd: Optional[float] = None,
+        task_type: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+        content_id: Optional[int] = None,
+        user_id: Optional[int] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -333,13 +372,30 @@ class AIRouter:
                 logger.info(f"[AIRouter] Attempt {spec.name}:{spec.model} for {use_case}")
                 result = await call_func(spec=spec, **kwargs)
                 self.report_success(spec)
+
+                # Calculate actual cost
+                estimated_cost = (spec.cost_in * (prompt_tokens / 1000.0)) + (spec.cost_out * (gen_tokens / 1000.0))
+
+                # Record usage to database for cost tracking
+                await self._record_usage(
+                    provider_name=spec.name,
+                    model_name=spec.model,
+                    cost_usd=estimated_cost,
+                    tokens_input=prompt_tokens,
+                    tokens_output=gen_tokens,
+                    task_type=task_type or use_case,
+                    campaign_id=campaign_id,
+                    content_id=content_id,
+                    user_id=user_id,
+                )
+
                 return {
                     "success": True,
                     "result": result,
                     "provider": spec.name,
                     "model": spec.model,
                     "use_case": use_case,
-                    "estimated_cost_usd": (spec.cost_in * (prompt_tokens / 1000.0)) + (spec.cost_out * (gen_tokens / 1000.0)),
+                    "estimated_cost_usd": estimated_cost,
                 }
             except Exception as e:
                 last_error = e

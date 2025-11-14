@@ -394,3 +394,8 @@ class LinkClick(Base):
 
     # Relationships
     shortened_link = relationship("ShortenedLink", back_populates="clicks")
+# ============================================================================
+# AI CREDITS TRACKING MODELS
+# ============================================================================
+# Import AI credits models to register them with SQLAlchemy
+from app.models.ai_credits import AICreditDeposit, AIUsageTracking, AIBalanceAlert
