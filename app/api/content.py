@@ -171,6 +171,25 @@ async def generate_content(
 
             context_text = "\n\n".join(intel_parts)
 
+    # Convert length string to word count
+    length_to_words = {
+        "short": 100,
+        "medium": 300,
+        "long": 600
+    }
+    word_count = None
+    if request.length:
+        if isinstance(request.length, str) and request.length in length_to_words:
+            word_count = length_to_words[request.length]
+        elif isinstance(request.length, int):
+            word_count = request.length
+        else:
+            # Try to parse as int if it's a numeric string
+            try:
+                word_count = int(request.length)
+            except (ValueError, TypeError):
+                word_count = 300  # Default to medium
+
     # Build prompt with email sequence support
     prompt_params = {
         "content_type": request.content_type,
@@ -178,7 +197,7 @@ async def generate_content(
         "marketing_angle": request.marketing_angle,
         "tone": request.tone or "professional",
         "additional_context": context_text or request.additional_context,
-        "constraints": {"word_count": request.length} if request.length else None
+        "constraints": {"word_count": word_count} if word_count else None
     }
 
     # Add email sequence parameters if needed
@@ -193,8 +212,8 @@ async def generate_content(
     # Calculate max_tokens from word count
     # Words to tokens conversion: ~1.3-1.5 tokens per word
     # Add 20% buffer to ensure AI has room to complete
-    if request.length:
-        max_tokens = int(request.length * 1.5 * 1.2)
+    if word_count:
+        max_tokens = int(word_count * 1.5 * 1.2)
     else:
         max_tokens = 1500  # Default for unspecified length
 

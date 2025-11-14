@@ -1,6 +1,6 @@
 # app/schemas.py
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
 
@@ -132,7 +132,7 @@ class ContentGenerateRequest(BaseModel):
     marketing_angle: MarketingAngle
     additional_context: Optional[str] = None
     tone: Optional[str] = "professional"
-    length: Optional[str] = "medium"  # short, medium, long
+    length: Optional[Union[str, int]] = "medium"  # short/medium/long or custom word count (int)
     # Email sequence configuration
     num_emails: Optional[int] = Field(default=5, ge=3, le=10)
     sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
