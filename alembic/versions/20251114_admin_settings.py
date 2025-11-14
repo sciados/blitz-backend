@@ -1,7 +1,7 @@
 """Admin Settings - Create admin_settings, tier_configs, ai_provider_configs tables
 
 Revision ID: admin_settings_001
-Revises:
+Revises: 011
 Create Date: 2024-11-14 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision = 'admin_settings_001'
-down_revision = None
+down_revision = '011'
 branch_labels = None
 depends_on = None
 

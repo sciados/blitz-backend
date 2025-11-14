@@ -8,14 +8,14 @@ import sys
 
 def run_command(command):
     """Run a shell command and print output."""
-    print(f"\n🚀 Running: {command}\n")
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    
+    print(f"\nRunning: {command}\n")
+    result = subprocess.run(command, shell=True, capture_output=True, text=True, encoding='utf-8')
+
     if result.stdout:
         print(result.stdout)
     if result.stderr:
         print(result.stderr, file=sys.stderr)
-    
+
     return result.returncode
 
 def main():
@@ -59,7 +59,11 @@ Usage:
     
     elif command == "history":
         run_command("alembic history --verbose")
-    
+
+    elif command == "merge":
+        run_command("python -m alembic merge heads -m 'Merge multiple heads'")
+        print("Migration heads merged!")
+
     elif command == "reset":
         confirm = input("⚠️  This will DROP ALL TABLES! Type 'yes' to confirm: ")
         if confirm.lower() == "yes":
