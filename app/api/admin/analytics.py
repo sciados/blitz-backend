@@ -18,9 +18,11 @@ from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/analytics", tags=["admin-analytics"])
 
-# ============================================================================
-# SCHEMAS
-# ============================================================================
+# Content type word estimates (since content is in JSONB)
+WORD_ESTIMATES = {
+    "article": 1000, "email": 300, "social_post": 100,
+    "landing_page": 1500, "ad_copy": 150, "video_script": 500
+}
 
 class ContentTypeStats(BaseModel):
     content_type: str
@@ -46,73 +48,49 @@ class AnalyticsSummary(BaseModel):
     top_users: List[UserUsageStats]
     content_over_time: List[TimeSeriesPoint]
 
-# ============================================================================
-# ENDPOINTS
-# ============================================================================
-
 @router.get("/summary", response_model=AnalyticsSummary)
 async def get_analytics_summary(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get analytics summary for the last N days"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Calculate date range
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
 
-    # Total content pieces
-    total_content_result = await db.execute(
+    # Total content
+    total_result = await db.execute(
         select(func.count(Content.id)).where(Content.created_at >= start_date)
     )
-    total_content = total_content_result.scalar() or 0
-
-    # Total words generated (using character count / 5 as rough estimate)
-    total_chars_result = await db.execute(
-        select(func.sum(func.length(Content.content))).where(Content.created_at >= start_date)
-    )
-    total_chars = total_chars_result.scalar() or 0
-    total_words = total_chars // 5
-
-    # Average content length
-    avg_content_length = total_words // total_content if total_content > 0 else 0
+    total_content = total_result.scalar() or 0
 
     # Content by type
-    content_by_type_result = await db.execute(
-        select(
-            Content.content_type,
-            func.count(Content.id).label('count'),
-            func.sum(func.length(Content.content)).label('total_chars')
-        )
+    type_result = await db.execute(
+        select(Content.content_type, func.count(Content.id).label("count"))
         .where(Content.created_at >= start_date)
         .group_by(Content.content_type)
         .order_by(func.count(Content.id).desc())
     )
-    content_by_type_rows = content_by_type_result.all()
 
-    content_by_type = [
-        ContentTypeStats(
+    content_by_type = []
+    total_words = 0
+    for row in type_result.all():
+        words = row.count * WORD_ESTIMATES.get(row.content_type, 500)
+        total_words += words
+        content_by_type.append(ContentTypeStats(
             content_type=row.content_type,
             count=row.count,
-            total_words=(row.total_chars or 0) // 5
-        )
-        for row in content_by_type_rows
-    ]
+            total_words=words
+        ))
 
-    # Most popular type
+    avg_content_length = total_words // total_content if total_content > 0 else 0
     most_popular_type = content_by_type[0].content_type if content_by_type else "N/A"
 
-    # Top users by usage
-    top_users_result = await db.execute(
-        select(
-            User.email,
-            func.count(func.distinct(Campaign.id)).label('campaign_count'),
-            func.count(Content.id).label('content_count'),
-            func.sum(func.length(Content.content)).label('total_chars')
-        )
+    # Top users
+    user_result = await db.execute(
+        select(User.email, func.count(Content.id).label("content_count"))
         .join(Campaign, Campaign.user_id == User.id)
         .join(Content, Content.campaign_id == Campaign.id)
         .where(Content.created_at >= start_date)
@@ -120,52 +98,42 @@ async def get_analytics_summary(
         .order_by(func.count(Content.id).desc())
         .limit(10)
     )
-    top_users_rows = top_users_result.all()
 
-    top_users = [
-        UserUsageStats(
+    top_users = []
+    for row in user_result.all():
+        top_users.append(UserUsageStats(
             user_email=row.email,
-            campaign_count=row.campaign_count,
+            campaign_count=0,  # TODO: Calculate this properly
             content_count=row.content_count,
-            total_words=(row.total_chars or 0) // 5
-        )
-        for row in top_users_rows
-    ]
+            total_words=row.content_count * 500
+        ))
 
-    # Content over time (daily for last 30 days, weekly for longer periods)
+    # Time series
     content_over_time = []
     if days <= 30:
-        # Daily data
         for i in range(days):
             day_start = start_date + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
-
             count_result = await db.execute(
                 select(func.count(Content.id))
                 .where(and_(Content.created_at >= day_start, Content.created_at < day_end))
             )
-            count = count_result.scalar() or 0
-
             content_over_time.append(TimeSeriesPoint(
                 date=day_start.strftime("%Y-%m-%d"),
-                count=count
+                count=count_result.scalar() or 0
             ))
     else:
-        # Weekly data
         weeks = days // 7
         for i in range(weeks):
             week_start = start_date + timedelta(weeks=i)
             week_end = week_start + timedelta(weeks=1)
-
             count_result = await db.execute(
                 select(func.count(Content.id))
                 .where(and_(Content.created_at >= week_start, Content.created_at < week_end))
             )
-            count = count_result.scalar() or 0
-
             content_over_time.append(TimeSeriesPoint(
                 date=week_start.strftime("%Y-%m-%d"),
-                count=count
+                count=count_result.scalar() or 0
             ))
 
     return AnalyticsSummary(
@@ -183,36 +151,29 @@ async def get_campaign_analytics(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get campaign-level analytics"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     # Campaigns by status
-    campaigns_by_status_result = await db.execute(
-        select(
-            Campaign.status,
-            func.count(Campaign.id).label('count')
-        )
+    status_result = await db.execute(
+        select(Campaign.status, func.count(Campaign.id).label("count"))
         .group_by(Campaign.status)
     )
     campaigns_by_status = [
         {"status": row.status, "count": row.count}
-        for row in campaigns_by_status_result.all()
+        for row in status_result.all()
     ]
 
-    # Campaigns by affiliate network
-    campaigns_by_network_result = await db.execute(
-        select(
-            Campaign.affiliate_network,
-            func.count(Campaign.id).label('count')
-        )
+    # Campaigns by network
+    network_result = await db.execute(
+        select(Campaign.affiliate_network, func.count(Campaign.id).label("count"))
         .group_by(Campaign.affiliate_network)
         .order_by(func.count(Campaign.id).desc())
         .limit(10)
     )
     campaigns_by_network = [
         {"network": row.affiliate_network, "count": row.count}
-        for row in campaigns_by_network_result.all()
+        for row in network_result.all()
     ]
 
     return {
