@@ -129,7 +129,7 @@ async def list_users(
     # Get campaign counts for each user
     user_responses = []
     for user in users:
-        from app.models.campaign import Campaign
+        from app.db.models import Campaign
         campaign_count_result = await db.execute(
             select(func.count(Campaign.id)).where(Campaign.user_id == user.id)
         )
@@ -165,7 +165,7 @@ async def get_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Get campaign count
-    from app.models.campaign import Campaign
+    from app.db.models import Campaign
     campaign_count_result = await db.execute(
         select(func.count(Campaign.id)).where(Campaign.user_id == user.id)
     )
@@ -215,7 +215,7 @@ async def update_user(
     await db.refresh(user)
 
     # Get campaign count
-    from app.models.campaign import Campaign
+    from app.db.models import Campaign
     campaign_count_result = await db.execute(
         select(func.count(Campaign.id)).where(Campaign.user_id == user.id)
     )

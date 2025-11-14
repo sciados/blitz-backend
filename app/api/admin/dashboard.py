@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.db.models import User, Campaign, GeneratedContent
-from app.models.campaign import Campaign
+from app.db.models import Campaign
 from app.db.session import get_db
 from app.auth import get_current_user
 
