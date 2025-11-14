@@ -1,18 +1,18 @@
 "use client";
 
-import { AuthGate } from "src/components/AuthGate";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push("/admin/config");
+  }, [router]);
+
   return (
-    <AuthGate requiredRole="admin">
-      <div className="p-6">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-4">
-          System Settings
-        </h1>
-        <div className="bg-[var(--bg-primary)] rounded-lg shadow p-6">
-          <p className="text-[var(--text-secondary)]">Coming soon...</p>
-        </div>
-      </div>
-    </AuthGate>
+    <div className="p-6 text-center">
+      <p>Redirecting to configuration...</p>
+    </div>
   );
 }
