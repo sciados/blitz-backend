@@ -357,3 +357,85 @@ All project documentation is located in the `docs/` folder:
 - **`docs/PRODUCTION_URLS.md`** - Production URLs, API endpoints, and environment variables
 - **`docs/CAMPAIGNFORGE_COMPARISON.md`** - Architecture comparison with original CampaignForge
 - **`docs/endpoints.json`** - OpenAPI specification for all API endpoints
+
+---
+
+## Admin Configuration System
+
+### Overview
+
+The Admin Configuration system allows administrators to manage pricing tiers, AI provider settings, and platform-wide configurations through a web interface without code changes.
+
+### Backend API
+
+**Location:** `app/api/admin/config.py`
+
+**Endpoints:**
+- `GET /api/admin/config/tiers` - List all pricing tiers
+- `GET /api/admin/config/providers` - List all AI providers
+- `GET /api/admin/config/global` - Get global settings
+
+**Status:** Currently read-only with default data. Full CRUD operations will be added in future updates.
+
+### Frontend Admin Page
+
+**Location:** `src/app/admin/config/page.tsx`
+
+**Features:**
+- Three-tab interface: Pricing Tiers, AI Providers, Global Settings
+- Displays current configuration
+- Visual indicators for tier pricing and limits
+- Provider cost analysis and context limits
+- Global feature flags and billing settings
+
+**Access:** Navigate to `/admin/config` from the admin navigation menu
+
+### Configuration Structure
+
+#### Pricing Tiers
+- Tier name (free, starter, pro, enterprise)
+- Monthly pricing
+- Word limits (monthly, daily, per generation)
+- Media limits (images/videos)
+- Campaign limits
+- Overage billing rates
+
+#### AI Providers
+- Provider and model names
+- Cost per token (input/output)
+- Context length
+- Priority and tags
+- Environment variable mapping
+
+#### Global Settings
+- Free tier configuration
+- Billing options (Stripe, overage billing)
+- AI routing settings (cost optimization, fallback)
+- Feature flags (video/image/compliance generation)
+
+### Future Enhancements
+
+1. **Database Integration**
+   - Add admin_settings, tier_configs, ai_provider_configs tables
+   - Replace default data with database queries
+   - Add write operations (CREATE, UPDATE, DELETE)
+
+2. **Edit Functionality**
+   - Add modals for editing tiers and providers
+   - Real-time validation
+   - Optimistic UI updates
+
+3. **Analytics Dashboard**
+   - Usage metrics by tier
+   - Cost analysis per provider
+   - Revenue tracking
+
+### Current Status
+
+✅ Backend API endpoints created and integrated
+✅ Frontend admin page with read-only view
+✅ Navigation menu integration
+✅ Default configuration data
+🔄 Database models (planned)
+🔄 CRUD operations (planned)
+
