@@ -99,3 +99,23 @@ body {
 .animate-slide-in {
   animation: slideInFromLeft 0.3s ease-out;
 }
+
+/* Global form input styles */
+input,
+textarea,
+select {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure text is readable in both themes */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  color: #1f2937 !important; /* Dark gray for light theme */
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  color: #ffffff !important; /* White for dark theme */
+}
