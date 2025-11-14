@@ -1,7 +1,7 @@
 """Premium tier pricing with max campaign limits
 
-Revision ID: 012
-Revises: 011
+Revision ID: 013
+Revises: admin_settings_001
 Create Date: 2025-01-14 15:30:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '012'
-down_revision = '011'
+revision = '013'
+down_revision = 'admin_settings_001'
 branch_labels = None
 depends_on = None
 
