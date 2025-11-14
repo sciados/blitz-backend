@@ -17,6 +17,7 @@ from app.api.admin import config as admin_config
 from app.api.admin import users as admin_users
 from app.api.admin import dashboard as admin_dashboard
 from app.api.admin import analytics as admin_analytics
+from app.api.admin import api_keys as admin_api_keys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -162,6 +163,7 @@ app.include_router(admin_config.router)
 app.include_router(admin_users.router)
 app.include_router(admin_dashboard.router)
 app.include_router(admin_analytics.router)
+app.include_router(admin_api_keys.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 
