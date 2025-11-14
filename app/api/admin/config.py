@@ -300,6 +300,130 @@ async def bulk_update_providers(providers: List[Dict[str, Any]], db: AsyncSessio
     await db.commit()
     return {"updated": updated, "message": f"Updated {len(updated)} providers"}
 
+@router.post("/providers/update-pricing")
+async def update_provider_pricing(db: AsyncSession = Depends(get_db)):
+    """Automatically update AI provider pricing from external APIs"""
+    import httpx
+    import os
+
+    updated_providers = []
+
+    try:
+        # Try to fetch from OpenRouter API (has public pricing endpoint)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                # OpenRouter provides model pricing via their API
+                response = await client.get(
+                    "https://openrouter.ai/api/v1/models",
+                    headers={"Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY', 'dummy')}"}
+                )
+
+                if response.status_code == 200:
+                    models_data = response.json().get("data", [])
+
+                    # Map of model names to our internal provider/model names
+                    provider_mapping = {
+                        "meta-llama/llama-3.1-70b-instruct": ("openrouter", "meta-llama/llama-3.1-70b-instruct"),
+                        "mistralai/mistral-7b-instruct": ("openrouter", "mistralai/mistral-7b-instruct"),
+                        "openai/gpt-4o-mini": ("openai", "gpt-4o-mini"),
+                        "openai/gpt-4o": ("openai", "gpt-4o"),
+                        "anthropic/claude-3.5-sonnet": ("anthropic", "claude-3.5-sonnet-20241022"),
+                        "anthropic/claude-3-haiku": ("anthropic", "claude-3-haiku-20240307"),
+                    }
+
+                    for model in models_data:
+                        model_id = model.get("id")
+                        pricing = model.get("pricing", {})
+
+                        if model_id in provider_mapping:
+                            provider_name, model_name = provider_mapping[model_id]
+
+                            # Update provider in database
+                            result = await db.execute(
+                                select(AIProviderConfig).where(
+                                    (AIProviderConfig.provider_name == provider_name) &
+                                    (AIProviderConfig.model_name == model_name)
+                                )
+                            )
+                            db_provider = result.scalar_one_or_none()
+
+                            if db_provider:
+                                # Update pricing if available
+                                input_cost = float(pricing.get("prompt", 0))
+                                output_cost = float(pricing.get("completion", 0))
+
+                                if input_cost > 0 or output_cost > 0:
+                                    db_provider.cost_per_input_token = input_cost
+                                    db_provider.cost_per_output_token = output_cost
+                                    db_provider.updated_at = datetime.utcnow()
+
+                                    await db.refresh(db_provider)
+                                    updated_providers.append({
+                                        "provider_name": provider_name,
+                                        "model_name": model_name,
+                                        "input_cost": input_cost,
+                                        "output_cost": output_cost
+                                    })
+            except Exception as e:
+                print(f"OpenRouter API fetch failed: {e}")
+
+        # If no updates from OpenRouter, use fallback static pricing
+        if not updated_providers:
+            # Fallback to known current pricing (November 2024)
+            fallback_pricing = {
+                ("openai", "gpt-4o-mini"): {"input": 0.15, "output": 0.60},
+                ("openai", "gpt-4o"): {"input": 2.50, "output": 10.00},
+                ("openai", "gpt-4.1"): {"input": 5.00, "output": 15.00},
+                ("openai", "gpt-4.1-mini"): {"input": 1.50, "output": 6.00},
+                ("anthropic", "claude-3-haiku-20240307"): {"input": 0.25, "output": 1.25},
+                ("anthropic", "claude-3.5-sonnet-20241022"): {"input": 3.00, "output": 15.00},
+                ("groq", "llama-3.3-70b-versatile"): {"input": 0.00, "output": 0.00},
+                ("groq", "mixtral-8x7b-32768"): {"input": 0.00, "output": 0.00},
+                ("xai", "grok-beta"): {"input": 0.00, "output": 0.00},
+                ("deepseek", "deepseek-reasoner"): {"input": 0.14, "output": 0.28},
+                ("together", "llama-3.2-3b-instruct-turbo"): {"input": 0.06, "output": 0.06},
+                ("together", "llama-3.1-70b-instruct-turbo"): {"input": 0.22, "output": 0.22},
+                ("together", "qwen-2.5-72b-instruct"): {"input": 0.18, "output": 0.18},
+                ("minimax", "abab6.5s-chat"): {"input": 0.00, "output": 0.00},
+                ("openrouter", "meta-llama/llama-3.1-70b-instruct"): {"input": 0.24, "output": 0.24},
+                ("openrouter", "mistralai/mistral-7b-instruct"): {"input": 0.10, "output": 0.10},
+            }
+
+            for (provider_name, model_name), pricing in fallback_pricing.items():
+                result = await db.execute(
+                    select(AIProviderConfig).where(
+                        (AIProviderConfig.provider_name == provider_name) &
+                        (AIProviderConfig.model_name == model_name)
+                    )
+                )
+                db_provider = result.scalar_one_or_none()
+
+                if db_provider:
+                    db_provider.cost_per_input_token = pricing["input"]
+                    db_provider.cost_per_output_token = pricing["output"]
+                    db_provider.updated_at = datetime.utcnow()
+
+                    await db.refresh(db_provider)
+                    updated_providers.append({
+                        "provider_name": provider_name,
+                        "model_name": model_name,
+                        "input_cost": pricing["input"],
+                        "output_cost": pricing["output"],
+                        "source": "fallback"
+                    })
+
+        await db.commit()
+
+        return {
+            "updated": updated_providers,
+            "count": len(updated_providers),
+            "message": f"Successfully updated pricing for {len(updated_providers)} providers"
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update pricing: {str(e)}")
+
 # ============================================================================
 # GLOBAL CONFIG ENDPOINTS
 # ============================================================================
