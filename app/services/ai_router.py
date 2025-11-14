@@ -30,6 +30,8 @@ from typing import List, Optional, Dict, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config.settings import settings
+from app.models.admin_settings import AIProviderConfig
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,79 @@ _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
     ("fal", "stable-video-diffusion"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
 }
 
+# ------------------------------
+# Database Provider Cache
+# ------------------------------
+
+# In-memory cache for database providers (refreshed periodically)
+_DB_PROVIDERS_CACHE: Dict[tuple[str, str], Dict[str, Any]] = {}
+_CACHE_LAST_REFRESH = 0
+_CACHE_REFRESH_INTERVAL = 300  # 5 minutes
+
+async def load_providers_from_db() -> Dict[tuple[str, str], Dict[str, Any]]:
+    """Load AI providers from database and return as cache dict."""
+    global _DB_PROVIDERS_CACHE, _CACHE_LAST_REFRESH
+
+    # Return cached version if fresh enough
+    current_time = time.time()
+    if current_time - _CACHE_LAST_REFRESH < _CACHE_REFRESH_INTERVAL and _DB_PROVIDERS_CACHE:
+        return _DB_PROVIDERS_CACHE
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                "SELECT provider_name, model_name, cost_per_input_token, cost_per_output_token, "
+                "context_length, tags, priority, is_active FROM ai_provider_configs WHERE is_active = true"
+            )
+            providers = result.fetchall()
+
+            cache = {}
+            for provider in providers:
+                provider_name = provider.provider_name
+                model_name = provider.model_name
+                key = (provider_name, model_name)
+
+                cache[key] = {
+                    "in": float(provider.cost_per_input_token or 0.0),
+                    "out": float(provider.cost_per_output_token or 0.0),
+                    "ctx": int(provider.context_length or 128000),
+                    "tags": provider.tags or [],
+                    "priority": int(provider.priority or 0),
+                    "active": bool(provider.is_active),
+                }
+
+            _DB_PROVIDERS_CACHE = cache
+            _CACHE_LAST_REFRESH = current_time
+
+            logger.info(f"✅ Loaded {len(cache)} AI providers from database")
+            return cache
+
+    except Exception as e:
+        logger.error(f"❌ Failed to load providers from database: {e}")
+        # Return empty cache on error
+        return {}
+
+# Merge database providers with defaults (DB takes precedence)
+def get_all_providers() -> Dict[tuple[str, str], Dict[str, Any]]:
+    """Get all providers (database + defaults)."""
+    providers = _DEFAULTS.copy()
+
+    # Try to load from database (sync - for backwards compatibility)
+    # In async contexts, use load_providers_from_db() directly
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Can't await in sync context, use existing cache
+            pass
+        else:
+            db_providers = loop.run_until_complete(load_providers_from_db())
+            providers.update(db_providers)
+    except:
+        pass
+
+    return providers
+
 
 # Map use cases to ENV variable names
 _USECASE_ENV_MAP: Dict[str, str] = {
@@ -138,8 +213,11 @@ class AIRouter:
 
     def _make_specs(self, pairs: List[tuple[str, str]], use_case: str) -> List[ProviderSpec]:
         specs: List[ProviderSpec] = []
+        providers = get_all_providers()  # Uses DB cache if available
         for prov, model in pairs:
-            meta = _DEFAULTS.get((prov, model), {"in": 0.0, "out": 0.0, "ctx": 128_000, "tags": [use_case]})
+            meta = providers.get((prov, model), {"in": 0.0, "out": 0.0, "ctx": 128_000, "tags": [use_case]})
+            # Get priority from meta, default to 0
+            priority = meta.get("priority", 0)
             specs.append(ProviderSpec(
                 name=prov,
                 model=model,
@@ -147,7 +225,7 @@ class AIRouter:
                 cost_out=meta["out"],
                 ctx=meta["ctx"],
                 tags=meta["tags"],
-                weight=1,
+                weight=priority,
             ))
         return specs
 
@@ -286,7 +364,8 @@ class AIRouter:
         Estimate cost; if model provided and known, use its split rates.
         """
         if model:
-            meta = _DEFAULTS.get((provider_name, model))
+            providers = get_all_providers()
+            meta = providers.get((provider_name, model))
             if meta:
                 return (meta["in"] * (tokens_in / 1000.0)) + (meta["out"] * (tokens_out / 1000.0))
         # Fallback average
