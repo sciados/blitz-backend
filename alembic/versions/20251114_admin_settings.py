@@ -93,8 +93,8 @@ def upgrade():
         ) VALUES
             ('free', 'Free', 0.00, 10000, 330, 2000, -1, 10, 3, 10, 1, 0, 0.50, TRUE, '["basic_templates", "community_support"]'),
             ('starter', 'Starter', 19.00, 50000, 1650, 5000, -1, 50, 10, 50, 3, 100, 0.25, TRUE, '["all_templates", "email_sequences", "priority_support", "compliance_check"]'),
-            ('pro', 'Pro', 59.00, 200000, 6600, 10000, -1, 200, -1, -1, 10, 1000, 0.20, TRUE, '["advanced_templates", "analytics", "api_access", "content_variations"]'),
-            ('enterprise', 'Enterprise', 129.00, 500000, 16600, 20000, -1, 500, -1, -1, -1, -1, 0.15, TRUE, '["white_label", "custom_integrations", "dedicated_support", "priority_features"]')
+            ('pro', 'Pro', 69.00, 175000, 5800, 8000, -1, 200, -1, -1, 10, 1000, 0.20, TRUE, '["advanced_templates", "analytics", "api_access", "content_variations"]'),
+            ('enterprise', 'Enterprise', 249.00, 400000, 13300, 16000, -1, 500, -1, -1, -1, -1, 0.15, TRUE, '["white_label", "custom_integrations", "dedicated_support", "priority_features"]')
     """)
 
     """Insert default AI provider configurations"""
