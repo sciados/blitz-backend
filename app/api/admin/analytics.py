@@ -10,9 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
-from app.models.user import User
-from app.models.campaign import Campaign
-from app.models.content import Content
+from app.db.models import User
+from app.db.models import Campaign
+from app.db.models import GeneratedContent as Content
 from app.db.session import get_db
 from app.core.auth import get_current_user
 

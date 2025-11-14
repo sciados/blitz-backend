@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from passlib.context import CryptContext
 
-from app.models.user import User
+from app.db.models import User, Campaign
 from app.db.session import get_db
 from app.core.auth import get_current_user
 
