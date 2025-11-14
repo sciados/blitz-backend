@@ -6,14 +6,29 @@ Manage pricing tiers, AI providers, and usage limits via admin UI
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
 from datetime import datetime
 
-# We'll create simplified versions for now
+from app.models.admin_settings import AdminSettings, TierConfig, AIProviderConfig
+from app.db.session import AsyncSessionLocal
+
 router = APIRouter(prefix="/api/admin/config", tags=["admin-config"])
 
-# Simplified schemas for now
-class TierConfigUpdate(BaseModel):
+# Dependency to get DB session
+async def get_db() -> AsyncSession:
+    """Get database session"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+# ============================================================================
+# PYDANTIC SCHEMAS
+# ============================================================================
+
+class TierConfigCreate(BaseModel):
     tier_name: str
     display_name: str
     monthly_price: float
@@ -23,92 +38,333 @@ class TierConfigUpdate(BaseModel):
     images_per_month: int = -1
     videos_per_month: int = -1
     max_campaigns: int = -1
+    content_pieces_per_campaign: int = -1
+    email_sequences: int = -1
+    api_calls_per_day: int = 0
     overage_rate_per_1k_words: float
     is_active: bool = True
+    features: List[str] = []
 
-# Routes (simplified for now - will add full implementation)
+class TierConfigUpdate(BaseModel):
+    display_name: Optional[str] = None
+    monthly_price: Optional[float] = None
+    words_per_month: Optional[int] = None
+    words_per_day: Optional[int] = None
+    words_per_generation: Optional[int] = None
+    images_per_month: Optional[int] = None
+    videos_per_month: Optional[int] = None
+    max_campaigns: Optional[int] = None
+    content_pieces_per_campaign: Optional[int] = None
+    email_sequences: Optional[int] = None
+    api_calls_per_day: Optional[int] = None
+    overage_rate_per_1k_words: Optional[float] = None
+    is_active: Optional[bool] = None
+    features: Optional[List[str]] = None
+
+class AIProviderCreate(BaseModel):
+    provider_name: str
+    model_name: str
+    cost_per_input_token: float
+    cost_per_output_token: float
+    context_length: int
+    tags: List[str] = []
+    environment_variable: Optional[str] = None
+    is_active: bool = True
+    priority: int = 0
+
+class AIProviderUpdate(BaseModel):
+    cost_per_input_token: Optional[float] = None
+    cost_per_output_token: Optional[float] = None
+    context_length: Optional[int] = None
+    tags: Optional[List[str]] = None
+    environment_variable: Optional[str] = None
+    is_active: Optional[bool] = None
+    priority: Optional[int] = None
+
+class GlobalConfigUpdate(BaseModel):
+    free_tier_enabled: Optional[bool] = None
+    free_words_per_month: Optional[int] = None
+    free_images_per_month: Optional[int] = None
+    free_videos_per_month: Optional[int] = None
+    stripe_enabled: Optional[bool] = None
+    overage_billing_enabled: Optional[bool] = None
+    grace_period_days: Optional[int] = None
+    ai_cost_optimization: Optional[bool] = None
+    ai_fallback_enabled: Optional[bool] = None
+    ai_cache_ttl_seconds: Optional[int] = None
+    default_user_tier: Optional[str] = None
+    video_generation_enabled: Optional[bool] = None
+    image_generation_enabled: Optional[bool] = None
+    compliance_checking_enabled: Optional[bool] = None
+
+# ============================================================================
+# TIER CONFIG ENDPOINTS
+# ============================================================================
+
 @router.get("/tiers")
-async def get_tier_configs():
-    """Get all tier configurations - TODO: Implement with database"""
-    return {
-        "tiers": [
-            {
-                "tier_name": "free",
-                "display_name": "Free",
-                "monthly_price": 0.00,
-                "words_per_month": 10000,
-                "words_per_day": 330,
-                "words_per_generation": 2000,
-                "images_per_month": -1,
-                "videos_per_month": 10,
-                "max_campaigns": 3,
-                "overage_rate_per_1k_words": 0.50,
-                "is_active": True,
-            },
-            {
-                "tier_name": "starter",
-                "display_name": "Starter",
-                "monthly_price": 19.00,
-                "words_per_month": 50000,
-                "words_per_day": 1650,
-                "words_per_generation": 5000,
-                "images_per_month": -1,
-                "videos_per_month": 50,
-                "max_campaigns": 10,
-                "overage_rate_per_1k_words": 0.25,
-                "is_active": True,
-            },
-        ]
-    }
+async def get_tier_configs(db: AsyncSession = Depends(get_db)):
+    """Get all tier configurations"""
+    result = await db.execute(select(TierConfig).order_by(TierConfig.monthly_price))
+    tiers = result.scalars().all()
+    return {"tiers": [tier.to_dict() for tier in tiers]}
+
+@router.post("/tiers")
+async def create_tier_config(tier: TierConfigCreate, db: AsyncSession = Depends(get_db)):
+    """Create new tier configuration"""
+    # Check if tier_name already exists
+    result = await db.execute(
+        select(TierConfig).where(TierConfig.tier_name == tier.tier_name)
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Tier name already exists")
+
+    db_tier = TierConfig(**tier.dict())
+    db.add(db_tier)
+    await db.commit()
+    await db.refresh(db_tier)
+
+    return {"tier": db_tier.to_dict(), "message": "Tier created successfully"}
+
+@router.put("/tiers/{tier_name}")
+async def update_tier_config(tier_name: str, tier_update: TierConfigUpdate, db: AsyncSession = Depends(get_db)):
+    """Update tier configuration"""
+    result = await db.execute(
+        select(TierConfig).where(TierConfig.tier_name == tier_name)
+    )
+    db_tier = result.scalar_one_or_none()
+
+    if not db_tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+
+    # Update fields
+    update_data = tier_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_tier, field, value)
+
+    await db.commit()
+    await db.refresh(db_tier)
+
+    return {"tier": db_tier.to_dict(), "message": "Tier updated successfully"}
+
+@router.delete("/tiers/{tier_name}")
+async def delete_tier_config(tier_name: str, db: AsyncSession = Depends(get_db)):
+    """Delete tier configuration"""
+    result = await db.execute(
+        select(TierConfig).where(TierConfig.tier_name == tier_name)
+    )
+    db_tier = result.scalar_one_or_none()
+
+    if not db_tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+
+    await db.delete(db_tier)
+    await db.commit()
+
+    return {"message": "Tier deleted successfully"}
+
+@router.post("/tiers/bulk-update")
+async def bulk_update_tiers(tiers: List[Dict[str, Any]], db: AsyncSession = Depends(get_db)):
+    """Bulk update multiple tiers"""
+    updated = []
+    for tier_data in tiers:
+        tier_name = tier_data.get("tier_name")
+        if not tier_name:
+            continue
+
+        result = await db.execute(
+            select(TierConfig).where(TierConfig.tier_name == tier_name)
+        )
+        db_tier = result.scalar_one_or_none()
+
+        if db_tier:
+            for field, value in tier_data.items():
+                if field != "tier_name" and hasattr(db_tier, field):
+                    setattr(db_tier, field, value)
+
+            await db.refresh(db_tier)
+            updated.append(db_tier.to_dict())
+
+    await db.commit()
+    return {"updated": updated, "message": f"Updated {len(updated)} tiers"}
+
+# ============================================================================
+# AI PROVIDER ENDPOINTS
+# ============================================================================
 
 @router.get("/providers")
-async def get_ai_providers():
-    """Get all AI provider configurations - TODO: Implement with database"""
-    return {
-        "providers": [
-            {
-                "provider_name": "groq",
-                "model_name": "llama-3.3-70b-versatile",
-                "cost_per_input_token": 0.00,
-                "cost_per_output_token": 0.00,
-                "context_length": 128000,
-                "tags": ["fast", "free"],
-                "environment_variable": "GROQ_API_KEY",
-                "is_active": True,
-                "priority": 100,
-                "total_cost_estimate": 0.00,
-            },
-            {
-                "provider_name": "openai",
-                "model_name": "gpt-4o-mini",
-                "cost_per_input_token": 0.15,
-                "cost_per_output_token": 0.60,
-                "context_length": 128000,
-                "tags": ["fast", "premium"],
-                "environment_variable": "OPENAI_API_KEY",
-                "is_active": True,
-                "priority": 80,
-                "total_cost_estimate": 0.75,
-            },
-        ]
-    }
+async def get_ai_providers(db: AsyncSession = Depends(get_db)):
+    """Get all AI provider configurations"""
+    result = await db.execute(select(AIProviderConfig).order_by(AIProviderConfig.priority.desc()))
+    providers = result.scalars().all()
+    return {"providers": [provider.to_dict() for provider in providers]}
+
+@router.post("/providers")
+async def create_ai_provider(provider: AIProviderCreate, db: AsyncSession = Depends(get_db)):
+    """Create new AI provider configuration"""
+    # Check if provider/model combination already exists
+    result = await db.execute(
+        select(AIProviderConfig).where(
+            (AIProviderConfig.provider_name == provider.provider_name) &
+            (AIProviderConfig.model_name == provider.model_name)
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Provider/model combination already exists")
+
+    db_provider = AIProviderConfig(**provider.dict())
+    db.add(db_provider)
+    await db.commit()
+    await db.refresh(db_provider)
+
+    return {"provider": db_provider.to_dict(), "message": "Provider created successfully"}
+
+@router.put("/providers/{provider_name}/{model_name}")
+async def update_ai_provider(
+    provider_name: str,
+    model_name: str,
+    provider_update: AIProviderUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update AI provider configuration"""
+    result = await db.execute(
+        select(AIProviderConfig).where(
+            (AIProviderConfig.provider_name == provider_name) &
+            (AIProviderConfig.model_name == model_name)
+        )
+    )
+    db_provider = result.scalar_one_or_none()
+
+    if not db_provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Update fields
+    update_data = provider_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_provider, field, value)
+
+    await db.commit()
+    await db.refresh(db_provider)
+
+    return {"provider": db_provider.to_dict(), "message": "Provider updated successfully"}
+
+@router.delete("/providers/{provider_name}/{model_name}")
+async def delete_ai_provider(provider_name: str, model_name: str, db: AsyncSession = Depends(get_db)):
+    """Delete AI provider configuration"""
+    result = await db.execute(
+        select(AIProviderConfig).where(
+            (AIProviderConfig.provider_name == provider_name) &
+            (AIProviderConfig.model_name == model_name)
+        )
+    )
+    db_provider = result.scalar_one_or_none()
+
+    if not db_provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    await db.delete(db_provider)
+    await db.commit()
+
+    return {"message": "Provider deleted successfully"}
+
+@router.post("/providers/bulk-update")
+async def bulk_update_providers(providers: List[Dict[str, Any]], db: AsyncSession = Depends(get_db)):
+    """Bulk update multiple providers"""
+    updated = []
+    for provider_data in providers:
+        provider_name = provider_data.get("provider_name")
+        model_name = provider_data.get("model_name")
+
+        if not provider_name or not model_name:
+            continue
+
+        result = await db.execute(
+            select(AIProviderConfig).where(
+                (AIProviderConfig.provider_name == provider_name) &
+                (AIProviderConfig.model_name == model_name)
+            )
+        )
+        db_provider = result.scalar_one_or_none()
+
+        if db_provider:
+            for field, value in provider_data.items():
+                if field not in ["provider_name", "model_name"] and hasattr(db_provider, field):
+                    setattr(db_provider, field, value)
+
+            await db.refresh(db_provider)
+            updated.append(db_provider.to_dict())
+
+    await db.commit()
+    return {"updated": updated, "message": f"Updated {len(updated)} providers"}
+
+# ============================================================================
+# GLOBAL CONFIG ENDPOINTS
+# ============================================================================
 
 @router.get("/global")
-async def get_global_config():
-    """Get global configuration - TODO: Implement with database"""
+async def get_global_config(db: AsyncSession = Depends(get_db)):
+    """Get global configuration"""
+    result = await db.execute(select(AdminSettings).limit(1))
+    config = result.scalar_one_or_none()
+
+    if not config:
+        # Create default config if none exists
+        config = AdminSettings()
+        db.add(config)
+        await db.commit()
+        await db.refresh(config)
+
+    return config.to_dict()
+
+@router.put("/global")
+async def update_global_config(config_update: GlobalConfigUpdate, db: AsyncSession = Depends(get_db)):
+    """Update global configuration"""
+    result = await db.execute(select(AdminSettings).limit(1))
+    config = result.scalar_one_or_none()
+
+    if not config:
+        config = AdminSettings()
+        db.add(config)
+        await db.flush()
+
+    # Update fields
+    update_data = config_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(config, field, value)
+
+    config.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(config)
+
+    return {"config": config.to_dict(), "message": "Global config updated successfully"}
+
+# ============================================================================
+# ANALYTICS ENDPOINT
+# ============================================================================
+
+@router.get("/metrics")
+async def get_admin_metrics(db: AsyncSession = Depends(get_db)):
+    """Get usage metrics for admin dashboard"""
+    tier_count_result = await db.execute(
+        select(TierConfig).where(TierConfig.is_active == True)
+    )
+    tier_count = len(tier_count_result.scalars().all())
+
+    provider_count_result = await db.execute(
+        select(AIProviderConfig).where(AIProviderConfig.is_active == True)
+    )
+    active_provider_count = len(provider_count_result.scalars().all())
+
+    result = await db.execute(select(AdminSettings).limit(1))
+    config = result.scalar_one_or_none()
+
     return {
-        "free_tier_enabled": True,
-        "free_words_per_month": 10000,
-        "free_images_per_month": -1,
-        "free_videos_per_month": 10,
-        "stripe_enabled": True,
-        "overage_billing_enabled": True,
-        "grace_period_days": 3,
-        "ai_cost_optimization": True,
-        "ai_fallback_enabled": True,
-        "ai_cache_ttl_seconds": 300,
-        "default_user_tier": "free",
-        "video_generation_enabled": True,
-        "image_generation_enabled": True,
-        "compliance_checking_enabled": True,
+        "total_tiers": tier_count,
+        "active_providers": active_provider_count,
+        "free_tier_enabled": config.free_tier_enabled if config else True,
+        "billing_enabled": config.stripe_enabled if config else True,
+        "last_updated": config.updated_at.isoformat() if config else None,
     }
