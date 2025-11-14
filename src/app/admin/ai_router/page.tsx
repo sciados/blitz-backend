@@ -122,11 +122,11 @@ export default function AIRouterPage() {
               onChange={(e) =>
                 setConfig({ ...config, content_generation: e.target.value })
               }
-              placeholder="openai:gpt-4, anthropic:claude-3-opus"
+              placeholder="groq:llama-3.3-70b-versatile, xai:grok-beta, together:llama-3.2-3b-instruct-turbo, openai:gpt-4o-mini"
               className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Comma-separated list of provider:model pairs
+              Cost-optimized: FREE providers first (Groq, XAI), then cheap (Together $0.10, GPT-4o-mini $0.75), then premium fallbacks
             </p>
           </div>
 
@@ -140,11 +140,11 @@ export default function AIRouterPage() {
               onChange={(e) =>
                 setConfig({ ...config, compliance_check: e.target.value })
               }
-              placeholder="openai:gpt-4-turbo"
+              placeholder="openai:gpt-4o-mini, anthropic:claude-3-haiku-20240307, openai:gpt-4-turbo"
               className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Models for compliance checking
+              Quality-focused: Start with GPT-4o-mini ($0.75), Claude Haiku ($1.50), GPT-4 Turbo ($20) for complex cases
             </p>
           </div>
 
@@ -158,11 +158,11 @@ export default function AIRouterPage() {
               onChange={(e) =>
                 setConfig({ ...config, intelligence_query: e.target.value })
               }
-              placeholder="openai:gpt-4, anthropic:claude-3-sonnet"
+              placeholder="groq:llama-3.3-70b-versatile, openai:gpt-4o-mini, anthropic:claude-3-haiku-20240307, deepseek:deepseek-reasoner"
               className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Models for RAG and knowledge queries
+              Accuracy-focused: FREE Groq first, then GPT-4o-mini ($0.75), Claude Haiku ($1.50), DeepSeek reasoning ($0.42)
             </p>
           </div>
 
@@ -176,11 +176,11 @@ export default function AIRouterPage() {
               onChange={(e) =>
                 setConfig({ ...config, summarization: e.target.value })
               }
-              placeholder="openai:gpt-4-turbo, anthropic:claude-3-haiku"
+              placeholder="groq:llama-3.3-70b-versatile, xai:grok-beta, together:llama-3.2-3b-instruct-turbo, openai:gpt-4o-mini"
               className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Models for summarization tasks
+              Cost-optimized: FREE providers (Groq, XAI), cheap Together ($0.20), GPT-4o-mini ($0.75) fallback
             </p>
           </div>
 
