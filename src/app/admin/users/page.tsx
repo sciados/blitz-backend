@@ -26,12 +26,12 @@ export default function AdminUsersPage() {
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["admin-users", searchQuery, roleFilter],
-    queryFn: async () => {
+    queryFn: async (): Promise<User[]> => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
       if (roleFilter) params.append("role", roleFilter);
-      const response = await api.get(\`/api/admin/users?\${params.toString()}\`);
-      return response.data;
+      const response = await api.get(`/api/admin/users?${params.toString()}`);
+      return response.data as User[];
     },
   });
 
@@ -39,7 +39,10 @@ export default function AdminUsersPage() {
     <AuthGate requiredRole="admin">
       <div className="p-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
+          <h1
+            className="text-3xl font-bold mb-2"
+            style={{ color: "var(--text-primary)" }}
+          >
             User Management
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -72,11 +75,17 @@ export default function AdminUsersPage() {
 
         <div className="card rounded-lg overflow-hidden">
           {isLoading ? (
-            <div className="p-8 text-center" style={{ color: "var(--text-secondary)" }}>
+            <div
+              className="p-8 text-center"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Loading users...
             </div>
           ) : !users || users.length === 0 ? (
-            <div className="p-8 text-center" style={{ color: "var(--text-secondary)" }}>
+            <div
+              className="p-8 text-center"
+              style={{ color: "var(--text-secondary)" }}
+            >
               No users found
             </div>
           ) : (
@@ -84,45 +93,84 @@ export default function AdminUsersPage() {
               <table className="w-full">
                 <thead style={{ background: "var(--bg-secondary)" }}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Campaigns
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
                       Joined
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y" style={{ borderColor: "var(--card-border)" }}>
+                <tbody
+                  className="divide-y"
+                  style={{ borderColor: "var(--card-border)" }}
+                >
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                    <tr
+                      key={user.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        <div
+                          className="text-sm font-medium"
+                          style={{ color: "var(--text-primary)" }}
+                        >
                           {user.email}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm" style={{ color: "var(--text-primary)" }}>
+                        <div
+                          className="text-sm"
+                          style={{ color: "var(--text-primary)" }}
+                        >
                           {user.full_name || "—"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={\`px-2 py-1 text-xs font-semibold rounded-full \${user.role === "admin" ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"}\`}>
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            user.role === "admin"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          }`}
+                        >
                           {user.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         {user.campaign_count}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
                     </tr>
