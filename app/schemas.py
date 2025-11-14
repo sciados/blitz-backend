@@ -153,11 +153,12 @@ class ContentResponse(BaseModel):
     marketing_angle: MarketingAngle
     content_data: Dict[str, Any]
     compliance_status: ComplianceStatus
+    compliance_score: Optional[float] = None
     compliance_notes: Optional[str] = None
     version: int
     parent_content_id: Optional[int] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
