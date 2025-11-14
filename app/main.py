@@ -15,6 +15,7 @@ from app.api.admin import products as admin_products
 from app.api.admin import campaigns as admin_campaigns
 from app.api.admin import config as admin_config
 from app.api.admin import users as admin_users
+from app.api.admin import dashboard as admin_dashboard
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -158,6 +159,7 @@ app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(admin_ai_router.router)
 app.include_router(admin_config.router)
 app.include_router(admin_users.router)
+app.include_router(admin_dashboard.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 
