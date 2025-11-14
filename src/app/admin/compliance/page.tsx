@@ -5,41 +5,76 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "src/lib/appClient";
 
-interface ContentTypeStats {
-  content_type: string;
-  count: number;
-  total_words: number;
+interface ComplianceStats {
+  total_checks: number;
+  compliant_count: number;
+  warning_count: number;
+  violation_count: number;
+  compliance_rate: number;
 }
 
-interface UserUsageStats {
+interface ComplianceIssue {
+  issue_type: string;
+  count: number;
+  severity: string;
+}
+
+interface RecentCheck {
+  content_id: number;
   user_email: string;
-  campaign_count: number;
-  content_count: number;
-  total_words: number;
+  campaign_name: string;
+  content_type: string;
+  status: string;
+  checked_at: string;
+  issues_count: number;
 }
 
-interface TimeSeriesPoint {
-  date: string;
-  count: number;
+interface ComplianceSummary {
+  stats: ComplianceStats;
+  common_issues: ComplianceIssue[];
+  recent_checks: RecentCheck[];
+  checks_over_time: Array<{
+    date: string;
+    total: number;
+    compliant: number;
+    warning: number;
+    violation: number;
+  }>;
 }
 
-interface Compliance MonitoringSummary {
-  total_content_pieces: number;
-  total_words_generated: number;
-  avg_content_length: number;
-  most_popular_type: string;
-  content_by_type: ContentTypeStats[];
-  top_users: UserUsageStats[];
-  content_over_time: TimeSeriesPoint[];
-}
-
-export default function AdminCompliance MonitoringPage() {
+export default function AdminCompliancePage() {
   const [days, setDays] = useState(30);
 
-  const { data: analytics, isLoading } = useQuery<Compliance MonitoringSummary>({
+  const { data: complianceData, isLoading } = useQuery<ComplianceSummary>({
     queryKey: ["admin-compliance", days],
-    queryFn: async () => (await api.get(`/api/admin/analytics/summary?days=${days}`)).data,
+    queryFn: async () => (await api.get(`/api/admin/compliance/summary?days=${days}`)).data,
   });
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "compliant":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "warning":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "violation":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+    }
+  };
+
+  const getSeverityBadgeClass = (severity: string) => {
+    switch (severity) {
+      case "high":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "low":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+    }
+  };
 
   return (
     <AuthGate requiredRole="admin">
@@ -69,157 +104,149 @@ export default function AdminCompliance MonitoringPage() {
 
         {isLoading ? (
           <div className="text-center py-12" style={{ color: "var(--text-secondary)" }}>
-            Loading analytics...
+            Loading compliance data...
           </div>
         ) : (
           <>
-            {/* Summary Cards */}
+            {/* Compliance Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="card rounded-xl p-6">
                 <p className="text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Content Pieces
+                  Total Checks
                 </p>
                 <p className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {analytics?.total_content_pieces.toLocaleString() || 0}
+                  {complianceData?.stats.total_checks.toLocaleString() || 0}
                 </p>
               </div>
 
               <div className="card rounded-xl p-6">
                 <p className="text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Words Generated
+                  Compliance Rate
                 </p>
-                <p className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {analytics?.total_words_generated.toLocaleString() || 0}
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  {complianceData?.stats.compliance_rate || 0}%
                 </p>
               </div>
 
               <div className="card rounded-xl p-6">
                 <p className="text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Avg Length
+                  Warnings
                 </p>
-                <p className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {analytics?.avg_content_length.toLocaleString() || 0}
+                <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {complianceData?.stats.warning_count || 0}
                 </p>
-                <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>words</p>
               </div>
 
               <div className="card rounded-xl p-6">
                 <p className="text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                  Most Popular
+                  Violations
                 </p>
-                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-                  {analytics?.most_popular_type || "N/A"}
+                <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  {complianceData?.stats.violation_count || 0}
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Content by Type */}
-              <div className="card rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                  Content by Type
-                </h2>
-                <div className="space-y-3">
-                  {analytics?.content_by_type.map((item) => (
-                    <div key={item.content_type} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium capitalize" style={{ color: "var(--text-primary)" }}>
-                            {item.content_type.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                            {item.count} pieces
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{
-                              width: `${(item.count / (analytics?.total_content_pieces || 1)) * 100}%`
-                            }}
-                          />
-                        </div>
+            {/* Common Issues */}
+            <div className="card rounded-xl p-6 mb-8">
+              <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+                Common Compliance Issues
+              </h2>
+              <div className="space-y-4">
+                {complianceData?.common_issues.map((issue, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <p className="font-medium" style={{ color: "var(--text-primary)" }}>
+                          {issue.issue_type}
+                        </p>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getSeverityBadgeClass(issue.severity)}`}>
+                          {issue.severity}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div
+                          className="bg-red-600 h-2 rounded-full"
+                          style={{
+                            width: `${(issue.count / (complianceData?.stats.total_checks || 1)) * 100}%`,
+                          }}
+                        />
                       </div>
                     </div>
-                  )) || (
-                    <p className="text-center py-4" style={{ color: "var(--text-secondary)" }}>
-                      No content data available
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Top Users */}
-              <div className="card rounded-lg p-6">
-                <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                  Top Users by Usage
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead style={{ background: "var(--bg-secondary)" }}>
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                          User
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                          Content
-                        </th>
-                        <th className="px-4 py-2 text-right text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                          Words
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: "var(--card-border)" }}>
-                      {analytics?.top_users.map((user) => (
-                        <tr key={user.user_email}>
-                          <td className="px-4 py-2 text-sm" style={{ color: "var(--text-primary)" }}>
-                            {user.user_email}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-right" style={{ color: "var(--text-secondary)" }}>
-                            {user.content_count}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-right" style={{ color: "var(--text-secondary)" }}>
-                            {user.total_words.toLocaleString()}
-                          </td>
-                        </tr>
-                      )) || (
-                        <tr>
-                          <td colSpan={3} className="px-4 py-4 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-                            No user data available
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    <div className="ml-4 text-right">
+                      <p className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+                        {issue.count}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        occurrences
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Simple Bar Chart */}
-            <div className="card rounded-lg p-6">
+            {/* Recent Compliance Checks */}
+            <div className="card rounded-xl p-6">
               <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                Content Generation Over Time
+                Recent Compliance Checks
               </h2>
-              <div className="h-64 flex items-end justify-between gap-1">
-                {analytics?.content_over_time.map((point, index) => {
-                  const maxCount = Math.max(...(analytics?.content_over_time.map(p => p.count) || [1]));
-                  const height = maxCount > 0 ? (point.count / maxCount) * 100 : 0;
-
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center">
-                      <div
-                        className="w-full bg-blue-600 rounded-t hover:bg-blue-700 transition cursor-pointer"
-                        style={{ height: `${height}%`, minHeight: point.count > 0 ? '4px' : '0' }}
-                        title={`${point.date}: ${point.count} pieces`}
-                      />
-                      {index % Math.ceil(analytics.content_over_time.length / 10) === 0 && (
-                        <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
-                          {new Date(point.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+                      <th className="text-left p-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        User
+                      </th>
+                      <th className="text-left p-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        Campaign
+                      </th>
+                      <th className="text-left p-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        Content Type
+                      </th>
+                      <th className="text-left p-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        Status
+                      </th>
+                      <th className="text-left p-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        Checked At
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complianceData?.recent_checks.map((check) => (
+                      <tr
+                        key={check.content_id}
+                        style={{ borderBottom: "1px solid var(--card-border)" }}
+                      >
+                        <td className="p-3">
+                          <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+                            {check.user_email}
+                          </p>
+                        </td>
+                        <td className="p-3">
+                          <p className="text-sm" style={{ color: "var(--text-primary)" }}>
+                            {check.campaign_name}
+                          </p>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {check.content_type}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${getStatusBadgeClass(check.status)}`}>
+                            {check.status}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                            {new Date(check.checked_at).toLocaleDateString()}
+                          </p>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
