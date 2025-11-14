@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
 
-from app.models.user import User
+from app.db.models import User
 from app.db.session import get_db
 from app.auth import get_current_user
 
