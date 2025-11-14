@@ -112,10 +112,14 @@ select {
 [data-theme="light"] textarea,
 [data-theme="light"] select {
   color: #1f2937 !important; /* Dark gray for light theme */
+  background-color: #ffffff !important; /* White background for light theme */
+  border-color: #d1d5db !important; /* Light gray border */
 }
 
 [data-theme="dark"] input,
 [data-theme="dark"] textarea,
 [data-theme="dark"] select {
-  color: #ffffff !important; /* White for dark theme */
+  color: #1f2937 !important; /* Dark text for light background */
+  background-color: #ffffff !important; /* White background */
+  border-color: #4b5563 !important; /* Darker border for contrast */
 }
