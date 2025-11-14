@@ -96,7 +96,6 @@ export default function Layout({ children }: LayoutProps) {
         { href: "/admin/config", label: "Configuration", icon: "🎛️" },
         { href: "/admin/ai_router", label: "AI Router", icon: "🤖" },
         { href: "/admin/users", label: "Users", icon: "👥" },
-        { href: "/admin/settings", label: "Settings", icon: "⚙️" },
         { href: "/admin/analytics", label: "Analytics", icon: "📊" },
         { href: "/admin/compliance", label: "Compliance", icon: "🛡️" },
         { href: "/admin/api-keys", label: "API Keys", icon: "🔑" },
