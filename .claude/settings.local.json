@@ -23,7 +23,11 @@
       "Bash(git commit:*)",
       "Bash(git add:*)",
       "Bash(npm run build)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(git fetch:*)",
+      "Bash(__NEW_LINE__:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
