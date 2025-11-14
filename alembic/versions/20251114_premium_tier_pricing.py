@@ -73,94 +73,24 @@ def upgrade() -> None:
     ]
 
     # Update each tier with premium pricing and max campaigns
+    # Tiers should exist from admin_settings_001 migration
     for tier in tier_updates:
-        # Check if tier exists
-        result = op.execute(
+        # Update existing tier (tiers were created in admin_settings_001)
+        op.execute(
             sa.text("""
-                SELECT id FROM tier_configs WHERE tier_name = :name
+                UPDATE tier_configs
+                SET monthly_price = :price,
+                    max_campaigns = :max_campaigns,
+                    words_per_month = :words,
+                    images_per_month = :images,
+                    videos_per_month = :videos,
+                    is_active = :is_active,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE tier_name = :name
             """),
-            {'name': tier['name']}
+            tier
         )
-
-        if result.rowcount > 0:
-            # Update existing tier
-            op.execute(
-                sa.text("""
-                    UPDATE tier_configs
-                    SET monthly_price = :price,
-                        max_campaigns = :max_campaigns,
-                        words_per_month = :words,
-                        images_per_month = :images,
-                        videos_per_month = :videos,
-                        is_active = :is_active,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE tier_name = :name
-                """),
-                tier
-            )
-            print(f"Updated {tier['name']} tier successfully")
-        else:
-            # Insert new tier
-            op.execute(
-                sa.text("""
-                    INSERT INTO tier_configs (
-                        tier_name,
-                        display_name,
-                        monthly_price,
-                        max_campaigns,
-                        words_per_month,
-                        words_per_day,
-                        words_per_generation,
-                        images_per_month,
-                        videos_per_month,
-                        content_pieces_per_campaign,
-                        email_sequences,
-                        api_calls_per_day,
-                        overage_rate_per_1k_words,
-                        is_active,
-                        features,
-                        created_at,
-                        updated_at
-                    )
-                    VALUES (
-                        :name,
-                        :display_name,
-                        :price,
-                        :max_campaigns,
-                        :words,
-                        :words_per_day,
-                        :words_per_generation,
-                        :images,
-                        :videos,
-                        :content_pieces,
-                        :email_sequences,
-                        :api_calls,
-                        :overage_rate,
-                        :is_active,
-                        :features,
-                        CURRENT_TIMESTAMP,
-                        CURRENT_TIMESTAMP
-                    )
-                """),
-                {
-                    'name': tier['name'],
-                    'display_name': tier['name'].capitalize(),
-                    'price': tier['price'],
-                    'max_campaigns': tier['max_campaigns'],
-                    'words': tier['words'],
-                    'words_per_day': tier['words'] // 30,  # Daily limit
-                    'words_per_generation': 8000,  # Per generation
-                    'images': tier['images'],
-                    'videos': tier['videos'],
-                    'content_pieces': 10,  # 10 content pieces per campaign
-                    'email_sequences': 3,  # 3 email sequences per campaign
-                    'api_calls': 1000,  # API calls per day
-                    'overage_rate': 0.50,
-                    'is_active': tier['is_active'],
-                    'features': ['content_generation', 'intelligence_compilation', 'compliance_checking']
-                }
-            )
-            print(f"Inserted {tier['name']} tier successfully")
+        print(f"Updated {tier['name']} tier successfully")
 
     print("\n" + "="*60)
     print("PREMIUM TIER PRICING MIGRATION COMPLETED!")
