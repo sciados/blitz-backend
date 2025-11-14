@@ -75,21 +75,18 @@ def upgrade() -> None:
     # Update each tier with premium pricing and max campaigns
     # Tiers should exist from admin_settings_001 migration
     for tier in tier_updates:
-        # Update existing tier (tiers were created in admin_settings_001)
-        op.execute(
-            sa.text("""
-                UPDATE tier_configs
-                SET monthly_price = :price,
-                    max_campaigns = :max_campaigns,
-                    words_per_month = :words,
-                    images_per_month = :images,
-                    videos_per_month = :videos,
-                    is_active = :is_active,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE tier_name = :name
-            """),
-            tier
-        )
+        # Update existing tier using inline SQL (op.execute doesn't support params)
+        op.execute(f"""
+            UPDATE tier_configs
+            SET monthly_price = {tier['price']},
+                max_campaigns = {tier['max_campaigns']},
+                words_per_month = {tier['words']},
+                images_per_month = {tier['images']},
+                videos_per_month = {tier['videos']},
+                is_active = {str(tier['is_active']).lower()},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE tier_name = '{tier['name']}'
+        """)
         print(f"Updated {tier['name']} tier successfully")
 
     print("\n" + "="*60)
