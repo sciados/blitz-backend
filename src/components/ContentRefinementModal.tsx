@@ -43,7 +43,7 @@ export function ContentRefinementModal({
       setCurrentCompliance({
         status: content.compliance_status,
         score: content.compliance_score ?? 0,
-        notes: content.compliance_notes,
+        notes: content.compliance_notes ?? null,
       });
 
       // Auto-populate compliance fix instructions if requested
@@ -180,7 +180,7 @@ IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, n
       setCurrentCompliance({
         status: data.compliance_status,
         score: data.compliance_score ?? 0,
-        notes: data.compliance_notes,
+        notes: data.compliance_notes ?? null,
       });
 
       // Show success message with compliance info
