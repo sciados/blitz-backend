@@ -325,6 +325,26 @@ export default function CampaignDetailPage() {
 
             <div className="flex items-center space-x-2">
               <button
+                onClick={() => router.push(`/content?campaign=${id}`)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition flex items-center space-x-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                <span>Generate Content</span>
+              </button>
+
+              <button
                 onClick={() => setIsEditing(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center space-x-2"
               >
@@ -661,194 +681,6 @@ export default function CampaignDetailPage() {
                             disabled={isCompiling}
                           >
                             {isCompiling ? "Compiling..." : "Compile Intelligence"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Step 3: Generate Content */}
-                {(() => {
-                  const step2Complete = campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
-                  // Mark as completed only after generating at least 3 pieces of content
-                  const isCompleted = allContent.length >= 3;
-                  // Step 3 is ALWAYS active - users can generate content anytime
-                  const isActive = true;
-
-                  return (
-                    <div
-                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
-                        isCompleted
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : isActive
-                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
-                      }`}
-                    >
-                      <div
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          isCompleted
-                            ? "bg-green-600"
-                            : isActive
-                            ? "bg-blue-600"
-                            : "bg-gray-400"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        ) : (
-                          "3"
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`font-semibold text-sm ${
-                            isCompleted
-                              ? "text-green-900 dark:text-green-300"
-                              : isActive
-                              ? "text-blue-900 dark:text-blue-300"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          Step 3: Generate Content
-                        </div>
-                        <div
-                          className={`text-xs mt-0.5 ${
-                            isCompleted
-                              ? "text-green-700 dark:text-green-400"
-                              : isActive
-                              ? step2Complete
-                                ? "Ready to generate anytime"
-                                : "Available now (compile intelligence first for better results)"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          {isCompleted
-                            ? "✓ Completed"
-                            : isActive
-                            ? step2Complete
-                              ? "Generate content anytime"
-                              : "⚠ Intelligence not compiled - results may be generic"
-                            : "Complete Step 2 first"}
-                        </div>
-                        {/* Button ALWAYS available - generate content anytime */}
-                        {isActive && (
-                          <button
-                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition flex items-center justify-center gap-1"
-                            onClick={() => router.push(`/content?campaign=${id}`)}
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Generate Content
-                            {allContent.length > 0 && (
-                              <span className="text-xs opacity-75">({allContent.length} created)</span>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Step 4: Check Compliance */}
-                {(() => {
-                  const step3Complete = allContent.length > 0;
-                  const isCompleted = false; // TODO: Check if compliance check exists
-                  // Step 4 is active as soon as there's content to check
-                  const isActive = step3Complete;
-
-                  return (
-                    <div
-                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
-                        isCompleted
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : isActive
-                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
-                      }`}
-                    >
-                      <div
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          isCompleted
-                            ? "bg-green-600"
-                            : isActive
-                            ? "bg-blue-600"
-                            : "bg-gray-400"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        ) : (
-                          "4"
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`font-semibold text-sm ${
-                            isCompleted
-                              ? "text-green-900 dark:text-green-300"
-                              : isActive
-                              ? "text-blue-900 dark:text-blue-300"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          Step 4: Check Compliance
-                        </div>
-                        <div
-                          className={`text-xs mt-0.5 ${
-                            isCompleted
-                              ? "text-green-700 dark:text-green-400"
-                              : isActive
-                              ? "text-blue-700 dark:text-blue-400"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          {isCompleted
-                            ? "✓ Completed"
-                            : isActive
-                            ? "Ready to start"
-                            : "Complete Step 3 first"}
-                        </div>
-                        {isActive && !isCompleted && (
-                          <button
-                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"
-                            onClick={() => toast.info("Compliance check coming soon!")}
-                          >
-                            Check Compliance
-                          </button>
-                        )}
-                        {!isActive && (
-                          <button
-                            disabled
-                            className="mt-2 w-full px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded text-xs font-medium cursor-not-allowed"
-                          >
-                            Check Compliance
                           </button>
                         )}
                       </div>
