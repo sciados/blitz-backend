@@ -188,12 +188,10 @@ export type ContentGenerateRequest = {
 };
 
 export type ContentRefineRequest = {
-    content_id: number;
     refinement_instructions: string;
 };
 
 export type ContentVariationRequest = {
-    content_id: number;
     num_variations?: number; // 1-10, default 3
     variation_type?: "tone" | "length" | "angle"; // What to vary
 };
