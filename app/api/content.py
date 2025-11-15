@@ -71,12 +71,16 @@ def parse_email_sequence(generated_text: str, num_emails: int) -> List[Dict[str,
     email_blocks = re.split(r'===\s*END OF EMAIL \d+\s*===', generated_text)
 
     for i, block in enumerate(email_blocks):
+        # STRICT LIMIT: Stop if we have enough emails
+        if len(emails) >= num_emails:
+            break
+
         if not block.strip():
             continue
 
         # Extract subject line
         subject_match = re.search(r'Subject(?:\s+Line)?:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
-        subject = subject_match.group(1).strip() if subject_match else f"Email {i+1}"
+        subject = subject_match.group(1).strip() if subject_match else f"Email {len(emails) + 1}"
 
         # Extract body (everything after subject line)
         if subject_match:
@@ -88,16 +92,20 @@ def parse_email_sequence(generated_text: str, num_emails: int) -> List[Dict[str,
         body = body.replace("Email Body:", "").strip()
         body = re.sub(r'^\d+\.\s*', '', body, flags=re.MULTILINE)  # Remove numbering
 
-        emails.append({
-            "subject": subject,
-            "body": body,
-            "email_number": i + 1
-        })
+        # Only add if there's actual content
+        if body:
+            emails.append({
+                "subject": subject,
+                "body": body,
+                "email_number": len(emails) + 1
+            })
 
-        if len(emails) >= num_emails:
-            break
+    # Log if we got unexpected number of emails
+    if len(emails) != num_emails:
+        logger.warning(f"Expected {num_emails} emails but parsed {len(emails)} from generated text")
 
-    return emails
+    # Return exactly the requested number (truncate or pad if needed)
+    return emails[:num_emails]
 
 
 def add_email_compliance_footer(email_body: str) -> str:
