@@ -7,9 +7,11 @@ interface ContentCardProps {
   onEdit?: (content: GeneratedContent) => void;
   onDelete?: (contentId: number) => void;
   onView?: (content: GeneratedContent) => void;
+  onHover?: (isHovering: boolean) => void;
+  isHighlighted?: boolean;
 }
 
-export function ContentCard({ content, onEdit, onDelete, onView }: ContentCardProps) {
+export function ContentCard({ content, onEdit, onDelete, onView, onHover, isHighlighted = false }: ContentCardProps) {
   const getContentTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       article: "Article",
@@ -86,11 +88,15 @@ export function ContentCard({ content, onEdit, onDelete, onView }: ContentCardPr
 
   return (
     <div
-      className="card rounded-lg p-5 hover:shadow-lg transition-shadow"
+      className={`card rounded-lg p-5 hover:shadow-lg transition-all ${
+        isHighlighted ? "ring-2 ring-blue-500 border-blue-500" : ""
+      }`}
       style={{
         backgroundColor: "var(--card-bg)",
-        borderColor: "var(--border-color)",
+        borderColor: isHighlighted ? "#3b82f6" : "var(--border-color)",
       }}
+      onMouseEnter={() => onHover?.(true)}
+      onMouseLeave={() => onHover?.(false)}
     >
       {/* Email Sequence Header (if applicable) */}
       {isEmailFromSequence && (

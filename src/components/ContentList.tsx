@@ -19,6 +19,7 @@ export function ContentList({ contents, loading = false, onEdit, onDelete, onVie
   const [filterCompliance, setFilterCompliance] = useState<ComplianceStatus | "all">("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [searchTerm, setSearchTerm] = useState("");
+  const [hoveredSequenceIds, setHoveredSequenceIds] = useState<Set<number>>(new Set());
 
   // Filter and sort content
   const filteredAndSortedContent = useMemo(() => {
@@ -83,6 +84,32 @@ export function ContentList({ contents, loading = false, onEdit, onDelete, onVie
 
     return filtered;
   }, [contents, filterType, filterCompliance, sortBy, searchTerm]);
+
+  // Detect emails in same sequence based on creation time proximity
+  const getSequenceEmails = (content: GeneratedContent): GeneratedContent[] => {
+    if (!content.content_data.email_number) return [content];
+
+    return filteredAndSortedContent.filter((c) => {
+      if (!c.content_data.email_number) return false;
+      if (c.campaign_id !== content.campaign_id) return false;
+
+      // Check if created within 30 seconds of each other (same sequence)
+      const timeDiff = Math.abs(
+        new Date(c.created_at).getTime() - new Date(content.created_at).getTime()
+      );
+      return timeDiff < 30000; // 30 seconds
+    });
+  };
+
+  const handleCardHover = (content: GeneratedContent, isHovering: boolean) => {
+    if (isHovering) {
+      const sequenceEmails = getSequenceEmails(content);
+      const ids = new Set(sequenceEmails.map(e => e.id));
+      setHoveredSequenceIds(ids);
+    } else {
+      setHoveredSequenceIds(new Set());
+    }
+  };
 
   if (loading) {
     return (
@@ -229,6 +256,8 @@ export function ContentList({ contents, loading = false, onEdit, onDelete, onVie
               onEdit={onEdit}
               onDelete={onDelete}
               onView={onView}
+              onHover={(isHovering) => handleCardHover(content, isHovering)}
+              isHighlighted={hoveredSequenceIds.has(content.id)}
             />
           ))}
         </div>
