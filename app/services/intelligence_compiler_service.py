@@ -13,7 +13,7 @@ from sqlalchemy.future import select
 from app.db.models import Campaign, ProductIntelligence, KnowledgeBase
 from app.services.scraper_service import SalesPageScraper
 from app.services.intelligence_amplifier import IntelligenceAmplifier
-from app.services.embeddings_openai import OpenAIEmbeddingService
+from app.services.embeddings_router import EmbeddingRouterService
 from app.services.storage_r2 import R2StorageService
 from app.services.rag.intelligent_rag import rag_system
 
@@ -30,7 +30,7 @@ class IntelligenceCompilerService:
         self.db = db
         self.scraper = SalesPageScraper()
         self.amplifier = IntelligenceAmplifier()
-        self.embeddings = OpenAIEmbeddingService()
+        self.embeddings = EmbeddingRouterService()
         self.r2_storage = R2StorageService()
 
     async def compile_for_campaign(

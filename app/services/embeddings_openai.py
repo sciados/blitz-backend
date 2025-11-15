@@ -19,9 +19,9 @@ class OpenAIEmbeddingService:
         """Initialize OpenAI client"""
         self.client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = "text-embedding-3-large"
-        # Match database Vector column size (knowledge_base.embedding is Vector(1024))
+        # Match database Vector column size (knowledge_base.embedding is Vector(1536))
         # text-embedding-3-large supports dimension reduction with minimal performance loss
-        self.dimensions = 1024  # Match database column
+        self.dimensions = 1536  # Match database column
 
     async def generate_embedding(
         self,
