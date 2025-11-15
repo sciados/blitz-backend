@@ -77,6 +77,13 @@ export function ContentCard({ content, onEdit, onDelete, onView }: ContentCardPr
     year: "numeric",
   });
 
+  // Check if this is an email from a sequence
+  const isEmailFromSequence = content.content_type === "email" && content.content_data.email_number;
+  const emailSubject = content.content_data.subject;
+  const emailNumber = content.content_data.email_number;
+  const totalEmails = content.content_data.metadata?.total_emails;
+  const sequenceType = content.content_data.metadata?.sequence_type;
+
   return (
     <div
       className="card rounded-lg p-5 hover:shadow-lg transition-shadow"
@@ -85,6 +92,23 @@ export function ContentCard({ content, onEdit, onDelete, onView }: ContentCardPr
         borderColor: "var(--border-color)",
       }}
     >
+      {/* Email Sequence Header (if applicable) */}
+      {isEmailFromSequence && (
+        <div className="mb-3 pb-3 border-b" style={{ borderColor: "var(--border-color)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+              📧 Email {emailNumber}{totalEmails ? ` of ${totalEmails}` : ""}
+              {sequenceType && <span className="ml-2 text-gray-500">({sequenceType.replace(/_/g, " ")})</span>}
+            </span>
+          </div>
+          {emailSubject && (
+            <h3 className="text-sm font-bold mb-1" style={{ color: "var(--text-primary)" }}>
+              Subject: {emailSubject}
+            </h3>
+          )}
+        </div>
+      )}
+
       {/* Header with badges */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2 flex-wrap">

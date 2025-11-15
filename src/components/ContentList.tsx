@@ -61,6 +61,26 @@ export function ContentList({ contents, loading = false, onEdit, onDelete, onVie
       }
     });
 
+    // Secondary sort by email_number for email sequences (keeps emails in order)
+    filtered.sort((a, b) => {
+      const aIsEmail = a.content_type === "email" && a.content_data.email_number;
+      const bIsEmail = b.content_type === "email" && b.content_data.email_number;
+
+      // If both are emails with numbers, sort by email number
+      if (aIsEmail && bIsEmail) {
+        const aTime = new Date(a.created_at).getTime();
+        const bTime = new Date(b.created_at).getTime();
+        const timeDiff = Math.abs(aTime - bTime);
+
+        // If created within 10 seconds of each other, they're likely from same sequence
+        if (timeDiff < 10000) {
+          return (a.content_data.email_number || 0) - (b.content_data.email_number || 0);
+        }
+      }
+
+      return 0;
+    });
+
     return filtered;
   }, [contents, filterType, filterCompliance, sortBy, searchTerm]);
 
