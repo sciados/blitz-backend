@@ -21,6 +21,7 @@ export function ContentRefinementModal({
   const [refinementInstructions, setRefinementInstructions] = useState("");
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState("");
+  const [aiNotes, setAiNotes] = useState("");
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
 
@@ -33,6 +34,27 @@ export function ContentRefinementModal({
   }, [isOpen, content]);
 
   if (!isOpen || !content) return null;
+
+  // Parse refined content to separate actual content from AI notes
+  const parseRefinedContent = (text: string): { content: string; notes: string } => {
+    // Common separators AI uses for notes
+    const separators = [
+      /\n\n---+\s*\n/i,  // Horizontal line separator
+      /\n\n(Changes made|Modifications|Note|I've refined|I've made|I've updated|Key changes|What I changed):/i,
+    ];
+
+    for (const separator of separators) {
+      const match = text.match(separator);
+      if (match && match.index) {
+        const content = text.substring(0, match.index).trim();
+        const notes = text.substring(match.index).trim();
+        return { content, notes };
+      }
+    }
+
+    // No separator found, return all as content
+    return { content: text.trim(), notes: "" };
+  };
 
   const handleSaveChanges = async () => {
     setIsRefining(true);
@@ -78,9 +100,13 @@ export function ContentRefinementModal({
         refinement_instructions: refinementInstructions,
       });
 
-      setRefinedContent(data.content_data.text);
-      // Also update the edited body so user can see it in the textarea
-      setEditedBody(data.content_data.text);
+      // Parse the refined content to separate actual content from AI notes
+      const { content: cleanContent, notes } = parseRefinedContent(data.content_data.text);
+
+      setRefinedContent(cleanContent);
+      setAiNotes(notes);
+      // Update the edited body with only the clean content (no AI notes)
+      setEditedBody(cleanContent);
       toast.success("Content refined successfully! Review the changes below.");
     } catch (err: any) {
       console.error("Failed to refine content:", err);
@@ -258,6 +284,44 @@ export function ContentRefinementModal({
                     {refinedContent}
                   </pre>
                 </div>
+
+                {/* AI Notes Section (if available) */}
+                {aiNotes && (
+                  <div className="mt-4">
+                    <h4
+                      className="text-xs font-medium mb-2 flex items-center"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <svg
+                        className="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      AI Notes (not included in copy)
+                    </h4>
+                    <div
+                      className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20"
+                      style={{
+                        borderColor: "var(--card-border)",
+                      }}
+                    >
+                      <pre
+                        className="whitespace-pre-wrap text-xs"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {aiNotes}
+                      </pre>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
