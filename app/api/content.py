@@ -720,7 +720,7 @@ async def update_content(
     )
     campaign = campaign_result.scalar_one()
 
-    # Update content_data text if provided
+    # Update content_data fields if provided
     if "text" in updates:
         content.content_data["text"] = updates["text"]
 
@@ -750,6 +750,10 @@ async def update_content(
         ]) if issues else None
 
         # Mark as edited
+
+    # Update email subject if provided
+    if "subject" in updates and updates["subject"] is not None:
+        content.content_data["subject"] = updates["subject"]
         content.content_data["metadata"]["last_edited"] = datetime.utcnow().isoformat()
 
     # Update other fields if provided
