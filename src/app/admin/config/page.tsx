@@ -57,6 +57,22 @@ interface GlobalConfig {
   compliance_checking_enabled: boolean;
 }
 
+interface ContentLength {
+  short: number;
+  medium: number;
+  long: number;
+}
+
+interface ContentLengthConfig {
+  article: ContentLength;
+  email: ContentLength;
+  email_sequence: ContentLength;
+  video_script: ContentLength;
+  social_post: ContentLength;
+  landing_page: ContentLength;
+  ad_copy: ContentLength;
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -81,8 +97,14 @@ export default function AdminConfigPage() {
     queryFn: async () => (await api.get("/api/admin/config/global")).data,
   });
 
+  const { data: contentLengthsData, isLoading: contentLengthsLoading } = useQuery<{content_types: ContentLengthConfig}>({
+    queryKey: ["admin-content-lengths"],
+    queryFn: async () => (await api.get("/api/admin/config/content-lengths")).data,
+  });
+
   const tiers = tiersData?.tiers || [];
   const providers = providersData?.providers || [];
+  const contentLengths = contentLengthsData?.content_types || null;
 
   // Mutations
   const updateTierMutation = useMutation({
@@ -140,6 +162,19 @@ export default function AdminConfigPage() {
     },
   });
 
+  const updateContentLengthsMutation = useMutation({
+    mutationFn: async (config: ContentLengthConfig) => {
+      return await api.put("/api/admin/config/content-lengths", config);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-content-lengths"] });
+      toast.success("Content length settings updated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.detail || "Failed to update content lengths");
+    },
+  });
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -172,6 +207,16 @@ export default function AdminConfigPage() {
           AI Providers
         </button>
         <button
+          onClick={() => setActiveTab("content")}
+          className={`px-4 py-2 rounded-md transition ${
+            activeTab === "content"
+              ? "bg-white dark:bg-gray-700 shadow"
+              : "hover:bg-gray-200 dark:hover:bg-gray-700"
+          }`}
+        >
+          Content Settings
+        </button>
+        <button
           onClick={() => setActiveTab("global")}
           className={`px-4 py-2 rounded-md transition ${
             activeTab === "global"
@@ -200,6 +245,14 @@ export default function AdminConfigPage() {
             onUpdate={updateProviderMutation.mutate}
             onUpdatePricing={updatePricingMutation.mutate}
             isUpdatingPricing={updatePricingMutation.isPending}
+          />
+        )}
+
+        {activeTab === "content" && (
+          <ContentLengthEditor
+            contentLengths={contentLengths}
+            isLoading={contentLengthsLoading}
+            onUpdate={updateContentLengthsMutation.mutate}
           />
         )}
 
@@ -1107,6 +1160,163 @@ function GlobalConfigEditor({
             Save Changes
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// CONTENT LENGTH EDITOR
+// ============================================================================
+
+function ContentLengthEditor({
+  contentLengths,
+  isLoading,
+  onUpdate,
+}: {
+  contentLengths: ContentLengthConfig | null;
+  isLoading: boolean;
+  onUpdate: (config: ContentLengthConfig) => void;
+}) {
+  const [formData, setFormData] = useState<ContentLengthConfig | null>(contentLengths);
+
+  useEffect(() => {
+    if (contentLengths) {
+      setFormData(contentLengths);
+    }
+  }, [contentLengths]);
+
+  if (isLoading || !formData) {
+    return <div className="text-center py-12">Loading content settings...</div>;
+  }
+
+  const contentTypeLabels: Record<keyof ContentLengthConfig, string> = {
+    article: "Article",
+    email: "Email",
+    email_sequence: "Email Sequence",
+    video_script: "Video Script",
+    social_post: "Social Post",
+    landing_page: "Landing Page",
+    ad_copy: "Ad Copy",
+  };
+
+  const handleLengthChange = (
+    contentType: keyof ContentLengthConfig,
+    lengthType: keyof ContentLength,
+    value: number
+  ) => {
+    setFormData({
+      ...formData,
+      [contentType]: {
+        ...formData[contentType],
+        [lengthType]: value,
+      },
+    });
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+          Content Length Settings
+        </h2>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Configure word count for short, medium, and long content across all content types
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {(Object.keys(formData) as Array<keyof ContentLengthConfig>).map((contentType) => (
+          <div
+            key={contentType}
+            className="p-4 rounded-lg border"
+            style={{ borderColor: "var(--card-border)", backgroundColor: "var(--bg-primary)" }}
+          >
+            <h3 className="text-lg font-medium mb-4" style={{ color: "var(--text-primary)" }}>
+              {contentTypeLabels[contentType]}
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Short */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                  Short (words)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData[contentType].short}
+                  onChange={(e) =>
+                    handleLengthChange(contentType, "short", parseInt(e.target.value) || 0)
+                  }
+                  className="w-full px-3 py-2 rounded-lg border"
+                  style={{
+                    borderColor: "var(--input-border)",
+                    backgroundColor: "var(--input-bg)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              {/* Medium */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                  Medium (words)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData[contentType].medium}
+                  onChange={(e) =>
+                    handleLengthChange(contentType, "medium", parseInt(e.target.value) || 0)
+                  }
+                  className="w-full px-3 py-2 rounded-lg border"
+                  style={{
+                    borderColor: "var(--input-border)",
+                    backgroundColor: "var(--input-bg)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+
+              {/* Long */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                  Long (words)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData[contentType].long}
+                  onChange={(e) =>
+                    handleLengthChange(contentType, "long", parseInt(e.target.value) || 0)
+                  }
+                  className="w-full px-3 py-2 rounded-lg border"
+                  style={{
+                    borderColor: "var(--input-border)",
+                    backgroundColor: "var(--input-bg)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Visual indicator */}
+            <div className="mt-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+              Word count range: {formData[contentType].short} → {formData[contentType].medium} → {formData[contentType].long}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Save Button */}
+      <div className="mt-6 pt-4 border-t" style={{ borderColor: "var(--card-border)" }}>
+        <button
+          onClick={() => onUpdate(formData)}
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+        >
+          Save Content Length Settings
+        </button>
       </div>
     </div>
   );
