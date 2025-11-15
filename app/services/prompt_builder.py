@@ -371,20 +371,21 @@ PROGRESSION STRATEGY:
             user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
 
         # Get word count target from constraints or use default
-        word_count_target = "60-120"
-        if constraints and constraints.get('length'):
-            length = constraints['length']
-            if length == 'short':
-                word_count_target = "50-70"
-            elif length == 'medium':
-                word_count_target = "100-130"
-            elif length == 'long':
-                word_count_target = "250-350"
+        if constraints and constraints.get('word_count'):
+            word_count_per_email = constraints['word_count']
+            word_count_min = int(word_count_per_email * 0.9)
+            word_count_max = int(word_count_per_email * 1.1)
+            word_count_target = f"{word_count_min}-{word_count_max}"
+        else:
+            word_count_per_email = 100
+            word_count_target = "90-110"
 
         user_prompt += f"""
 EMAIL SEQUENCE REQUIREMENTS:
 - Generate exactly {num_emails} separate emails
-- STRICT WORD COUNT: Each email body must be {word_count_target} words ONLY
+- ⚠️ CRITICAL WORD COUNT PER EMAIL ⚠️: Each individual email body must be approximately {word_count_per_email} words ({word_count_target} words acceptable range)
+- THIS IS {word_count_per_email} WORDS PER EMAIL, NOT {word_count_per_email} WORDS TOTAL
+- Total word count across all {num_emails} emails will be approximately {word_count_per_email * num_emails} words
 - Include a clear, compelling subject line for each email
 - Include a clear CTA in each email (adapted to the prospect temperature)
 - Maintain consistent tone and voice throughout
@@ -392,14 +393,14 @@ EMAIL SEQUENCE REQUIREMENTS:
 - Include affiliate disclosure where appropriate
 - Each email should provide standalone value
 
-CRITICAL: Do not exceed the word count limit. Keep emails concise and to the point.
+⚠️ CRITICAL: Each email must be {word_count_per_email} words (±10%). Count carefully for EACH email separately.
 
 FORMAT:
 For each email, provide:
 1. Subject Line: [subject]
-2. Email Body: [content - exactly {word_count_target} words]
+2. Email Body: [content - {word_count_per_email} words for THIS email]
 
-Separate each email with: === END OF EMAIL {num_emails} ===
+Separate each email with: === END OF EMAIL [number] ===
 
 Begin the sequence now:"""
 

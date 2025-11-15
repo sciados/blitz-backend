@@ -223,6 +223,9 @@ async def generate_content(
     # Add 20% buffer to ensure AI has room to complete
     if word_count:
         max_tokens = int(word_count * 1.5 * 1.2)
+        # For email sequences, multiply by number of emails (word count is per email)
+        if request.content_type == "email_sequence":
+            max_tokens = max_tokens * request.num_emails
     else:
         max_tokens = 1500  # Default for unspecified length
 
@@ -304,6 +307,7 @@ async def generate_content(
         marketing_angle=content.marketing_angle,
         content_data=content.content_data,
         compliance_status=content.compliance_status,
+        compliance_score=content.compliance_score,
         compliance_notes=content.compliance_notes,
         version=content.version,
         parent_content_id=content.parent_content_id,
@@ -342,6 +346,7 @@ async def get_content(
         marketing_angle=content.marketing_angle,
         content_data=content.content_data,
         compliance_status=content.compliance_status,
+        compliance_score=content.compliance_score,
         compliance_notes=content.compliance_notes,
         version=content.version,
         parent_content_id=content.parent_content_id,
@@ -393,6 +398,7 @@ async def list_campaign_content(
             marketing_angle=content.marketing_angle,
             content_data=content.content_data,
             compliance_status=content.compliance_status,
+            compliance_score=content.compliance_score,
             compliance_notes=content.compliance_notes,
             version=content.version,
             parent_content_id=content.parent_content_id,
@@ -500,6 +506,7 @@ Provide the refined version:"""
         marketing_angle=content.marketing_angle,
         content_data=content.content_data,
         compliance_status=content.compliance_status,
+        compliance_score=content.compliance_score,
         compliance_notes=content.compliance_notes,
         version=content.version,
         parent_content_id=content.parent_content_id,
@@ -593,6 +600,7 @@ async def update_content(
         marketing_angle=content.marketing_angle,
         content_data=content.content_data,
         compliance_status=content.compliance_status,
+        compliance_score=content.compliance_score,
         compliance_notes=content.compliance_notes,
         version=content.version,
         parent_content_id=content.parent_content_id,
@@ -735,6 +743,7 @@ Variation {i+1}:"""
             marketing_angle=var.marketing_angle,
             content_data=var.content_data,
             compliance_status=var.compliance_status,
+            compliance_score=var.compliance_score,
             compliance_notes=var.compliance_notes,
             version=var.version,
             parent_content_id=var.parent_content_id,
