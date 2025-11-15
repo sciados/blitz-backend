@@ -304,6 +304,96 @@ Backend CORS allows:
 4. All subsequent requests include `Authorization: Bearer <token>` header (added by axios interceptor)
 5. On 401 response, frontend clears token and redirects to `/login`
 
+## Landing Page Content Structure
+
+**IMPORTANT:** Generated landing page content is **structured content for template integration**, NOT a finished landing page.
+
+### Content Structure
+
+Landing pages generate with the following labeled sections that will be used with a future template builder:
+
+```
+**Headline**
+Your compelling headline text
+
+**Subheadline**
+Your subheadline text
+
+**Affiliate Disclosure**
+This page contains affiliate links. We may earn a commission if you
+make a purchase through these links at no additional cost to you.
+
+**Problem Agitation**
+Problem identification and emotional connection
+
+**Solution Introduction**
+Introducing the solution/product
+
+**Benefits List**
+• Key benefit 1
+• Key benefit 2
+• Key benefit 3
+
+**Social Proof**
+Testimonials and reviews with "Results may vary" disclaimers
+
+**CTA Primary**
+Primary call-to-action text
+
+**Features Section**
+Detailed product features
+
+**FAQ**
+Questions and answers addressing objections
+
+**CTA Final**
+Final call-to-action with urgency/scarcity
+
+**Disclaimer and Disclosures**
+FTC disclaimers, results disclaimers, medical disclaimers,
+CAN-SPAM compliance, testimonial disclaimers
+```
+
+### Template Integration (Future)
+
+When the landing page template builder is implemented, content will be inserted via placeholders:
+
+```html
+<h1>{{headline}}</h1>
+<h2>{{subheadline}}</h2>
+<div class="disclosure">{{affiliate_disclosure}}</div>
+<section class="problem">{{problem_agitation}}</section>
+<section class="solution">{{solution_introduction}}</section>
+<!-- etc. -->
+<footer>{{disclaimer_and_disclosures}}</footer>
+```
+
+### FTC Compliance
+
+**Two Separate Sections:**
+1. **Affiliate Disclosure** (top) - Required by FTC to be "clear and conspicuous" before purchase decision
+2. **Disclaimer and Disclosures** (bottom) - General disclaimers, results vary, medical advice, etc.
+
+**Backend Compliance Checker:**
+- Located: `app/services/compliance_checker.py`
+- Checks first 500 characters for affiliate disclosure
+- Applies to content types: `landing_page`, `review_article`, `tutorial`
+- Emails can have disclosure at bottom
+
+**Fix Compliance Feature:**
+- Click "Fix Compliance" button on non-compliant content
+- Automatically adds **Affiliate Disclosure** section after subheadline
+- Updates existing content (no duplicate records created)
+- Shows success message when compliance improves
+
+### Content Generation Flow
+
+1. User selects campaign and content type "Landing Page"
+2. Backend generates structured sections using `PromptBuilder`
+3. Compliance checker validates disclosure placement
+4. Content saved with separate, labeled sections
+5. Future: Template builder will use `{{section_name}}` placeholders
+
 ## Key Implementation Notes
 
 - **Client Components**: Most components use `"use client"` directive due to hooks and browser APIs
