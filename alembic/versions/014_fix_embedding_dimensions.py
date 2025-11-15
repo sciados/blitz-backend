@@ -1,8 +1,8 @@
-"""fix embedding dimensions to match cohere model
+"""fix embedding dimensions to match AI Router (1536)
 
-Revision ID: 013_fix_embedding_dimensions
-Revises: 012_add_ai_credits_tracking
-Create Date: 2025-01-15
+Revision ID: 014
+Revises: 012
+Create Date: 2025-11-15
 
 """
 from alembic import op
@@ -11,8 +11,8 @@ from pgvector.sqlalchemy import Vector
 
 
 # revision identifiers, used by Alembic.
-revision = '013_fix_embedding_dimensions'
-down_revision = '012_add_ai_credits_tracking'
+revision = '014'
+down_revision = '012'
 branch_labels = None
 depends_on = None
 
