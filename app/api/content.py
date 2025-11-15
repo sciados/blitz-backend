@@ -26,29 +26,68 @@ router = APIRouter(prefix="/api/content", tags=["content"])
 logger = logging.getLogger(__name__)
 
 
-def replace_affiliate_urls(content: str, campaign: Campaign) -> str:
+def replace_affiliate_urls(
+    content: str,
+    campaign: Campaign,
+    content_id: Optional[int] = None,
+    content_type: Optional[str] = None
+) -> str:
     """
-    Replace any affiliate URLs in content with shortened links.
+    Replace any affiliate URLs in content with shortened links and add tracking.
+    Also replaces CTA placeholders with tracked links.
 
     Args:
         content: Generated content text
         campaign: Campaign object with affiliate_link and affiliate_link_short_code
+        content_id: Optional content ID for tracking
+        content_type: Optional content type for tracking
 
     Returns:
-        Content with affiliate URLs replaced by shortened links
+        Content with affiliate URLs replaced by shortened, tracked links
     """
     if not campaign.affiliate_link or not campaign.affiliate_link_short_code:
         return content
 
     # Get short link domain from environment or use default
     short_domain = os.getenv("SHORT_LINK_DOMAIN", "https://blitz.link")
-    short_url = f"{short_domain}/{campaign.affiliate_link_short_code}"
+    base_short_url = f"{short_domain}/{campaign.affiliate_link_short_code}"
 
-    # Replace full affiliate link with short link
-    updated_content = content.replace(campaign.affiliate_link, short_url)
+    # Build tracked URL with UTM parameters if content_id provided
+    if content_id:
+        # Add tracking parameters for analytics
+        tracking_params = (
+            f"?utm_source=blitz"
+            f"&utm_medium=content"
+            f"&utm_campaign={campaign.id}"
+            f"&utm_content={content_id}"
+        )
+        if content_type:
+            tracking_params += f"_{content_type}"
+
+        tracked_url = f"{base_short_url}{tracking_params}"
+    else:
+        tracked_url = base_short_url
+
+    # Replace full affiliate link with tracked short link
+    updated_content = content.replace(campaign.affiliate_link, tracked_url)
+
+    # Replace common CTA placeholder patterns with clickable tracked links
+    cta_patterns = [
+        (r'\[product link\]', f'<a href="{tracked_url}">Click here</a>'),
+        (r'\[link\]', f'<a href="{tracked_url}">here</a>'),
+        (r'\[affiliate link\]', f'<a href="{tracked_url}">this link</a>'),
+        (r'Click the link below', f'<a href="{tracked_url}">Click here</a>'),
+        (r'click here to learn more', f'<a href="{tracked_url}">click here to learn more</a>'),
+        (r'visit the website', f'<a href="{tracked_url}">visit the website</a>'),
+        (r'check it out', f'<a href="{tracked_url}">check it out</a>'),
+    ]
+
+    import re
+    for pattern, replacement in cta_patterns:
+        updated_content = re.sub(pattern, replacement, updated_content, flags=re.IGNORECASE)
 
     if updated_content != content:
-        logger.info(f"✨ Replaced affiliate URLs with short link: {short_url}")
+        logger.info(f"✨ Replaced affiliate URLs with tracked link: {tracked_url}")
 
     return updated_content
 
@@ -318,8 +357,8 @@ async def generate_content(
         temperature=0.7
     )
 
-    # Replace affiliate URLs with shortened links
-    generated_text = replace_affiliate_urls(generated_text, campaign)
+    # Note: Affiliate URLs will be replaced with tracking after content is saved
+    # (need content ID for tracking parameters)
 
     # Use product_type as category if product_category not available
     product_category = campaign.product_type if campaign.product_type else "general"
@@ -404,6 +443,25 @@ async def generate_content(
         for email_content in email_contents:
             await db.refresh(email_content)
 
+        # Add tracking to email URLs now that we have IDs
+        for email_content in email_contents:
+            tracked_text = replace_affiliate_urls(
+                email_content.content_data["text"],
+                campaign,
+                content_id=email_content.id,
+                content_type="email"
+            )
+            if tracked_text != email_content.content_data["text"]:
+                email_content.content_data["text"] = tracked_text
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(email_content, "content_data")
+
+        # Commit tracked URL updates
+        if email_contents:
+            await db.commit()
+            for email_content in email_contents:
+                await db.refresh(email_content)
+
         # Return list of content responses
         return [
             ContentResponse(
@@ -474,6 +532,22 @@ async def generate_content(
     db.add(content)
     await db.commit()
     await db.refresh(content)
+
+    # Now that we have content ID, replace affiliate URLs with tracked links
+    tracked_text = replace_affiliate_urls(
+        content.content_data["text"],
+        campaign,
+        content_id=content.id,
+        content_type=content.content_type
+    )
+
+    # Update content with tracked links if changed
+    if tracked_text != content.content_data["text"]:
+        content.content_data["text"] = tracked_text
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(content, "content_data")
+        await db.commit()
+        await db.refresh(content)
 
     return ContentResponse(
         id=content.id,
@@ -673,8 +747,13 @@ Provide the refined version:"""
         temperature=0.7
     )
 
-    # Replace affiliate URLs with shortened links
-    refined_text = replace_affiliate_urls(refined_text, campaign)
+    # Replace affiliate URLs with tracked shortened links
+    refined_text = replace_affiliate_urls(
+        refined_text,
+        campaign,
+        content_id=content.id,
+        content_type=content.content_type
+    )
 
     # Get product category from linked ProductIntelligence (if available)
     product_category = None
@@ -914,8 +993,8 @@ Variation {i+1}:"""
             temperature=0.8
         )
 
-        # Replace affiliate URLs with shortened links
-        variation_text = replace_affiliate_urls(variation_text, campaign)
+        # Note: Affiliate URLs will be replaced with tracking after saving
+        # (need variation ID for tracking parameters)
 
         # Check compliance
         compliance_result = compliance_checker.check_content(
@@ -971,6 +1050,25 @@ Variation {i+1}:"""
     # Refresh all variations
     for variation in variations:
         await db.refresh(variation)
+
+    # Add tracking to variation URLs now that we have IDs
+    for variation in variations:
+        tracked_text = replace_affiliate_urls(
+            variation.content_data["text"],
+            campaign,
+            content_id=variation.id,
+            content_type=variation.content_type
+        )
+        if tracked_text != variation.content_data["text"]:
+            variation.content_data["text"] = tracked_text
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(variation, "content_data")
+
+    # Commit tracked URL updates
+    if variations:
+        await db.commit()
+        for variation in variations:
+            await db.refresh(variation)
 
     return [
         ContentResponse(

@@ -476,7 +476,7 @@ LANDING PAGE GUIDELINES:
 - The disclosure should state: "This page contains affiliate links. We may earn a commission if you make a purchase through these links at no additional cost to you."
 - Focus on transformation and results
 - Use bullet points for easy scanning
-- Include multiple clear CTAs
+- Include multiple clear CTAs with tracked links - use phrases like "click here to learn more", "visit the website", or "check it out" (these will automatically become clickable tracked links)
 - Address objections proactively
 - Create urgency without being pushy
 - Use social proof strategically
@@ -487,7 +487,7 @@ EMAIL GUIDELINES:
 - Keep email body concise and focused (50-150 words)
 - Use short paragraphs for easy mobile reading
 - Include a clear, compelling subject line
-- Have one clear call-to-action
+- Have one clear call-to-action - use phrases like "click here to learn more" or "check it out" (these will automatically become clickable tracked links)
 - Include affiliate disclosure where appropriate
 - Write in a conversational, friendly tone""",
 
