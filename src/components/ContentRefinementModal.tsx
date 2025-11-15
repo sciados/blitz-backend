@@ -101,6 +101,23 @@ export function ContentRefinementModal({
     }
   };
 
+  const handleFixCompliance = () => {
+    const complianceInstructions = `Fix all FTC compliance issues to achieve a score of 90+.
+
+Current compliance issues:
+${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
+
+Ensure:
+- Clear affiliate disclosure at the beginning
+- No unsubstantiated health/income claims
+- Proper use of testimonials with disclaimers
+- Realistic expectations set
+- CAN-SPAM compliance for emails`;
+
+    setRefinementInstructions(complianceInstructions);
+    toast.info("Compliance fix instructions added. Click 'Refine Content' to apply.");
+  };
+
   const handleRefine = async () => {
     if (!refinementInstructions.trim()) {
       toast.error("Please provide refinement instructions");
@@ -221,6 +238,38 @@ export function ContentRefinementModal({
               }}
             />
           </div>
+
+          {/* Compliance Warning */}
+          {content.compliance_status !== "compliant" && (
+            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center mb-2">
+                    <svg className="w-5 h-5 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                      Compliance Score: {content.compliance_score}/100
+                    </h4>
+                  </div>
+                  {content.compliance_notes && (
+                    <p className="text-xs text-orange-700 dark:text-orange-400 mb-3">
+                      {content.compliance_notes}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleFixCompliance}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition font-medium flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Fix Compliance Issues with AI</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div
             className="border-t pt-6"
