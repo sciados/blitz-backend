@@ -548,14 +548,12 @@ export default function CampaignDetailPage() {
               </div>
             </div>
 
-            {/* Status and Workflow Grid - Side by Side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Campaign Status */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            {/* Campaign Status */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Campaign Status
               </h3>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {["draft", "active", "paused", "completed"].map((status) => (
                   <button
                     key={status}
@@ -563,7 +561,7 @@ export default function CampaignDetailPage() {
                     disabled={
                       campaign.status === status || updateStatusMutation.isPending
                     }
-                    className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       campaign.status === status
                         ? getStatusColor(status) + " cursor-default"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -572,130 +570,6 @@ export default function CampaignDetailPage() {
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </button>
                 ))}
-              </div>
-              </div>
-
-              {/* Workflow Steps */}
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Campaign Workflow
-              </h3>
-              <div className="space-y-3">
-                {/* Step 1: Create Campaign (Always Complete) */}
-                <div className="flex items-start space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-green-900 dark:text-green-300 text-sm">
-                      Step 1: Create Campaign
-                    </div>
-                    <div className="text-xs text-green-700 dark:text-green-400 mt-0.5">
-                      ✓ Completed
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 2: Compile Intelligence */}
-                {(() => {
-                  // Check if intelligence is completed:
-                  // - Either campaign has its own intelligence_data
-                  // - OR campaign is linked to a ProductIntelligence record (from library)
-                  const isCompleted =
-                    (campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0) ||
-                    campaign.product_intelligence_id; // Linked to product library (intelligence already compiled)
-                  const isActive = true; // Always available after campaign creation
-
-                  return (
-                    <div
-                      className={`flex items-start space-x-3 p-3 rounded-lg border ${
-                        isCompleted
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                          : isActive
-                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                          : "bg-gray-50 dark:bg-gray-700/20 border-gray-200 dark:border-gray-600"
-                      }`}
-                    >
-                      <div
-                        className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          isCompleted
-                            ? "bg-green-600"
-                            : isActive
-                            ? "bg-blue-600"
-                            : "bg-gray-400"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        ) : (
-                          "2"
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`font-semibold text-sm ${
-                            isCompleted
-                              ? "text-green-900 dark:text-green-300"
-                              : isActive
-                              ? "text-blue-900 dark:text-blue-300"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          Step 2: Compile Intelligence
-                        </div>
-                        <div
-                          className={`text-xs mt-0.5 ${
-                            isCompleted
-                              ? "text-green-700 dark:text-green-400"
-                              : isActive
-                              ? "text-blue-700 dark:text-blue-400"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          {isCompleted
-                            ? campaign.product_intelligence_id
-                              ? "✓ Using Product Library Intelligence"
-                              : "✓ Completed"
-                            : "Ready to start"}
-                        </div>
-                        {isActive && !isCompleted && (
-                          <button
-                            className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={handleCompileIntelligence}
-                            disabled={isCompiling}
-                          >
-                            {isCompiling ? "Compiling..." : "Compile Intelligence"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
               </div>
             </div>
           </div>
