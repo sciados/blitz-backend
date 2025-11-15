@@ -610,8 +610,12 @@ export default function CampaignDetailPage() {
 
                 {/* Step 2: Compile Intelligence */}
                 {(() => {
+                  // Check if intelligence is completed:
+                  // - Either campaign has its own intelligence_data
+                  // - OR campaign is linked to a ProductIntelligence record (from library)
                   const isCompleted =
-                    campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0;
+                    (campaign.intelligence_data && Object.keys(campaign.intelligence_data).length > 0) ||
+                    campaign.product_intelligence_id; // Linked to product library (intelligence already compiled)
                   const isActive = true; // Always available after campaign creation
 
                   return (
@@ -672,7 +676,11 @@ export default function CampaignDetailPage() {
                               : "text-gray-500 dark:text-gray-400"
                           }`}
                         >
-                          {isCompleted ? "✓ Completed" : "Ready to start"}
+                          {isCompleted
+                            ? campaign.product_intelligence_id
+                              ? "✓ Using Product Library Intelligence"
+                              : "✓ Completed"
+                            : "Ready to start"}
                         </div>
                         {isActive && !isCompleted && (
                           <button
