@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GeneratedContent } from "src/lib/types";
 import { api } from "src/lib/appClient";
 import { toast } from "sonner";
@@ -24,15 +24,15 @@ export function ContentRefinementModal({
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
 
-  if (!isOpen || !content) return null;
+  // Initialize edited fields when modal opens or content changes
+  useEffect(() => {
+    if (isOpen && content) {
+      setEditedSubject(content.content_data.subject || "");
+      setEditedBody(content.content_data.text || "");
+    }
+  }, [isOpen, content]);
 
-  // Initialize edited fields when modal opens
-  if (!editedSubject && content.content_data.subject) {
-    setEditedSubject(content.content_data.subject);
-  }
-  if (!editedBody) {
-    setEditedBody(content.content_data.text);
-  }
+  if (!isOpen || !content) return null;
 
   const handleSaveChanges = async () => {
     setIsRefining(true);
