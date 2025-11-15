@@ -390,9 +390,44 @@ When the landing page template builder is implemented, content will be inserted 
 
 1. User selects campaign and content type "Landing Page"
 2. Backend generates structured sections using `PromptBuilder`
-3. Compliance checker validates disclosure placement
-4. Content saved with separate, labeled sections
-5. Future: Template builder will use `{{section_name}}` placeholders
+3. Content saved to database (gets unique content ID)
+4. Affiliate URLs replaced with tracked short links containing UTM parameters
+5. Compliance checker validates disclosure placement
+6. Content saved with separate, labeled sections and tracked CTAs
+7. Future: Template builder will use `{{section_name}}` placeholders
+
+### Automatic CTA Link Tracking
+
+**IMPORTANT:** All CTAs automatically get tracked links for click/conversion attribution.
+
+**How It Works:**
+1. Content saved to DB → gets unique ID
+2. Common CTA phrases converted to clickable tracked links
+3. UTM parameters added for analytics tracking
+
+**Tracked URL Format:**
+```
+https://blitz.link/{short_code}?utm_source=blitz&utm_medium=content&utm_campaign={campaign_id}&utm_content={content_id}_{content_type}
+```
+
+**Auto-Converted Phrases:**
+- "click here to learn more" → clickable tracked link
+- "visit the website" → clickable tracked link
+- "check it out" → clickable tracked link
+- "[product link]" → "Click here" link
+- "[link]" → "here" link
+
+**Benefits:**
+- Track which content pieces drive clicks/conversions
+- A/B test different content approaches
+- Measure ROI per content item
+- Works with Google Analytics and other tools
+- No manual link insertion needed
+
+**Backend:**
+- Function: `replace_affiliate_urls()` in `app/api/content.py`
+- Applies after content is saved (needs ID for tracking)
+- Used in generate, refine, and variations endpoints
 
 ## Key Implementation Notes
 
