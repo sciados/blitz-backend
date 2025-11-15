@@ -119,17 +119,29 @@ export function ContentRefinementModal({
 Current compliance issues:
 ${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
 
-Ensure:
-- Add clear affiliate disclosure/disclaimer at the END/BOTTOM of the content
-- No unsubstantiated health/income claims
-- Proper use of testimonials with disclaimers
-- Realistic expectations set
-- CAN-SPAM compliance for emails (unsubscribe at bottom)
+CRITICAL REQUIREMENTS:
+1. AFFILIATE DISCLOSURE PLACEMENT (MUST be within first 500 characters):
+   - Add a clear, prominent affiliate disclosure RIGHT AFTER THE HEADLINE/SUBHEADLINE
+   - Example: "Affiliate Disclosure: This page contains affiliate links. We may earn a commission if you make a purchase through these links at no additional cost to you."
+   - Must be BEFORE any product claims or CTAs
+   - Should be in a separate paragraph or callout box for visibility
 
-IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, not at the top.`;
+2. DISCLAIMER PLACEMENT (at the bottom):
+   - Results disclaimers ("Results may vary") go at the bottom
+   - Medical disclaimers ("Consult a healthcare professional") go at the bottom
+   - Keep existing disclaimer section structure
+
+3. OTHER REQUIREMENTS:
+   - Remove any unsubstantiated health/income claims
+   - Use "may help" or "designed to support" instead of "will cure" or "guaranteed"
+   - Proper use of testimonials with "Results may vary" disclaimers
+   - Set realistic expectations
+   - For emails: CAN-SPAM compliance with unsubscribe at bottom
+
+IMPORTANT: The affiliate disclosure MUST appear within the first 500 characters (near the top) for FTC compliance!`;
 
     setRefinementInstructions(complianceInstructions);
-    toast.info("Compliance fix instructions added. Click 'Refine Content' to apply.");
+    toast.info("Compliance fix instructions loaded. Click 'Refine Content' to apply.");
   };
 
   const handleRefine = async () => {
