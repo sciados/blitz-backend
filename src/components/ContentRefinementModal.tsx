@@ -53,8 +53,8 @@ export function ContentRefinementModal({
 
     // Then, separate content from notes using common separators
     const separators = [
-      /\n\n---+\s*\n/i,  // Horizontal line separator
-      /\n\n(Changes made|Modifications|Note|I've refined|I've made|I've updated|Key changes|What I changed):/i,
+      /\n+---+\s*\n/i,  // Horizontal line separator (one or more newlines)
+      /\n+(Changes made|Modifications|Note|I've refined|I've made|I've updated|Key changes|What I changed|Changes:|Notes:)/i,
     ];
 
     for (const separator of separators) {
