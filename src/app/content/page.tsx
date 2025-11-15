@@ -123,13 +123,13 @@ export default function ContentPage() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const [showComplianceWarning, setShowComplianceWarning] = useState(false);
-  const [focusOnCompliance, setFocusOnCompliance] = useState(false);
 
   const [showRefinementModal, setShowRefinementModal] = useState(false);
   const [showVariationsModal, setShowVariationsModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [allContent, setAllContent] = useState<GeneratedContent[]>([]);
+  const [autoFixComplianceMode, setAutoFixComplianceMode] = useState(false);
 
   useEffect(() => {
     if (generatedContent) {
@@ -163,6 +163,7 @@ export default function ContentPage() {
 
   const handleEditContent = (content: GeneratedContent) => {
     setSelectedContent(content);
+    setAutoFixComplianceMode(false); // Normal edit mode
     setShowRefinementModal(true);
   };
 
@@ -186,6 +187,13 @@ export default function ContentPage() {
   const handleContentRefined = (content: GeneratedContent) => {
     setShowRefinementModal(false);
     setSelectedContent(null);
+    setAutoFixComplianceMode(false); // Reset compliance fix mode
+
+    // Update the displayed content if it's the same one
+    if (generatedContent && generatedContent.id === content.id) {
+      setGeneratedContent(content);
+    }
+
     refetchContent();
   };
 
@@ -195,76 +203,15 @@ export default function ContentPage() {
     refetchContent();
   };
 
-  const handleRegenerateForCompliance = async () => {
-    if (!campaignId || !generatedContent) return;
+  const handleFixComplianceClick = () => {
+    if (!generatedContent) return;
 
-    setIsGenerating(true);
-    setFocusOnCompliance(true);
-
-    try {
-      // Build request payload with compliance focus
-      const payload: any = {
-        campaign_id: campaignId,
-        content_type: contentType,
-        marketing_angle: marketingAngle,
-        tone,
-        length,
-        // Add compliance-focused instruction
-        additional_context: `Please regenerate this content with STRICT FTC compliance. Fix all compliance issues. Previous version had these problems:\n\n${generatedContent.compliance_notes || "Unknown compliance issues"}`,
-      };
-
-      // Add email sequence parameters if needed
-      if (contentType === "email_sequence") {
-        payload.num_emails = numEmails;
-        payload.sequence_type = sequenceType;
-      }
-
-      const { data } = await api.post("/api/content/generate", payload);
-
-      // Handle email sequences (returns array) differently from other content (returns single object)
-      if (Array.isArray(data)) {
-        // Email sequence - multiple emails regenerated
-        const numEmails = data.length;
-        const compliantCount = data.filter((email: any) => email.compliance_status === "compliant").length;
-
-        // Refetch all content to update the Previous Content list
-        refetchContent();
-
-        setGeneratedContent(null);
-        setEditedContent("");
-        setFocusOnCompliance(false);
-
-        if (compliantCount === numEmails) {
-          toast.success(`✅ Regenerated ${numEmails} emails - all compliant! Check Content Library.`);
-        } else {
-          toast.warning(`Regenerated ${numEmails} emails - ${compliantCount} compliant. Check Content Library to review.`);
-        }
-      } else {
-        // Single content piece
-        setGeneratedContent(data);
-        setEditedContent(data.content_data.text);
-        setFocusOnCompliance(false);
-
-        // Refetch all content to update the Previous Content list
-        refetchContent();
-
-        // Show warning if still non-compliant
-        if (data.compliance_status === "violation") {
-          setShowComplianceWarning(true);
-          toast.error(`⚠️ Still has compliance violations (${data.compliance_score}/100). Please review manually.`);
-        } else if (data.compliance_status === "compliant") {
-          toast.success(`✅ Compliance issues fixed! New score: ${data.compliance_score}/100`);
-        } else if (data.compliance_status === "warning") {
-          toast.warning(`⚠️ Improved to ${data.compliance_score}/100, but still has warnings. Review before use.`);
-        }
-      }
-    } catch (err: any) {
-      console.error("Failed to regenerate content:", err);
-      toast.error(err.response?.data?.detail || "Failed to regenerate content");
-      setFocusOnCompliance(false);
-    } finally {
-      setIsGenerating(false);
-    }
+    // Open the refinement modal in compliance fix mode
+    // This will use the refine endpoint which UPDATES the existing content
+    // instead of creating a new record
+    setSelectedContent(generatedContent);
+    setAutoFixComplianceMode(true); // Enable auto-fix compliance mode
+    setShowRefinementModal(true);
   };
 
   async function handleGenerate(e: React.FormEvent) {
@@ -735,16 +682,16 @@ export default function ContentPage() {
                           </svg>
                           <span>Download</span>
                         </button>
-                        {/* Regenerate button for compliance issues */}
+                        {/* Fix Compliance button - opens editor instead of regenerating */}
                         {generatedContent && (generatedContent.compliance_status === "violation" || generatedContent.compliance_status === "warning") && (
                           <button
-                            onClick={handleRegenerateForCompliance}
-                            disabled={isGenerating || focusOnCompliance}
+                            onClick={handleFixComplianceClick}
+                            disabled={isGenerating}
                             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg transition flex items-center space-x-2"
-                            title="Regenerate to fix compliance issues"
+                            title="Open editor to fix compliance issues"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             <span>Fix Compliance</span>
                           </button>
@@ -851,9 +798,13 @@ export default function ContentPage() {
       {/* Content Refinement Modal */}
       <ContentRefinementModal
         isOpen={showRefinementModal}
-        onClose={() => setShowRefinementModal(false)}
+        onClose={() => {
+          setShowRefinementModal(false);
+          setAutoFixComplianceMode(false); // Reset when closing
+        }}
         content={selectedContent}
         onRefined={handleContentRefined}
+        autoFixCompliance={autoFixComplianceMode}
       />
 
       {/* Content Variations Modal */}

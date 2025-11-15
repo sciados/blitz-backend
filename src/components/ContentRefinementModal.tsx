@@ -10,6 +10,7 @@ interface ContentRefinementModalProps {
   onClose: () => void;
   content: GeneratedContent | null;
   onRefined: (content: GeneratedContent) => void;
+  autoFixCompliance?: boolean; // Auto-populate compliance fix instructions
 }
 
 export function ContentRefinementModal({
@@ -17,6 +18,7 @@ export function ContentRefinementModal({
   onClose,
   content,
   onRefined,
+  autoFixCompliance = false,
 }: ContentRefinementModalProps) {
   const [refinementInstructions, setRefinementInstructions] = useState("");
   const [isRefining, setIsRefining] = useState(false);
@@ -25,14 +27,46 @@ export function ContentRefinementModal({
   const [aiNotes, setAiNotes] = useState("");
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
+  const [currentCompliance, setCurrentCompliance] = useState<{
+    status: string;
+    score: number;
+    notes: string | null;
+  } | null>(null);
 
   // Initialize edited fields when modal opens or content changes
   useEffect(() => {
     if (isOpen && content) {
       setEditedSubject(content.content_data.subject || "");
       setEditedBody(content.content_data.text || "");
+
+      // Initialize compliance tracking with current content's compliance data
+      setCurrentCompliance({
+        status: content.compliance_status,
+        score: content.compliance_score ?? 0,
+        notes: content.compliance_notes,
+      });
+
+      // Auto-populate compliance fix instructions if requested
+      if (autoFixCompliance && content.compliance_status !== "compliant") {
+        const complianceInstructions = `Fix all FTC compliance issues to achieve a score of 90+.
+
+Current compliance issues:
+${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
+
+Ensure:
+- Add clear affiliate disclosure/disclaimer at the END/BOTTOM of the content
+- No unsubstantiated health/income claims
+- Proper use of testimonials with disclaimers
+- Realistic expectations set
+- CAN-SPAM compliance for emails (unsubscribe at bottom)
+
+IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, not at the top.`;
+
+        setRefinementInstructions(complianceInstructions);
+        toast.info("Compliance fix instructions loaded. Click 'Refine Content' to apply.");
+      }
     }
-  }, [isOpen, content]);
+  }, [isOpen, content, autoFixCompliance]);
 
   if (!isOpen || !content) return null;
 
@@ -141,7 +175,20 @@ IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, n
       setAiNotes(notes);
       // Update the edited body with only the clean content (no AI intro/notes)
       setEditedBody(cleanContent);
-      toast.success("Content refined successfully! Review the changes below.");
+
+      // Update compliance status with the refined content's compliance data
+      setCurrentCompliance({
+        status: data.compliance_status,
+        score: data.compliance_score ?? 0,
+        notes: data.compliance_notes,
+      });
+
+      // Show success message with compliance info
+      if (data.compliance_status === "compliant") {
+        toast.success(`✅ Content refined successfully! Compliance: ${data.compliance_score}/100`);
+      } else {
+        toast.success("Content refined successfully! Review the changes below.");
+      }
     } catch (err: any) {
       console.error("Failed to refine content:", err);
       toast.error(err.response?.data?.detail || "Failed to refine content");
@@ -242,7 +289,7 @@ IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, n
           </div>
 
           {/* Compliance Warning */}
-          {content.compliance_status !== "compliant" && (
+          {currentCompliance && currentCompliance.status !== "compliant" && (
             <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded-lg">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -251,12 +298,12 @@ IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, n
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
-                      Compliance Score: {content.compliance_score}/100
+                      Compliance Score: {currentCompliance.score}/100
                     </h4>
                   </div>
-                  {content.compliance_notes && (
+                  {currentCompliance.notes && (
                     <p className="text-xs text-orange-700 dark:text-orange-400 mb-3">
-                      {content.compliance_notes}
+                      {currentCompliance.notes}
                     </p>
                   )}
                   <button
