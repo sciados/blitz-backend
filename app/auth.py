@@ -23,18 +23,23 @@ try:
 except Exception:
     from models.user import User  # type: ignore
 
+# Initialize logger early
+logger = logging.getLogger("app.auth")
+
 try:
     from app.core.config.settings import settings
-except Exception:
-    # Minimal fallback
+    logger.info("✓ Using JWT_SECRET_KEY from environment variables (production settings)")
+except Exception as e:
+    # Minimal fallback - ONLY used if settings import fails (development/testing)
+    logger.warning(f"⚠️ Settings import failed, using fallback JWT_SECRET_KEY: {e}")
+    logger.warning("⚠️ THIS SHOULD NOT HAPPEN IN PRODUCTION!")
+
     class _Settings(BaseModel):
         JWT_SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
         JWT_ALGORITHM: str = "HS256"
-        ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+        ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours (for active content creation sessions)
 
     settings = _Settings()  # type: ignore
-
-logger = logging.getLogger("app.auth")
 
 # ----
 # Password hashing
