@@ -10,7 +10,6 @@ interface ContentRefinementModalProps {
   onClose: () => void;
   content: GeneratedContent | null;
   onRefined: (content: GeneratedContent) => void;
-  autoFixCompliance?: boolean; // Auto-populate compliance fix instructions
 }
 
 export function ContentRefinementModal({
@@ -18,7 +17,6 @@ export function ContentRefinementModal({
   onClose,
   content,
   onRefined,
-  autoFixCompliance = false,
 }: ContentRefinementModalProps) {
   const [refinementInstructions, setRefinementInstructions] = useState("");
   const [isRefining, setIsRefining] = useState(false);
@@ -45,28 +43,8 @@ export function ContentRefinementModal({
         score: content.compliance_score ?? 0,
         notes: content.compliance_notes ?? null,
       });
-
-      // Auto-populate compliance fix instructions if requested
-      if (autoFixCompliance && content.compliance_status !== "compliant") {
-        const complianceInstructions = `Fix all FTC compliance issues to achieve a score of 90+.
-
-Current compliance issues:
-${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
-
-Ensure:
-- Add clear affiliate disclosure/disclaimer at the END/BOTTOM of the content
-- No unsubstantiated health/income claims
-- Proper use of testimonials with disclaimers
-- Realistic expectations set
-- CAN-SPAM compliance for emails (unsubscribe at bottom)
-
-IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, not at the top.`;
-
-        setRefinementInstructions(complianceInstructions);
-        toast.info("Compliance fix instructions loaded. Click 'Refine Content' to apply.");
-      }
     }
-  }, [isOpen, content, autoFixCompliance]);
+  }, [isOpen, content]);
 
   if (!isOpen || !content) return null;
 

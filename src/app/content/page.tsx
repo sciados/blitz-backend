@@ -129,7 +129,6 @@ export default function ContentPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [allContent, setAllContent] = useState<GeneratedContent[]>([]);
-  const [autoFixComplianceMode, setAutoFixComplianceMode] = useState(false);
   const [complianceJustFixed, setComplianceJustFixed] = useState<{
     score: number;
     previousScore: number;
@@ -167,7 +166,6 @@ export default function ContentPage() {
 
   const handleEditContent = (content: GeneratedContent) => {
     setSelectedContent(content);
-    setAutoFixComplianceMode(false); // Normal edit mode
     setShowRefinementModal(true);
   };
 
@@ -191,26 +189,9 @@ export default function ContentPage() {
   const handleContentRefined = (content: GeneratedContent) => {
     setShowRefinementModal(false);
     setSelectedContent(null);
-    setAutoFixComplianceMode(false); // Reset compliance fix mode
 
-    // Check if compliance was improved
+    // Update the displayed content if it's the same one
     if (generatedContent && generatedContent.id === content.id) {
-      const previousScore = generatedContent.compliance_score ?? 0;
-      const newScore = content.compliance_score ?? 0;
-
-      // If compliance improved and is now compliant, show success message
-      if (content.compliance_status === "compliant" && generatedContent.compliance_status !== "compliant") {
-        setComplianceJustFixed({
-          score: newScore,
-          previousScore: previousScore,
-        });
-
-        // Auto-hide success message after 10 seconds
-        setTimeout(() => {
-          setComplianceJustFixed(null);
-        }, 10000);
-      }
-
       setGeneratedContent(content);
     }
 
@@ -223,15 +204,62 @@ export default function ContentPage() {
     refetchContent();
   };
 
-  const handleFixComplianceClick = () => {
+  const handleFixComplianceClick = async () => {
     if (!generatedContent) return;
 
-    // Open the refinement modal in compliance fix mode
-    // This will use the refine endpoint which UPDATES the existing content
-    // instead of creating a new record
-    setSelectedContent(generatedContent);
-    setAutoFixComplianceMode(true); // Enable auto-fix compliance mode
-    setShowRefinementModal(true);
+    setIsGenerating(true);
+
+    try {
+      // Build compliance fix instructions
+      const complianceInstructions = `Fix all FTC compliance issues to achieve a score of 90+.
+
+Current compliance issues:
+${generatedContent.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
+
+Ensure:
+- Add clear affiliate disclosure/disclaimer at the END/BOTTOM of the content
+- No unsubstantiated health/income claims
+- Proper use of testimonials with disclaimers
+- Realistic expectations set
+- CAN-SPAM compliance for emails (unsubscribe at bottom)
+
+IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, not at the top.`;
+
+      // Call refine endpoint to fix compliance
+      const { data } = await api.post(`/api/content/${generatedContent.id}/refine`, {
+        refinement_instructions: complianceInstructions,
+      });
+
+      // Update the generated content with the fixed version
+      setGeneratedContent(data);
+      setEditedContent(data.content_data.text);
+
+      // Show success message based on new compliance status
+      if (data.compliance_status === "compliant") {
+        setComplianceJustFixed({
+          score: data.compliance_score ?? 0,
+          previousScore: generatedContent.compliance_score ?? 0,
+        });
+        toast.success(`✅ Compliance fixed! Score: ${data.compliance_score}/100`);
+
+        // Auto-hide success message after 10 seconds
+        setTimeout(() => {
+          setComplianceJustFixed(null);
+        }, 10000);
+      } else if (data.compliance_status === "warning") {
+        toast.warning(`⚠️ Improved to ${data.compliance_score}/100, but still has warnings.`);
+      } else {
+        toast.error(`Still has violations. Score: ${data.compliance_score}/100. May need manual review.`);
+      }
+
+      // Refresh the content library
+      refetchContent();
+    } catch (err: any) {
+      console.error("Failed to fix compliance:", err);
+      toast.error(err.response?.data?.detail || "Failed to fix compliance issues");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   async function handleGenerate(e: React.FormEvent) {
@@ -852,13 +880,9 @@ export default function ContentPage() {
       {/* Content Refinement Modal */}
       <ContentRefinementModal
         isOpen={showRefinementModal}
-        onClose={() => {
-          setShowRefinementModal(false);
-          setAutoFixComplianceMode(false); // Reset when closing
-        }}
+        onClose={() => setShowRefinementModal(false)}
         content={selectedContent}
         onRefined={handleContentRefined}
-        autoFixCompliance={autoFixComplianceMode}
       />
 
       {/* Content Variations Modal */}
