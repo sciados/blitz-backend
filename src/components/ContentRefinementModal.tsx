@@ -108,11 +108,13 @@ Current compliance issues:
 ${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
 
 Ensure:
-- Clear affiliate disclosure at the beginning
+- Add clear affiliate disclosure/disclaimer at the END/BOTTOM of the content
 - No unsubstantiated health/income claims
 - Proper use of testimonials with disclaimers
 - Realistic expectations set
-- CAN-SPAM compliance for emails`;
+- CAN-SPAM compliance for emails (unsubscribe at bottom)
+
+IMPORTANT: Place all disclaimers and disclosures at the BOTTOM of the content, not at the top.`;
 
     setRefinementInstructions(complianceInstructions);
     toast.info("Compliance fix instructions added. Click 'Refine Content' to apply.");
