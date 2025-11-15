@@ -213,21 +213,42 @@ export default function ContentPage() {
 
       const { data } = await api.post("/api/content/generate", payload);
 
-      setGeneratedContent(data);
-      setEditedContent(data.content_data.text);
-      setFocusOnCompliance(false);
+      // Handle email sequences (returns array) differently from other content (returns single object)
+      if (Array.isArray(data)) {
+        // Email sequence - multiple emails regenerated
+        const numEmails = data.length;
+        const compliantCount = data.filter((email: any) => email.compliance_status === "compliant").length;
 
-      // Refetch all content to update the Previous Content list
-      refetchContent();
+        // Refetch all content to update the Previous Content list
+        refetchContent();
 
-      // Show warning if still non-compliant
-      if (data.compliance_status === "violation") {
-        setShowComplianceWarning(true);
-        toast.error(`⚠️ Still has compliance violations (${data.compliance_score}/100). Please review manually.`);
-      } else if (data.compliance_status === "compliant") {
-        toast.success(`✅ Compliance issues fixed! New score: ${data.compliance_score}/100`);
-      } else if (data.compliance_status === "warning") {
-        toast.warning(`⚠️ Improved to ${data.compliance_score}/100, but still has warnings. Review before use.`);
+        setGeneratedContent(null);
+        setEditedContent("");
+        setFocusOnCompliance(false);
+
+        if (compliantCount === numEmails) {
+          toast.success(`✅ Regenerated ${numEmails} emails - all compliant! Check Content Library.`);
+        } else {
+          toast.warning(`Regenerated ${numEmails} emails - ${compliantCount} compliant. Check Content Library to review.`);
+        }
+      } else {
+        // Single content piece
+        setGeneratedContent(data);
+        setEditedContent(data.content_data.text);
+        setFocusOnCompliance(false);
+
+        // Refetch all content to update the Previous Content list
+        refetchContent();
+
+        // Show warning if still non-compliant
+        if (data.compliance_status === "violation") {
+          setShowComplianceWarning(true);
+          toast.error(`⚠️ Still has compliance violations (${data.compliance_score}/100). Please review manually.`);
+        } else if (data.compliance_status === "compliant") {
+          toast.success(`✅ Compliance issues fixed! New score: ${data.compliance_score}/100`);
+        } else if (data.compliance_status === "warning") {
+          toast.warning(`⚠️ Improved to ${data.compliance_score}/100, but still has warnings. Review before use.`);
+        }
       }
     } catch (err: any) {
       console.error("Failed to regenerate content:", err);
@@ -267,21 +288,46 @@ export default function ContentPage() {
 
       const { data } = await api.post("/api/content/generate", payload);
 
-      setGeneratedContent(data);
+      // Handle email sequences (returns array) differently from other content (returns single object)
+      if (Array.isArray(data)) {
+        // Email sequence - multiple emails generated
+        const numEmails = data.length;
+        const compliantCount = data.filter((email: any) => email.compliance_status === "compliant").length;
+        const violationCount = data.filter((email: any) => email.compliance_status === "violation").length;
 
-      // Refetch all content to update the Previous Content list
-      refetchContent();
+        // Refetch all content to update the Previous Content list
+        refetchContent();
 
-      // Show warning if non-compliant
-      if (data.compliance_status === "violation") {
-        setShowComplianceWarning(true);
-        toast.error(`Content has compliance violations (${data.compliance_score}/100). Review issues before use.`);
-      } else if (data.compliance_status === "compliant") {
-        toast.success(`Content generated with ${data.compliance_score}/100 compliance score!`);
-      } else if (data.compliance_status === "warning") {
-        toast.warning(`Content has compliance warnings (${data.compliance_score}/100) - review before use`);
+        // Show summary toast
+        if (violationCount > 0) {
+          toast.error(`Generated ${numEmails} emails - ${violationCount} have compliance violations. Check Content Library to review.`);
+        } else if (compliantCount === numEmails) {
+          toast.success(`✅ Generated ${numEmails} compliant emails! Check Content Library to view them.`);
+        } else {
+          toast.warning(`Generated ${numEmails} emails - ${compliantCount} compliant, ${numEmails - compliantCount - violationCount} warnings. Check Content Library.`);
+        }
+
+        // Clear form since email sequences are viewed in library
+        setGeneratedContent(null);
+        setEditedContent("");
       } else {
-        toast.success("Content generated successfully!");
+        // Single content piece - show in editor
+        setGeneratedContent(data);
+
+        // Refetch all content to update the Previous Content list
+        refetchContent();
+
+        // Show warning if non-compliant
+        if (data.compliance_status === "violation") {
+          setShowComplianceWarning(true);
+          toast.error(`Content has compliance violations (${data.compliance_score}/100). Review issues before use.`);
+        } else if (data.compliance_status === "compliant") {
+          toast.success(`Content generated with ${data.compliance_score}/100 compliance score!`);
+        } else if (data.compliance_status === "warning") {
+          toast.warning(`Content has compliance warnings (${data.compliance_score}/100) - review before use`);
+        } else {
+          toast.success("Content generated successfully!");
+        }
       }
     } catch (err: any) {
       console.error("Failed to generate content:", err);
