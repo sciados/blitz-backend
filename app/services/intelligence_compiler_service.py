@@ -405,17 +405,37 @@ class IntelligenceCompilerService:
 
             logger.info(f"↻ Reusing existing intelligence record (ID: {product_intelligence.id})")
         else:
-            # Create new record
-            product_intelligence = ProductIntelligence(
-                product_url=campaign.product_url,
-                url_hash=url_hash,
-                compilation_version="1.0",
-                affiliate_network=campaign.affiliate_network,  # Copy from campaign
-                commission_rate=campaign.commission_rate  # Copy from campaign if available
-            )
-            self.db.add(product_intelligence)
-            await self.db.flush()  # Get ID without committing
-            logger.info(f"✓ Created new intelligence record (ID: {product_intelligence.id})")
+            # Check if a ProductIntelligence record already exists for this URL
+            stmt = select(ProductIntelligence).where(ProductIntelligence.product_url == campaign.product_url)
+            result = await self.db.execute(stmt)
+            existing_product = result.scalar_one_or_none()
+
+            if existing_product:
+                # Reuse existing record
+                product_intelligence = existing_product
+                logger.info(f"↻ Found existing intelligence record for URL (ID: {product_intelligence.id})")
+
+                # Update affiliate_network if missing
+                if not product_intelligence.affiliate_network and campaign.affiliate_network:
+                    product_intelligence.affiliate_network = campaign.affiliate_network
+                    logger.info(f"📝 Updated affiliate_network: {campaign.affiliate_network}")
+
+                # Update commission_rate if missing
+                if not product_intelligence.commission_rate and campaign.commission_rate:
+                    product_intelligence.commission_rate = campaign.commission_rate
+                    logger.info(f"📝 Updated commission_rate: {campaign.commission_rate}")
+            else:
+                # Create new record
+                product_intelligence = ProductIntelligence(
+                    product_url=campaign.product_url,
+                    url_hash=url_hash,
+                    compilation_version="1.0",
+                    affiliate_network=campaign.affiliate_network,  # Copy from campaign
+                    commission_rate=campaign.commission_rate  # Copy from campaign if available
+                )
+                self.db.add(product_intelligence)
+                await self.db.flush()  # Get ID without committing
+                logger.info(f"✓ Created new intelligence record (ID: {product_intelligence.id})")
 
         scraped_data = await self.scraper.scrape_sales_page(
             url=campaign.product_url,
