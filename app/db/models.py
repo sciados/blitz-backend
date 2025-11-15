@@ -77,9 +77,9 @@ class ProductIntelligence(Base):
     #   "research": {...}          # RAG research data (new)
     # }
 
-    # RAG embedding (OpenAI text-embedding-3-large: 2000 dimensions)
-    # Note: PostgreSQL vector indexes have a 2000 dimension limit
-    intelligence_embedding = Column(Vector(2000), nullable=True)
+    # RAG embedding (Cohere embed-english-v3.0: 1536 dimensions)
+    # Note: Aligned with EMBEDDING_CONFIG in constants.py
+    intelligence_embedding = Column(Vector(1536), nullable=True)
 
     # Metadata
     compiled_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -194,7 +194,7 @@ class KnowledgeBase(Base):
     product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="CASCADE"), nullable=False, index=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)  # Optional: for campaign-specific notes
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1024), nullable=True)  # OpenAI text-embedding-3-large with 1024 dimensions
+    embedding = Column(Vector(1536), nullable=True)  # Cohere embed-english-v3.0 with 1536 dimensions
     meta_data = Column("metadata", JSONB, nullable=True)  # Python: meta_data, DB: metadata
     source_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
