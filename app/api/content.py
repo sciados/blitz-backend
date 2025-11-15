@@ -490,6 +490,43 @@ async def generate_content(
     )
 
 
+@router.get("/", response_model=List[ContentResponse])
+async def list_all_user_content(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100
+):
+    """List all generated content for the current user across all campaigns."""
+    # Get all content for user's campaigns
+    result = await db.execute(
+        select(GeneratedContent)
+        .join(Campaign)
+        .where(Campaign.user_id == current_user.id)
+        .order_by(GeneratedContent.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    contents = result.scalars().all()
+
+    return [
+        ContentResponse(
+            id=content.id,
+            campaign_id=content.campaign_id,
+            content_type=content.content_type,
+            marketing_angle=content.marketing_angle,
+            content_data=content.content_data,
+            compliance_status=content.compliance_status,
+            compliance_score=content.compliance_score,
+            compliance_notes=content.compliance_notes,
+            version=content.version,
+            parent_content_id=content.parent_content_id,
+            created_at=content.created_at
+        )
+        for content in contents
+    ]
+
+
 @router.get("/{content_id}", response_model=ContentResponse)
 async def get_content(
     content_id: int,
