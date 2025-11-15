@@ -60,6 +60,7 @@ You understand persuasion psychology, benefit-driven copy, and clear calls-to-ac
             'structure': [
                 'headline',
                 'subheadline',
+                'affiliate_disclosure',
                 'problem_agitation',
                 'solution_introduction',
                 'benefits_list',
@@ -67,7 +68,8 @@ You understand persuasion psychology, benefit-driven copy, and clear calls-to-ac
                 'cta_primary',
                 'features_section',
                 'faq',
-                'cta_final'
+                'cta_final',
+                'disclaimer_and_disclosures'
             ]
         },
         'email_sequence': {
@@ -470,12 +472,15 @@ TUTORIAL GUIDELINES:
             'landing_page': """
 LANDING PAGE GUIDELINES:
 - Lead with a powerful, benefit-driven headline
+- Include a clear, prominent **Affiliate Disclosure** section right after the subheadline
+- The disclosure should state: "This page contains affiliate links. We may earn a commission if you make a purchase through these links at no additional cost to you."
 - Focus on transformation and results
 - Use bullet points for easy scanning
 - Include multiple clear CTAs
 - Address objections proactively
 - Create urgency without being pushy
-- Use social proof strategically""",
+- Use social proof strategically
+- End with a **Disclaimer and Disclosures** section that includes FTC disclaimers, results disclaimers, and CAN-SPAM compliance info""",
             
             'email': """
 EMAIL GUIDELINES:
