@@ -79,8 +79,9 @@ export function ContentRefinementModal({
       });
 
       setRefinedContent(data.content_data.text);
-      onRefined(data);
-      toast.success("Content refined successfully!");
+      // Also update the edited body so user can see it in the textarea
+      setEditedBody(data.content_data.text);
+      toast.success("Content refined successfully! Review the changes below.");
     } catch (err: any) {
       console.error("Failed to refine content:", err);
       toast.error(err.response?.data?.detail || "Failed to refine content");
