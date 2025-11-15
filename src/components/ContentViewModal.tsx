@@ -196,10 +196,30 @@ export function ContentViewModal({
             </div>
           )}
 
+          {/* Email Subject Line */}
+          {content.content_data.subject && (
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                Email Subject Line
+              </label>
+              <div
+                className="p-4 rounded-lg border"
+                style={{
+                  borderColor: "var(--card-border)",
+                  background: "var(--bg-secondary)",
+                }}
+              >
+                <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {content.content_data.subject}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-                Content
+                {content.content_data.subject ? "Email Body" : "Content"}
               </label>
               <div className="flex items-center space-x-2">
                 <button
