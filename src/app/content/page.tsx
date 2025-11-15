@@ -130,6 +130,10 @@ export default function ContentPage() {
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [allContent, setAllContent] = useState<GeneratedContent[]>([]);
   const [autoFixComplianceMode, setAutoFixComplianceMode] = useState(false);
+  const [complianceJustFixed, setComplianceJustFixed] = useState<{
+    score: number;
+    previousScore: number;
+  } | null>(null);
 
   useEffect(() => {
     if (generatedContent) {
@@ -189,8 +193,24 @@ export default function ContentPage() {
     setSelectedContent(null);
     setAutoFixComplianceMode(false); // Reset compliance fix mode
 
-    // Update the displayed content if it's the same one
+    // Check if compliance was improved
     if (generatedContent && generatedContent.id === content.id) {
+      const previousScore = generatedContent.compliance_score ?? 0;
+      const newScore = content.compliance_score ?? 0;
+
+      // If compliance improved and is now compliant, show success message
+      if (content.compliance_status === "compliant" && generatedContent.compliance_status !== "compliant") {
+        setComplianceJustFixed({
+          score: newScore,
+          previousScore: previousScore,
+        });
+
+        // Auto-hide success message after 10 seconds
+        setTimeout(() => {
+          setComplianceJustFixed(null);
+        }, 10000);
+      }
+
       setGeneratedContent(content);
     }
 
@@ -224,6 +244,7 @@ export default function ContentPage() {
 
     setIsGenerating(true);
     setGeneratedContent(null);
+    setComplianceJustFixed(null); // Clear compliance success message
 
     try {
       // Build request payload
@@ -368,8 +389,41 @@ export default function ContentPage() {
             )}
           </div>
 
+          {/* Compliance Fixed Success Message */}
+          {complianceJustFixed && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-3 flex-1">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-1">
+                      ✅ Issues Fixed, Now Compliant!
+                    </h4>
+                    <div className="text-xs text-green-700 dark:text-green-400 space-y-1">
+                      <p>• Compliance score improved from {complianceJustFixed.previousScore}/100 to {complianceJustFixed.score}/100</p>
+                      <p>• Content is now compliant with FTC guidelines and ready to publish</p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setComplianceJustFixed(null)}
+                  className="ml-3 p-1 hover:bg-green-100 dark:hover:bg-green-800/30 rounded transition"
+                  title="Dismiss"
+                >
+                  <svg className="w-4 h-4 text-green-700 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Compliance Warnings Summary Card */}
-          {(() => {
+          {!complianceJustFixed && (() => {
             const violations = allContent.filter(c => c.compliance_status === "violation").length;
             const warnings = allContent.filter(c => c.compliance_status === "warning").length;
             const compliant = allContent.filter(c => c.compliance_status === "compliant").length;
