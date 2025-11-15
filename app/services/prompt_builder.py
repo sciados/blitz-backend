@@ -145,7 +145,8 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
             system_prompt = self._build_system_prompt(
                 template['system'],
                 tone,
-                constraints
+                constraints,
+                content_type=content_type
             )
 
             # Build user prompt
@@ -174,10 +175,11 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
         self,
         base_system: str,
         tone: str,
-        constraints: Optional[Dict[str, Any]]
+        constraints: Optional[Dict[str, Any]],
+        content_type: Optional[str] = None
     ) -> str:
         """Build the system prompt with tone and constraints"""
-        
+
         tone_instructions = {
             'professional': "Maintain a professional, authoritative tone. Be informative and trustworthy.",
             'casual': "Use a friendly, conversational tone. Be approachable and relatable.",
@@ -185,7 +187,7 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
             'educational': "Be clear, patient, and thorough. Focus on teaching and explaining.",
             'persuasive': "Be compelling and convincing. Focus on benefits and transformation."
         }
-        
+
         system_prompt = f"""{base_system}
 
 TONE: {tone_instructions.get(tone, tone_instructions['professional'])}
@@ -195,7 +197,16 @@ COMPLIANCE REQUIREMENTS:
 - Make honest, accurate claims backed by evidence
 - Avoid exaggerated or misleading statements
 - Include appropriate disclaimers
-- Follow FTC guidelines for affiliate marketing
+- Follow FTC guidelines for affiliate marketing"""
+
+        # Add email-specific compliance requirements
+        if content_type == 'email_sequence':
+            system_prompt += """
+- 🚨 CRITICAL FOR EMAIL SEQUENCES: EVERY email must include affiliate disclosure and unsubscribe link
+- This is required by FTC regulations and CAN-SPAM Act - no exceptions
+- Emails without proper disclosure and unsubscribe will be rejected"""
+
+        system_prompt += """
 
 QUALITY STANDARDS:
 - Write original, unique content
@@ -203,7 +214,7 @@ QUALITY STANDARDS:
 - Use clear, engaging language
 - Structure content for readability
 - Include relevant examples and details"""
-        
+
         if constraints:
             system_prompt += "\n\nCONSTRAINTS:"
             if constraints.get('word_count'):
@@ -212,7 +223,7 @@ QUALITY STANDARDS:
                 system_prompt += f"\n- Include keywords: {', '.join(constraints['keywords'])}"
             if constraints.get('avoid_terms'):
                 system_prompt += f"\n- Avoid terms: {', '.join(constraints['avoid_terms'])}"
-        
+
         return system_prompt
     
     def _build_user_prompt(
@@ -390,19 +401,38 @@ EMAIL SEQUENCE REQUIREMENTS:
 - Include a clear CTA in each email (adapted to the prospect temperature)
 - Maintain consistent tone and voice throughout
 - Progress logically from awareness to action
-- Include affiliate disclosure where appropriate
 - Each email should provide standalone value
+
+🚨 MANDATORY LEGAL FOOTER - MUST APPEAR IN EVERY EMAIL 🚨
+Copy this EXACT footer to the bottom of EVERY SINGLE email (all {num_emails} emails):
+
+---
+Affiliate Disclosure: This email contains affiliate links. I may earn a commission from purchases made through these links.
+Unsubscribe: Click here to unsubscribe from future emails.
+---
+
+DO NOT SKIP THIS FOOTER. It is required by FTC regulations and CAN-SPAM Act.
+Every email that does not include this footer will FAIL compliance and be rejected.
 
 ⚠️ CRITICAL: Each email must be {word_count_per_email} words (±10%). Count carefully for EACH email separately.
 
-FORMAT:
-For each email, provide:
-1. Subject Line: [subject]
-2. Email Body: [content - {word_count_per_email} words for THIS email]
+FORMAT EXAMPLE:
+Subject Line: [Your compelling subject]
 
-Separate each email with: === END OF EMAIL [number] ===
+[Email content - approximately {word_count_per_email} words]
 
-Begin the sequence now:"""
+[Your email message and CTA here...]
+
+---
+Affiliate Disclosure: This email contains affiliate links. I may earn a commission from purchases made through these links.
+Unsubscribe: Click here to unsubscribe from future emails.
+---
+
+=== END OF EMAIL 1 ===
+
+IMPORTANT: ALL {num_emails} EMAILS MUST INCLUDE THE FOOTER SHOWN ABOVE.
+
+Begin generating the {num_emails}-email sequence now:"""
 
         return user_prompt
     

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Union
 from datetime import datetime
 import os
 import logging
@@ -52,6 +52,79 @@ def replace_affiliate_urls(content: str, campaign: Campaign) -> str:
     return updated_content
 
 
+def parse_email_sequence(generated_text: str, num_emails: int) -> List[Dict[str, str]]:
+    """
+    Parse email sequence text into individual emails.
+
+    Args:
+        generated_text: The full generated email sequence text
+        num_emails: Expected number of emails
+
+    Returns:
+        List of dicts with 'subject' and 'body' for each email
+    """
+    import re
+
+    emails = []
+
+    # Split by the separator
+    email_blocks = re.split(r'===\s*END OF EMAIL \d+\s*===', generated_text)
+
+    for i, block in enumerate(email_blocks):
+        if not block.strip():
+            continue
+
+        # Extract subject line
+        subject_match = re.search(r'Subject(?:\s+Line)?:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
+        subject = subject_match.group(1).strip() if subject_match else f"Email {i+1}"
+
+        # Extract body (everything after subject line)
+        if subject_match:
+            body = block[subject_match.end():].strip()
+        else:
+            body = block.strip()
+
+        # Clean up common formatting
+        body = body.replace("Email Body:", "").strip()
+        body = re.sub(r'^\d+\.\s*', '', body, flags=re.MULTILINE)  # Remove numbering
+
+        emails.append({
+            "subject": subject,
+            "body": body,
+            "email_number": i + 1
+        })
+
+        if len(emails) >= num_emails:
+            break
+
+    return emails
+
+
+def add_email_compliance_footer(email_body: str) -> str:
+    """
+    Automatically add required FTC and CAN-SPAM compliance footer to email.
+
+    Args:
+        email_body: The email body text
+
+    Returns:
+        Email body with compliance footer appended
+    """
+    # Check if footer already exists
+    if "affiliate disclosure:" in email_body.lower() and "unsubscribe" in email_body.lower():
+        return email_body
+
+    # Standard compliance footer
+    footer = """
+
+---
+Affiliate Disclosure: This email contains affiliate links. I may earn a commission from purchases made through these links.
+Unsubscribe: Click here to unsubscribe from future emails.
+---"""
+
+    return email_body + footer
+
+
 # Dependency to get RAGService instance
 def get_rag_service(db: AsyncSession = Depends(get_db)) -> RAGService:
     """Get RAGService instance with database session."""
@@ -76,7 +149,7 @@ def get_compliance_checker() -> ComplianceChecker:
     return ComplianceChecker()
 
 
-@router.post("/generate", response_model=ContentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/generate", response_model=Union[ContentResponse, List[ContentResponse]], status_code=status.HTTP_201_CREATED)
 async def generate_content(
     request: ContentGenerateRequest,
     current_user: User = Depends(get_current_user),
@@ -239,9 +312,109 @@ async def generate_content(
     # Replace affiliate URLs with shortened links
     generated_text = replace_affiliate_urls(generated_text, campaign)
 
-    # Check compliance
     # Use product_type as category if product_category not available
     product_category = campaign.product_type if campaign.product_type else "general"
+
+    # Special handling for email sequences - create separate content records for each email
+    if request.content_type == "email_sequence":
+        # Parse into individual emails
+        parsed_emails = parse_email_sequence(generated_text, request.num_emails)
+
+        if not parsed_emails:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to parse email sequence. Please try again."
+            )
+
+        # Create separate content record for each email
+        email_contents = []
+
+        for email_data in parsed_emails:
+            # Add compliance footer to email body
+            email_body_with_footer = add_email_compliance_footer(email_data["body"])
+
+            # Check compliance for this individual email
+            compliance_result = compliance_checker.check_content(
+                content=email_body_with_footer,
+                content_type="email",  # Check as individual email
+                product_category=product_category
+            )
+
+            # Determine compliance status
+            score = compliance_result.get("score", 0)
+            if score >= 90:
+                compliance_status = "compliant"
+            elif score >= 70:
+                compliance_status = "warning"
+            else:
+                compliance_status = "violation"
+
+            # Format compliance notes
+            issues = compliance_result.get("issues", [])
+            compliance_notes = "\n".join([
+                f"[{issue.get('severity', 'medium').upper()}] {issue.get('message', '')}"
+                for issue in issues
+            ]) if issues else None
+
+            # Build content_data for this email
+            content_data = {
+                "text": email_body_with_footer,
+                "subject": email_data["subject"],
+                "email_number": email_data["email_number"],
+                "tone": request.tone,
+                "length": request.length,
+                "metadata": {
+                    "prompt": prompt,
+                    "model": ai_router.last_used_model,
+                    "context_sources": [c.get("source") for c in context],
+                    "generation_time": datetime.utcnow().isoformat(),
+                    "sequence_type": request.sequence_type,
+                    "total_emails": request.num_emails
+                }
+            }
+
+            # Create content record
+            email_content = GeneratedContent(
+                campaign_id=request.campaign_id,
+                content_type="email",  # Store as individual email
+                marketing_angle=request.marketing_angle,
+                content_data=content_data,
+                compliance_status=compliance_status,
+                compliance_score=score,
+                compliance_notes=compliance_notes,
+                version=1
+            )
+
+            db.add(email_content)
+            email_contents.append(email_content)
+
+        # Commit all emails
+        await db.commit()
+
+        # Refresh all emails
+        for email_content in email_contents:
+            await db.refresh(email_content)
+
+        # Return list of content responses
+        return [
+            ContentResponse(
+                id=email.id,
+                campaign_id=email.campaign_id,
+                content_type=email.content_type,
+                marketing_angle=email.marketing_angle,
+                content_data=email.content_data,
+                compliance_status=email.compliance_status,
+                compliance_score=email.compliance_score,
+                compliance_notes=email.compliance_notes,
+                version=email.version,
+                parent_content_id=email.parent_content_id,
+                created_at=email.created_at
+            )
+            for email in email_contents
+        ]
+
+    # Standard content generation (non-email-sequence)
+    # Check compliance
     compliance_result = compliance_checker.check_content(
         content=generated_text,
         content_type=request.content_type,
@@ -264,7 +437,7 @@ async def generate_content(
         for issue in issues
     ]) if issues else None
 
-    # Build content_data with email sequence support
+    # Build content_data
     content_data = {
         "text": generated_text,
         "tone": request.tone,
@@ -277,14 +450,7 @@ async def generate_content(
         }
     }
 
-    # Add email sequence metadata if applicable
-    if request.content_type == "email_sequence":
-        content_data["email_sequence"] = {
-            "num_emails": request.num_emails,
-            "sequence_type": request.sequence_type
-        }
-
-    # Save to database with proper schema
+    # Save to database
     content = GeneratedContent(
         campaign_id=request.campaign_id,
         content_type=request.content_type,
@@ -295,7 +461,7 @@ async def generate_content(
         compliance_notes=compliance_notes,
         version=1
     )
-    
+
     db.add(content)
     await db.commit()
     await db.refresh(content)
