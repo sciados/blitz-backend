@@ -161,10 +161,9 @@ export function ContentRefinementModal({
             <h3 className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
               OR Use AI to Refine
             </h3>
-
-          <div>
-            <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
-              Refinement Instructions *
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                Refinement Instructions *
             </label>
             <textarea
               value={refinementInstructions}
@@ -212,6 +211,7 @@ export function ContentRefinementModal({
               </div>
             </div>
           )}
+          </div>
         </div>
 
         <div
