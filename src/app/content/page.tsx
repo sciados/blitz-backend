@@ -800,23 +800,40 @@ export default function ContentPage() {
             </div>
           </div>
 
-          {campaignId && (
-            <>
-              <div className="mb-4">
-                <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
-                  Previous Content
-                </h2>
-                <p style={{ color: "var(--text-secondary)" }}>
-                  Manage, refine, and create variations of your existing content
-                </p>
-              </div>
-              <ContentList
-                contents={allContent}
-                onView={handleViewContent}
-                onEdit={handleEditContent}
-                onDelete={handleDeleteContent}
-              />
-            </>
+          {/* Previous Content Section */}
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
+              Content Library
+            </h2>
+            <p style={{ color: "var(--text-secondary)" }}>
+              {campaignId
+                ? "Manage, refine, and create variations of your existing content"
+                : "Select a campaign above to view and manage your content"}
+            </p>
+          </div>
+
+          {campaignId ? (
+            <ContentList
+              contents={allContent}
+              onView={handleViewContent}
+              onEdit={handleEditContent}
+              onDelete={handleDeleteContent}
+            />
+          ) : (
+            <div className="card rounded-lg p-12 text-center">
+              <svg className="w-20 h-20 mx-auto mb-4 opacity-30" style={{ color: "var(--text-secondary)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="text-xl font-medium mb-2" style={{ color: "var(--text-primary)" }}>
+                No Campaign Selected
+              </h3>
+              <p className="text-sm max-w-md mx-auto mb-4" style={{ color: "var(--text-secondary)" }}>
+                Please select a campaign from the dropdown above to view your generated content.
+              </p>
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                💡 Your content is organized by campaign. Select a campaign to see all content generated for it.
+              </p>
+            </div>
           )}
         </div>
       </div>
