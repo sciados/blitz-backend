@@ -138,11 +138,9 @@ class ContentGenerateRequest(BaseModel):
     sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
 
 class ContentRefineRequest(BaseModel):
-    content_id: int
     refinement_instructions: str
 
 class ContentVariationRequest(BaseModel):
-    content_id: int
     num_variations: int = Field(default=3, ge=1, le=10)
     variation_type: Optional[str] = "tone"  # tone, length, angle
 
