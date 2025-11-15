@@ -120,3 +120,22 @@ async def get_me(
 ):
     """Get current user information."""
     return current_user
+
+# ====
+# REFRESH TOKEN
+# ====
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Refresh access token for authenticated user (extends session)."""
+
+    # Create new access token with same data but fresh expiration
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": current_user.email, "role": current_user.role},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}

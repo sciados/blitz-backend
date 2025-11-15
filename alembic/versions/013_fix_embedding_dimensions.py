@@ -1,7 +1,7 @@
 """fix embedding dimensions to match cohere model
 
-Revision ID: 010_fix_embedding_dimensions
-Revises: 009_add_analytics_and_developer_tier
+Revision ID: 013_fix_embedding_dimensions
+Revises: 012_add_ai_credits_tracking
 Create Date: 2025-01-15
 
 """
@@ -11,8 +11,8 @@ from pgvector.sqlalchemy import Vector
 
 
 # revision identifiers, used by Alembic.
-revision = '010_fix_embedding_dimensions'
-down_revision = '009_add_analytics_and_developer_tier'
+revision = '013_fix_embedding_dimensions'
+down_revision = '012_add_ai_credits_tracking'
 branch_labels = None
 depends_on = None
 
