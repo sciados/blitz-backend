@@ -154,6 +154,9 @@ export type GeneratedContent = {
         text: string;
         tone?: string;
         length?: string;
+        // Email sequence specific fields
+        subject?: string; // Email subject line
+        email_number?: number; // Position in email sequence (1, 2, 3, etc.)
         metadata?: {
             prompt?: string;
             model?: string;
@@ -161,6 +164,9 @@ export type GeneratedContent = {
             generation_time?: string;
             last_edited?: string;
             last_refined?: string;
+            // Email sequence metadata
+            total_emails?: number; // Total number of emails in sequence
+            sequence_type?: string; // cold_to_hot, warm_to_hot, etc.
         };
         sections?: any[]; // For structured content like landing pages
     };
