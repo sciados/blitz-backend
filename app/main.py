@@ -34,15 +34,23 @@ async def lifespan(app: FastAPI):
     """Lifespan events for startup and shutdown."""
     # Startup
     logger.info("Starting Blitz API...")
-    
+
     # NOTE: Database tables are now managed by Alembic migrations
     # No longer using Base.metadata.create_all()
-    
+
+    # Log JWT configuration source
+    jwt_key_preview = settings.JWT_SECRET_KEY[:20] + "..." if len(settings.JWT_SECRET_KEY) > 20 else settings.JWT_SECRET_KEY
+    if settings.JWT_SECRET_KEY == "CHANGE_ME_SUPER_SECRET":
+        logger.warning("⚠️  Using fallback JWT_SECRET_KEY - CHECK ENVIRONMENT VARIABLES!")
+    else:
+        logger.info(f"✓ JWT_SECRET_KEY loaded from environment (preview: {jwt_key_preview})")
+    logger.info(f"✓ Token expiration: {settings.ACCESS_TOKEN_EXPIRE_MINUTES} minutes ({settings.ACCESS_TOKEN_EXPIRE_MINUTES // 60} hours)")
+
     logger.info("Blitz API started successfully")
     logger.info("Use 'python migrate.py upgrade' to apply database migrations")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Blitz API...")
     await engine.dispose()
