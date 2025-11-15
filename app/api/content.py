@@ -656,9 +656,9 @@ Provide the refined version:"""
     if score >= 90:
         compliance_status = "compliant"
     elif score >= 70:
-        compliance_status = "needs_review"
+        compliance_status = "warning"
     else:
-        compliance_status = "non_compliant"
+        compliance_status = "violation"
 
     # Format compliance notes
     issues = compliance_result.get("issues", [])
@@ -751,9 +751,9 @@ async def update_content(
         if score >= 90:
             content.compliance_status = "compliant"
         elif score >= 70:
-            content.compliance_status = "needs_review"
+            content.compliance_status = "warning"
         else:
-            content.compliance_status = "non_compliant"
+            content.compliance_status = "violation"
 
         content.compliance_score = score
 
@@ -892,9 +892,9 @@ Variation {i+1}:"""
         if score >= 90:
             compliance_status = "compliant"
         elif score >= 70:
-            compliance_status = "needs_review"
+            compliance_status = "warning"
         else:
-            compliance_status = "non_compliant"
+            compliance_status = "violation"
 
         # Format compliance notes
         issues = compliance_result.get("issues", [])
