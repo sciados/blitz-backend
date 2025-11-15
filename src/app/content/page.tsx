@@ -140,12 +140,20 @@ export default function ContentPage() {
   const { refetch: refetchContent } = useQuery({
     queryKey: ["content", campaignId],
     queryFn: async () => {
-      if (!campaignId) return [];
-      const { data } = await api.get(`/api/content/campaign/${campaignId}`);
-      setAllContent(data);
-      return data;
+      if (campaignId === null) {
+        // Fetch all content across all campaigns
+        const { data } = await api.get(`/api/content`);
+        setAllContent(data);
+        return data;
+      } else if (campaignId) {
+        // Fetch content for specific campaign
+        const { data } = await api.get(`/api/content/campaign/${campaignId}`);
+        setAllContent(data);
+        return data;
+      }
+      return [];
     },
-    enabled: !!campaignId,
+    enabled: true, // Always enabled now since we handle null campaignId
   });
 
   const handleViewContent = (content: GeneratedContent) => {
@@ -463,10 +471,13 @@ export default function ContentPage() {
                       setCampaignId(id);
                       if (id) {
                         toast.success("Campaign selected - ready to generate content!");
+                      } else {
+                        toast.success("Viewing all content across all campaigns");
                       }
                     }}
                     label="Campaign *"
                     placeholder="Select a campaign..."
+                    showAllOption={true}
                   />
                   {campaignId ? (
                     <div className="flex items-center gap-2 p-2 -mt-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-xs">
@@ -800,41 +811,31 @@ export default function ContentPage() {
             </div>
           </div>
 
-          {/* Previous Content Section */}
+          {/* Content Library Section */}
           <div className="mb-4">
             <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
               Content Library
+              {allContent.length > 0 && (
+                <span className="ml-3 text-lg font-normal" style={{ color: "var(--text-secondary)" }}>
+                  ({allContent.length} {allContent.length === 1 ? "item" : "items"})
+                </span>
+              )}
             </h2>
             <p style={{ color: "var(--text-secondary)" }}>
-              {campaignId
+              {campaignId === null
+                ? "Viewing all content across all campaigns"
+                : campaignId
                 ? "Manage, refine, and create variations of your existing content"
-                : "Select a campaign above to view and manage your content"}
+                : "Loading..."}
             </p>
           </div>
 
-          {campaignId ? (
-            <ContentList
-              contents={allContent}
-              onView={handleViewContent}
-              onEdit={handleEditContent}
-              onDelete={handleDeleteContent}
-            />
-          ) : (
-            <div className="card rounded-lg p-12 text-center">
-              <svg className="w-20 h-20 mx-auto mb-4 opacity-30" style={{ color: "var(--text-secondary)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="text-xl font-medium mb-2" style={{ color: "var(--text-primary)" }}>
-                No Campaign Selected
-              </h3>
-              <p className="text-sm max-w-md mx-auto mb-4" style={{ color: "var(--text-secondary)" }}>
-                Please select a campaign from the dropdown above to view your generated content.
-              </p>
-              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                💡 Your content is organized by campaign. Select a campaign to see all content generated for it.
-              </p>
-            </div>
-          )}
+          <ContentList
+            contents={allContent}
+            onView={handleViewContent}
+            onEdit={handleEditContent}
+            onDelete={handleDeleteContent}
+          />
         </div>
       </div>
 
