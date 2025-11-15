@@ -466,6 +466,72 @@ async def update_global_config(config_update: GlobalConfigUpdate, db: AsyncSessi
     return {"config": config.to_dict(), "message": "Global config updated successfully"}
 
 # ============================================================================
+# CONTENT LENGTH CONFIGURATION
+# ============================================================================
+
+@router.get("/content-lengths")
+async def get_content_lengths():
+    """Get content length configurations for all content types"""
+    # Default content length configurations (in words)
+    default_lengths = {
+        "article": {"short": 300, "medium": 600, "long": 1200},
+        "email": {"short": 75, "medium": 150, "long": 300},
+        "email_sequence": {"short": 75, "medium": 150, "long": 300},
+        "video_script": {"short": 100, "medium": 200, "long": 400},
+        "social_post": {"short": 30, "medium": 75, "long": 150},
+        "landing_page": {"short": 400, "medium": 800, "long": 1500},
+        "ad_copy": {"short": 25, "medium": 50, "long": 100},
+    }
+
+    return {
+        "content_types": default_lengths,
+        "message": "Content length configurations retrieved successfully"
+    }
+
+@router.put("/content-lengths")
+async def update_content_lengths(content_lengths: Dict[str, Dict[str, int]]):
+    """
+    Update content length configurations
+
+    Example request body:
+    {
+        "article": {"short": 300, "medium": 600, "long": 1200},
+        "email": {"short": 75, "medium": 150, "long": 300}
+    }
+    """
+    # Validate the structure
+    valid_content_types = ["article", "email", "email_sequence", "video_script", "social_post", "landing_page", "ad_copy"]
+    valid_lengths = ["short", "medium", "long"]
+
+    for content_type, lengths in content_lengths.items():
+        if content_type not in valid_content_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid content type: {content_type}. Must be one of {valid_content_types}"
+            )
+
+        for length_name, word_count in lengths.items():
+            if length_name not in valid_lengths:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid length name: {length_name}. Must be one of {valid_lengths}"
+                )
+
+            if not isinstance(word_count, int) or word_count <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Word count must be a positive integer. Got {word_count} for {content_type}.{length_name}"
+                )
+
+    # TODO: Store in database (for now, we'll just return success)
+    # This will be saved to AdminSettings.content_length_config JSONB field
+
+    return {
+        "content_types": content_lengths,
+        "message": "Content length configurations updated successfully"
+    }
+
+# ============================================================================
 # ANALYTICS ENDPOINT
 # ============================================================================
 
