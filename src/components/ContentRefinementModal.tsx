@@ -21,6 +21,7 @@ export function ContentRefinementModal({
   const [refinementInstructions, setRefinementInstructions] = useState("");
   const [isRefining, setIsRefining] = useState(false);
   const [refinedContent, setRefinedContent] = useState("");
+  const [aiIntro, setAiIntro] = useState("");
   const [aiNotes, setAiNotes] = useState("");
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
@@ -35,25 +36,38 @@ export function ContentRefinementModal({
 
   if (!isOpen || !content) return null;
 
-  // Parse refined content to separate actual content from AI notes
-  const parseRefinedContent = (text: string): { content: string; notes: string } => {
-    // Common separators AI uses for notes
+  // Parse refined content to separate actual content from AI notes and intro
+  const parseRefinedContent = (text: string): { content: string; intro: string; notes: string } => {
+    let workingText = text;
+    let intro = "";
+    let notes = "";
+
+    // First, extract the introductory phrase (e.g., "Here's a refined version...")
+    const introPattern = /^(Here'?s?\s+(?:a|the)\s+refined\s+.*?:|Here'?s?\s+.*?with\s+.*?:)/i;
+    const introMatch = workingText.match(introPattern);
+    if (introMatch) {
+      intro = introMatch[1].trim();
+      // Remove the intro from the working text
+      workingText = workingText.substring(introMatch[0].length).trim();
+    }
+
+    // Then, separate content from notes using common separators
     const separators = [
       /\n\n---+\s*\n/i,  // Horizontal line separator
       /\n\n(Changes made|Modifications|Note|I've refined|I've made|I've updated|Key changes|What I changed):/i,
     ];
 
     for (const separator of separators) {
-      const match = text.match(separator);
+      const match = workingText.match(separator);
       if (match && match.index) {
-        const content = text.substring(0, match.index).trim();
-        const notes = text.substring(match.index).trim();
-        return { content, notes };
+        const content = workingText.substring(0, match.index).trim();
+        notes = workingText.substring(match.index).trim();
+        return { content, intro, notes };
       }
     }
 
     // No separator found, return all as content
-    return { content: text.trim(), notes: "" };
+    return { content: workingText.trim(), intro, notes: "" };
   };
 
   const handleSaveChanges = async () => {
@@ -100,12 +114,13 @@ export function ContentRefinementModal({
         refinement_instructions: refinementInstructions,
       });
 
-      // Parse the refined content to separate actual content from AI notes
-      const { content: cleanContent, notes } = parseRefinedContent(data.content_data.text);
+      // Parse the refined content to separate actual content from AI intro and notes
+      const { content: cleanContent, intro, notes } = parseRefinedContent(data.content_data.text);
 
       setRefinedContent(cleanContent);
+      setAiIntro(intro);
       setAiNotes(notes);
-      // Update the edited body with only the clean content (no AI notes)
+      // Update the edited body with only the clean content (no AI intro/notes)
       setEditedBody(cleanContent);
       toast.success("Content refined successfully! Review the changes below.");
     } catch (err: any) {
@@ -244,7 +259,7 @@ export function ContentRefinementModal({
                     className="text-sm font-medium"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Refined Content
+                    {aiIntro || "Refined Content"}
                   </h3>
                   <button
                     onClick={handleCopy}
