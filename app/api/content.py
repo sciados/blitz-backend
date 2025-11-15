@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List, Union, Dict
 from datetime import datetime
 import os
@@ -714,9 +715,11 @@ async def update_content(
             detail="Content not found"
         )
 
-    # Get campaign for compliance check
+    # Get campaign for compliance check (eager load product_intelligence for category)
     campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == content.campaign_id)
+        select(Campaign)
+        .options(selectinload(Campaign.product_intelligence))
+        .where(Campaign.id == content.campaign_id)
     )
     campaign = campaign_result.scalar_one()
 
@@ -724,11 +727,16 @@ async def update_content(
     if "text" in updates:
         content.content_data["text"] = updates["text"]
 
+        # Get product category from linked ProductIntelligence (if available)
+        product_category = None
+        if campaign.product_intelligence:
+            product_category = campaign.product_intelligence.product_category
+
         # Re-check compliance on manual edits
         compliance_result = compliance_checker.check_content(
             content=updates["text"],
             content_type=content.content_type,
-            product_category=campaign.product_category
+            product_category=product_category
         )
 
         # Update compliance status
