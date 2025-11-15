@@ -610,9 +610,11 @@ async def refine_content(
             detail="Content not found"
         )
 
-    # Get campaign for URL replacement
+    # Get campaign for URL replacement (eager load product_intelligence for category)
     campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == content.campaign_id)
+        select(Campaign)
+        .options(selectinload(Campaign.product_intelligence))
+        .where(Campaign.id == content.campaign_id)
     )
     campaign = campaign_result.scalar_one()
 
@@ -637,11 +639,16 @@ Provide the refined version:"""
     # Replace affiliate URLs with shortened links
     refined_text = replace_affiliate_urls(refined_text, campaign)
 
+    # Get product category from linked ProductIntelligence (if available)
+    product_category = None
+    if campaign.product_intelligence:
+        product_category = campaign.product_intelligence.product_category
+
     # Check compliance
     compliance_result = compliance_checker.check_content(
         content=refined_text,
         content_type=content.content_type,
-        product_category=campaign.product_category
+        product_category=product_category
     )
 
     # Determine compliance status
@@ -821,11 +828,18 @@ async def create_variations(
             detail="Content not found"
         )
 
-    # Get campaign for URL replacement
+    # Get campaign for URL replacement (eager load product_intelligence for category)
     campaign_result = await db.execute(
-        select(Campaign).where(Campaign.id == content.campaign_id)
+        select(Campaign)
+        .options(selectinload(Campaign.product_intelligence))
+        .where(Campaign.id == content.campaign_id)
     )
     campaign = campaign_result.scalar_one()
+
+    # Get product category from linked ProductIntelligence (if available)
+    product_category = None
+    if campaign.product_intelligence:
+        product_category = campaign.product_intelligence.product_category
 
     # Get original text from content_data
     original_text = content.content_data.get("text", "")
@@ -870,7 +884,7 @@ Variation {i+1}:"""
         compliance_result = compliance_checker.check_content(
             content=variation_text,
             content_type=content.content_type,
-            product_category=campaign.product_category
+            product_category=product_category
         )
 
         # Determine compliance status
