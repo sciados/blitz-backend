@@ -75,7 +75,7 @@ function ProductCreatorDashboard() {
         {/* Product Library */}
         <Link
           href="/products"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-purple-50/50 hover:to-transparent dark:hover:from-purple-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -93,7 +93,7 @@ function ProductCreatorDashboard() {
         {/* Intelligence */}
         <Link
           href="/intelligence"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-indigo-50/50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -111,7 +111,7 @@ function ProductCreatorDashboard() {
         {/* Content */}
         <Link
           href="/content"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-green-400 dark:hover:border-green-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-green-50/50 hover:to-transparent dark:hover:from-green-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-green-400 dark:hover:border-green-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -129,7 +129,7 @@ function ProductCreatorDashboard() {
         {/* Campaigns */}
         <Link
           href="/campaigns"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -147,7 +147,7 @@ function ProductCreatorDashboard() {
         {/* Compliance */}
         <Link
           href="/compliance"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-red-400 dark:hover:border-red-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-red-50/50 hover:to-transparent dark:hover:from-red-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-red-400 dark:hover:border-red-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -165,7 +165,7 @@ function ProductCreatorDashboard() {
         {/* Product Analytics */}
         <Link
           href="/product-analytics"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-cyan-400 dark:hover:border-cyan-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-cyan-50/50 hover:to-transparent dark:hover:from-cyan-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-cyan-400 dark:hover:border-cyan-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -183,7 +183,7 @@ function ProductCreatorDashboard() {
         {/* Analytics */}
         <Link
           href="/analytics"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-orange-400 dark:hover:border-orange-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-orange-50/50 hover:to-transparent dark:hover:from-orange-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-orange-400 dark:hover:border-orange-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -201,7 +201,7 @@ function ProductCreatorDashboard() {
         {/* Settings */}
         <Link
           href="/settings"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-gray-400 dark:hover:border-gray-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-gray-50/50 hover:to-transparent dark:hover:from-gray-800/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-gray-400 dark:hover:border-gray-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -269,7 +269,7 @@ function AffiliateMarketerDashboard() {
         {/* Campaigns */}
         <Link
           href="/campaigns"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -287,7 +287,7 @@ function AffiliateMarketerDashboard() {
         {/* Product Library */}
         <Link
           href="/products"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-purple-50/50 hover:to-transparent dark:hover:from-purple-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-purple-400 dark:hover:border-purple-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -305,7 +305,7 @@ function AffiliateMarketerDashboard() {
         {/* Content Generation */}
         <Link
           href="/content"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-green-400 dark:hover:border-green-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-green-50/50 hover:to-transparent dark:hover:from-green-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-green-400 dark:hover:border-green-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -323,7 +323,7 @@ function AffiliateMarketerDashboard() {
         {/* Intelligence/RAG */}
         <Link
           href="/intelligence"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-indigo-50/50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -341,7 +341,7 @@ function AffiliateMarketerDashboard() {
         {/* Compliance Check */}
         <Link
           href="/compliance"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-red-400 dark:hover:border-red-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-red-50/50 hover:to-transparent dark:hover:from-red-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-red-400 dark:hover:border-red-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -359,7 +359,7 @@ function AffiliateMarketerDashboard() {
         {/* Analytics */}
         <Link
           href="/analytics"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-orange-400 dark:hover:border-orange-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-orange-50/50 hover:to-transparent dark:hover:from-orange-900/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-orange-400 dark:hover:border-orange-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -377,7 +377,7 @@ function AffiliateMarketerDashboard() {
         {/* Settings */}
         <Link
           href="/settings"
-          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-gray-400 dark:hover:border-gray-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-gray-50/50 hover:to-transparent dark:hover:from-gray-800/20 dark:hover:to-transparent"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-gray-400 dark:hover:border-gray-500 border-2 border-transparent "
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
