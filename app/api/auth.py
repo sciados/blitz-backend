@@ -19,6 +19,7 @@ from app.core.config.settings import settings
 # Profile update schema
 class ProfileUpdate(BaseModel):
     full_name: str
+    profile_image_url: str | None = None
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -139,6 +140,10 @@ async def update_profile(
     """Update user profile information."""
     # Update full name
     current_user.full_name = profile_data.full_name
+
+    # Update profile image URL if provided
+    if profile_data.profile_image_url is not None:
+        current_user.profile_image_url = profile_data.profile_image_url
 
     await db.commit()
     await db.refresh(current_user)
