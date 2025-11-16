@@ -108,6 +108,7 @@ export default function Layout({ children }: LayoutProps) {
     if (userInfo?.user_type === "product_creator") {
       return [
         { href: "/dashboard", label: "Dashboard", icon: "🏠" },
+        { href: "/campaigns", label: "Campaigns", icon: "📢" },
         { href: "/products", label: "Product Library", icon: "📦" },
         { href: "/product-analytics", label: "Product Analytics", icon: "📊" },
         { href: "/settings", label: "Settings", icon: "⚙️" },
