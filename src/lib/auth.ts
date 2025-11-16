@@ -62,3 +62,37 @@ export const getUserFromToken = (): { email: string; name: string; role: string 
         return null;
     }
 };
+
+export const isTokenExpiringSoon = (): boolean => {
+    const token = getToken();
+    if (!token) return true;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const exp = payload.exp;
+        if (!exp) return true;
+
+        // Check if token expires in less than 1 hour
+        const expirationTime = exp * 1000; // Convert to milliseconds
+        const currentTime = Date.now();
+        const oneHour = 60 * 60 * 1000;
+
+        return (expirationTime - currentTime) < oneHour;
+    } catch (error) {
+        console.error('Error checking token expiration:', error);
+        return true;
+    }
+};
+
+export const getTokenExpirationTime = (): number | null => {
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp ? payload.exp * 1000 : null; // Convert to milliseconds
+    } catch (error) {
+        console.error('Error getting token expiration:', error);
+        return null;
+    }
+};
