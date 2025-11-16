@@ -9,7 +9,7 @@ import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from app.db.models import KnowledgeBase, Campaign
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings_router import EmbeddingRouterService
 from app.core.config.settings import settings
 import logging
 
@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     """Retrieval-Augmented Generation service for context-aware content generation"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingRouterService()
         self.chunk_size = 1000  # characters per chunk
         self.chunk_overlap = 200
         
