@@ -190,7 +190,11 @@ async def recompile_product_intelligence(
     """
     Force recompilation of intelligence for an existing product.
 
-    Admin only. This will:
+    Available to:
+    - Admins (all products)
+    - Product Developers (their own products only)
+
+    This will:
     1. Re-scrape the sales page
     2. Re-download and classify images
     3. Re-run AI amplification
@@ -202,13 +206,7 @@ async def recompile_product_intelligence(
     - Adding RAG data to old products
     - Fixing compilation errors
     """
-    # Check if user is admin
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    logger.info(f"🔄 Admin {current_user.email} requesting recompilation for product {product_id}")
-
-    # Get product
+    # Get product first to check ownership
     result = await db.execute(
         select(ProductIntelligence).where(ProductIntelligence.id == product_id)
     )
@@ -216,6 +214,19 @@ async def recompile_product_intelligence(
 
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # Check authorization: Admin OR product owner
+    is_admin = current_user.role == "admin"
+    is_owner = product.created_by_user_id == current_user.id
+
+    if not (is_admin or is_owner):
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins or product owners can refresh intelligence"
+        )
+
+    user_role = "Admin" if is_admin else "Product Developer"
+    logger.info(f"🔄 {user_role} {current_user.email} requesting recompilation for product {product_id}")
 
     # Import here to avoid circular dependency
     from app.services.intelligence_compiler_service import IntelligenceCompilerService
