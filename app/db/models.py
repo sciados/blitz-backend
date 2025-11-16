@@ -38,6 +38,7 @@ class User(Base):
     campaigns = relationship("Campaign", back_populates="user", cascade="all, delete-orphan")
     created_products = relationship("ProductIntelligence", back_populates="created_by", foreign_keys="ProductIntelligence.created_by_user_id")
     shortened_links = relationship("ShortenedLink", back_populates="user", cascade="all, delete-orphan")
+    platform_credentials = relationship("UserPlatformCredential", back_populates="user", cascade="all, delete-orphan")
 
 # ============================================================================
 # PRODUCT INTELLIGENCE MODEL (Global Shared Intelligence)
@@ -395,6 +396,44 @@ class LinkClick(Base):
 
     # Relationships
     shortened_link = relationship("ShortenedLink", back_populates="clicks")
+
+# ============================================================================
+# PLATFORM CREDENTIALS MODEL
+# ============================================================================
+
+class UserPlatformCredential(Base):
+    """
+    Stores encrypted API credentials for external platforms (ClickBank, JVZoo, etc.)
+    """
+    __tablename__ = "user_platform_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Platform identification
+    platform_name = Column(String(50), nullable=False, index=True)  # 'clickbank', 'jvzoo', 'warriorplus', etc.
+    account_nickname = Column(String(100), nullable=True)  # User-friendly name
+
+    # Encrypted credentials (use encryption utility before storing)
+    api_key_encrypted = Column(Text, nullable=True)
+    api_secret_encrypted = Column(Text, nullable=True)
+
+    # Platform-specific additional settings (JSON)
+    additional_settings = Column(JSONB, nullable=True)
+
+    # Status
+    is_active = Column(Boolean, server_default="true", nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="platform_credentials")
+
+# Add relationship to User model (this will be referenced from the User class)
+# User.platform_credentials = relationship("UserPlatformCredential", back_populates="user")
+
 # ============================================================================
 # AI CREDITS TRACKING MODELS
 # ============================================================================
