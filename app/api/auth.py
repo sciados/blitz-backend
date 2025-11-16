@@ -1,5 +1,5 @@
 # app/api/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 from pydantic import BaseModel
@@ -15,6 +15,7 @@ from app.auth import (
     get_user_by_email
 )
 from app.core.config.settings import settings
+from app.utils.r2_storage import r2_storage
 
 # Profile update schema
 class ProfileUpdate(BaseModel):
@@ -168,3 +169,79 @@ async def refresh_token(
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+# ====
+# UPLOAD PROFILE IMAGE
+# ====
+
+@router.post("/upload-profile-image")
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Upload profile image to Cloudflare R2 and update user profile.
+    Accepts: JPG, PNG, GIF, WebP (max 5MB)
+    """
+
+    # Check if R2 is configured
+    if not r2_storage.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="File upload service is not configured"
+        )
+
+    # Validate file size (5MB max)
+    max_size = 5 * 1024 * 1024  # 5MB in bytes
+    file.file.seek(0, 2)  # Seek to end
+    file_size = file.file.tell()
+    file.file.seek(0)  # Reset to beginning
+
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size exceeds 5MB limit"
+        )
+
+    # Validate content type
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+        )
+
+    try:
+        # Delete old profile image if exists
+        if current_user.profile_image_url:
+            r2_storage.delete_file(current_user.profile_image_url)
+
+        # Upload to R2
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        image_url = r2_storage.upload_file(
+            file=file,
+            folder="profile-images",
+            allowed_extensions=allowed_extensions
+        )
+
+        # Update user profile
+        current_user.profile_image_url = image_url
+        await db.commit()
+        await db.refresh(current_user)
+
+        return {
+            "message": "Profile image uploaded successfully",
+            "profile_image_url": image_url
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
