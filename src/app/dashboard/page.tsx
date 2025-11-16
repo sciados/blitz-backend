@@ -90,21 +90,111 @@ function ProductCreatorDashboard() {
           </p>
         </Link>
 
-        {/* Product Analytics */}
+        {/* Intelligence */}
         <Link
-          href="/product-analytics"
+          href="/intelligence"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-indigo-400 dark:hover:border-indigo-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-indigo-50/50 hover:to-transparent dark:hover:from-indigo-900/20 dark:hover:to-transparent"
+        >
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <span className="text-indigo-600 dark:text-indigo-400 text-xl">🧠</span>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
+              Intelligence
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            AI-powered product research and competitive insights
+          </p>
+        </Link>
+
+        {/* Content */}
+        <Link
+          href="/content"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-green-400 dark:hover:border-green-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-green-50/50 hover:to-transparent dark:hover:from-green-900/20 dark:hover:to-transparent"
+        >
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <span className="text-green-600 dark:text-green-400 text-xl">✍️</span>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors duration-300">
+              Content
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Generate marketing content and sales copy
+          </p>
+        </Link>
+
+        {/* Campaigns */}
+        <Link
+          href="/campaigns"
           className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-blue-400 dark:hover:border-blue-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
         >
           <div className="flex items-center space-x-3 mb-2">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-              <span className="text-blue-600 dark:text-blue-400 text-xl">📊</span>
+              <span className="text-blue-600 dark:text-blue-400 text-xl">📢</span>
             </div>
             <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300">
+              Campaigns
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Promote products from your library or others
+          </p>
+        </Link>
+
+        {/* Compliance */}
+        <Link
+          href="/compliance"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-red-400 dark:hover:border-red-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-red-50/50 hover:to-transparent dark:hover:from-red-900/20 dark:hover:to-transparent"
+        >
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <span className="text-red-600 dark:text-red-400 text-xl">✅</span>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-300">
+              Compliance
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Check content against FTC and network guidelines
+          </p>
+        </Link>
+
+        {/* Product Analytics */}
+        <Link
+          href="/product-analytics"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-cyan-400 dark:hover:border-cyan-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-cyan-50/50 hover:to-transparent dark:hover:from-cyan-900/20 dark:hover:to-transparent"
+        >
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <span className="text-cyan-600 dark:text-cyan-400 text-xl">📊</span>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors duration-300">
               Product Analytics
             </h2>
           </div>
           <p className="text-sm text-[var(--text-secondary)]">
-            Track how affiliates are performing with your products
+            Track affiliate performance and leaderboards
+          </p>
+        </Link>
+
+        {/* Analytics */}
+        <Link
+          href="/analytics"
+          className="group block p-6 rounded-lg transition-all duration-300 card hover:shadow-xl hover:-translate-y-1 hover:border-orange-400 dark:hover:border-orange-500 border-2 border-transparent hover:bg-gradient-to-br hover:from-orange-50/50 hover:to-transparent dark:hover:from-orange-900/20 dark:hover:to-transparent"
+        >
+          <div className="flex items-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+              <span className="text-orange-600 dark:text-orange-400 text-xl">📈</span>
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors duration-300">
+              Analytics
+            </h2>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Overall platform performance and insights
           </p>
         </Link>
 
