@@ -361,6 +361,77 @@ export const helpContent: Record<string, HelpContent> = {
       "Track which products attract the most affiliates to inform future product development",
     ],
   },
+
+  // Profile
+  "/profile": {
+    title: "User Profile",
+    description: "Manage your account information, upload a profile image, view your statistics, and configure security settings.",
+    steps: [
+      {
+        number: 1,
+        title: "Edit Your Profile",
+        description: "Click 'Edit Profile' to update your full name and upload a profile image.",
+      },
+      {
+        number: 2,
+        title: "Upload Profile Image",
+        description: "Click 'Choose image file' to select a photo (JPG, PNG, GIF, or WebP, max 5MB). Preview appears instantly, then click 'Upload' to save.",
+      },
+      {
+        number: 3,
+        title: "View Your Statistics",
+        description: "Scroll down to see user-type-specific statistics. Product Developers see product and affiliate metrics, while Affiliate Marketers see campaign and content stats.",
+      },
+      {
+        number: 4,
+        title: "Review Account Security",
+        description: "Check the Account Security section to manage your password and view active sessions.",
+      },
+    ],
+    tips: [
+      "Profile images appear in the header dropdown and throughout the platform",
+      "Recommended image size is 400x400px for best results",
+      "Your account type (Product Developer or Affiliate Marketer) determines which statistics you see",
+      "Profile information is visible to other users when you collaborate on campaigns",
+      "Keep your email up to date as it's used for important notifications",
+    ],
+  },
+
+  // Products
+  "/products": {
+    title: "Product Library",
+    description: "Browse available products to promote, or add your own products for affiliates to discover. The Product Library is the central marketplace connecting Product Developers and Affiliate Marketers.",
+    steps: [
+      {
+        number: 1,
+        title: "Browse Available Products",
+        description: "Scroll through product cards to find items you want to promote. Click any card to view full details.",
+      },
+      {
+        number: 2,
+        title: "View Product Details",
+        description: "Click a product card to open the details panel showing description, category, commission info, and marketing intelligence.",
+      },
+      {
+        number: 3,
+        title: "Create Campaign (Affiliates)",
+        description: "In the product details panel, click 'Create Campaign' to start promoting that product with pre-filled information.",
+      },
+      {
+        number: 4,
+        title: "Add Your Products (Developers)",
+        description: "Product Developers can add their own products by clicking 'Add Product' and filling in product details, pricing, and commission structure.",
+      },
+    ],
+    tips: [
+      "Use the search bar to find products by name or category",
+      "Filter by commission type (recurring vs one-time) to match your promotion strategy",
+      "Products with compiled intelligence provide better marketing insights",
+      "Look for products with high commission rates and proven conversion rates",
+      "Product Developers: detailed product information helps affiliates promote more effectively",
+      "Creating a campaign from the Product Library auto-fills product details",
+    ],
+  },
 };
 
 // Helper function to get help content by pathname
