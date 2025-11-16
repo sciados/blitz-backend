@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.db.models import User
@@ -14,6 +15,10 @@ from app.auth import (
     get_user_by_email
 )
 from app.core.config.settings import settings
+
+# Profile update schema
+class ProfileUpdate(BaseModel):
+    full_name: str
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -119,6 +124,25 @@ async def get_me(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get current user information."""
+    return current_user
+
+# ====
+# UPDATE PROFILE
+# ====
+
+@router.patch("/profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: ProfileUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update user profile information."""
+    # Update full name
+    current_user.full_name = profile_data.full_name
+
+    await db.commit()
+    await db.refresh(current_user)
+
     return current_user
 
 # ====
