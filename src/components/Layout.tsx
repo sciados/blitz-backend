@@ -24,6 +24,8 @@ type UserInfo = {
   email: string;
   role: string;
   user_type?: string; // "product_creator" | "affiliate_marketer"
+  profile_image_url?: string;
+  full_name?: string;
 };
 
 export default function Layout({ children }: LayoutProps) {
@@ -210,11 +212,26 @@ export default function Layout({ children }: LayoutProps) {
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center space-x-2 p-2 hover:bg-[var(--hover-bg)] rounded-lg"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold text-white">
-                  {userInfo?.email?.charAt(0).toUpperCase() || "U"}
-                </span>
-              </div>
+              {userInfo?.profile_image_url ? (
+                <img
+                  src={userInfo.profile_image_url}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)]"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const fallback = document.createElement("div");
+                    fallback.className = "w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-full flex items-center justify-center";
+                    fallback.innerHTML = `<span class="text-sm font-semibold text-white">${userInfo?.email?.charAt(0).toUpperCase() || "U"}</span>`;
+                    e.currentTarget.parentNode?.insertBefore(fallback, e.currentTarget);
+                  }}
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-full flex items-center justify-center">
+                  <span className="text-sm font-semibold text-white">
+                    {userInfo?.full_name?.charAt(0).toUpperCase() || userInfo?.email?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                </div>
+              )}
               <svg
                 className="w-4 h-4 text-[var(--text-primary)]"
                 fill="none"
@@ -237,17 +254,37 @@ export default function Layout({ children }: LayoutProps) {
                   onClick={() => setProfileOpen(false)}
                 />
                 <div className="absolute right-0 mt-2 w-64 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg shadow-lg z-20">
-                  <div className="p-3 border-b border-[var(--border-color)]">
-                    <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                      {userInfo?.email || "Loading..."}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)] capitalize">
-                      {userInfo?.user_type === "product_creator"
-                        ? "Product Developer"
-                        : userInfo?.user_type === "affiliate_marketer"
-                        ? "Affiliate Marketer"
-                        : userInfo?.role || "user"}
-                    </p>
+                  <div className="p-4 border-b border-[var(--border-color)]">
+                    <div className="flex items-center space-x-3">
+                      {userInfo?.profile_image_url ? (
+                        <img
+                          src={userInfo.profile_image_url}
+                          alt="Profile"
+                          className="w-12 h-12 rounded-full object-cover border border-[var(--border-color)]"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg font-semibold text-white">
+                            {userInfo?.full_name?.charAt(0).toUpperCase() || userInfo?.email?.charAt(0).toUpperCase() || "U"}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {userInfo?.full_name || userInfo?.email || "Loading..."}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)] capitalize">
+                          {userInfo?.user_type === "product_creator"
+                            ? "Product Developer"
+                            : userInfo?.user_type === "affiliate_marketer"
+                            ? "Affiliate Marketer"
+                            : userInfo?.role || "user"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <Link
                     href={"/profile" as any}

@@ -10,6 +10,7 @@ interface UserProfile {
   id: number;
   email: string;
   full_name?: string;
+  profile_image_url?: string;
   role: string;
   user_type: string;
   created_at: string;
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
 
   // Fetch user profile
   const { data: user, isLoading } = useQuery<UserProfile>({
@@ -27,13 +29,14 @@ export default function ProfilePage() {
     queryFn: async () => {
       const response = await api.get("/api/auth/me");
       setFullName(response.data.full_name || "");
+      setProfileImageUrl(response.data.profile_image_url || "");
       return response.data;
     },
   });
 
   // Update profile mutation
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { full_name: string }) => {
+    mutationFn: async (data: { full_name: string; profile_image_url?: string }) => {
       return await api.patch("/api/auth/profile", data);
     },
     onSuccess: () => {
@@ -48,11 +51,15 @@ export default function ProfilePage() {
   });
 
   const handleSave = () => {
-    updateProfileMutation.mutate({ full_name: fullName });
+    updateProfileMutation.mutate({
+      full_name: fullName,
+      profile_image_url: profileImageUrl || undefined
+    });
   };
 
   const handleCancel = () => {
     setFullName(user?.full_name || "");
+    setProfileImageUrl(user?.profile_image_url || "");
     setIsEditing(false);
   };
 
@@ -110,6 +117,57 @@ export default function ProfilePage() {
                 Edit Profile
               </button>
             )}
+          </div>
+
+          {/* Profile Image Section */}
+          <div className="flex items-start space-x-6 pb-6 border-b border-[var(--border-color)]">
+            <div className="flex-shrink-0">
+              {user?.profile_image_url || profileImageUrl ? (
+                <img
+                  src={profileImageUrl || user?.profile_image_url}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover border-2 border-[var(--border-color)]"
+                  onError={(e) => {
+                    e.currentTarget.src = "";
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center border-2 border-[var(--border-color)]">
+                  <span className="text-4xl font-bold text-white">
+                    {user?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "?"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Profile Image
+              </label>
+              {isEditing ? (
+                <div className="space-y-2">
+                  <input
+                    type="url"
+                    value={profileImageUrl}
+                    onChange={(e) => setProfileImageUrl(e.target.value)}
+                    className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                  />
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Enter a URL to an image hosted online. Recommended size: 400x400px
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-[var(--text-primary)]">
+                    {user?.profile_image_url ? "Custom image set" : "Using default avatar"}
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    Click "Edit Profile" to change your profile image
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
