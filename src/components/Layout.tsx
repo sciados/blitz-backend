@@ -316,20 +316,26 @@ export default function Layout({ children }: LayoutProps) {
                   href={item.href as any}
                   className={`flex items-center ${
                     leftSidebarOpen ? "space-x-3 px-4" : "justify-center px-2"
-                  } py-3 rounded-lg transition-colors group relative ${
+                  } py-3 rounded-lg transition-all duration-200 group relative border-l-4 ${
                     isActive
-                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
-                      : "hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold border-blue-600 dark:border-blue-400"
+                      : "border-transparent hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent hover:border-blue-400 dark:hover:border-blue-500 text-[var(--text-primary)] hover:text-blue-600 dark:hover:text-blue-400 hover:scale-[1.02]"
                   }`}
                   title={!leftSidebarOpen ? item.label : undefined}
                 >
-                  <span className="text-xl">{item.icon}</span>
-                  {leftSidebarOpen && <span>{item.label}</span>}
+                  <span className={`text-xl transition-transform duration-200 ${!isActive && "group-hover:scale-110"}`}>
+                    {item.icon}
+                  </span>
+                  {leftSidebarOpen && (
+                    <span className="transition-all duration-200">{item.label}</span>
+                  )}
 
                   {/* Tooltip for collapsed state */}
                   {!leftSidebarOpen && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded shadow-lg text-sm text-[var(--text-primary)] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-800 border border-gray-700 rounded-lg shadow-xl text-sm text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 group-hover:translate-x-1">
                       {item.label}
+                      {/* Tooltip arrow */}
+                      <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-800"></div>
                     </div>
                   )}
                 </Link>
