@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { AuthGate } from "src/components/AuthGate";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "src/lib/appClient";
@@ -61,7 +62,32 @@ const COLORS = {
   purple: "#8b5cf6",
 };
 
+interface AffiliateLeaderboardEntry {
+  rank: number;
+  user_id: number;
+  user_email: string;
+  full_name?: string;
+  total_clicks: number;
+  unique_clicks: number;
+  content_pieces: number;
+  campaigns_count: number;
+  score: number;
+  medal?: "gold" | "silver" | "bronze";
+  last_activity?: string;
+}
+
+interface ProductLeaderboard {
+  product_id: number;
+  product_name: string;
+  total_affiliates: number;
+  date_range_days: number;
+  leaderboard: AffiliateLeaderboardEntry[];
+}
+
 export default function ProductDeveloperAnalyticsPage() {
+  const [selectedProductId, setSelectedProductId] = React.useState<number | null>(null);
+  const [leaderboardDays, setLeaderboardDays] = React.useState(30);
+
   // Fetch all products created by current user (Product Developer)
   const { data: products = [], isLoading: productsLoading } = useQuery<ProductIntelligence[]>({
     queryKey: ["myProducts"],
@@ -88,6 +114,26 @@ export default function ProductDeveloperAnalyticsPage() {
       // For now, we'll use the regular endpoint
       return (await api.get("/api/links")).data;
     },
+  });
+
+  // Auto-select first product when products load
+  React.useEffect(() => {
+    if (products.length > 0 && !selectedProductId) {
+      setSelectedProductId(products[0].id);
+    }
+  }, [products, selectedProductId]);
+
+  // Fetch leaderboard for selected product
+  const { data: leaderboard, isLoading: leaderboardLoading } = useQuery<ProductLeaderboard>({
+    queryKey: ["productLeaderboard", selectedProductId, leaderboardDays],
+    queryFn: async () => {
+      if (!selectedProductId) return null;
+      const response = await api.get(
+        `/api/product-analytics/leaderboard/${selectedProductId}?days=${leaderboardDays}&limit=20`
+      );
+      return response.data;
+    },
+    enabled: !!selectedProductId,
   });
 
   const isLoading = productsLoading || campaignsLoading || linksLoading;
@@ -353,85 +399,174 @@ export default function ProductDeveloperAnalyticsPage() {
           )}
         </div>
 
-        {/* Affiliate Leaderboard */}
-        {affiliatePerformance.length > 0 && (
+        {/* Top 20 Affiliate Leaderboard */}
+        {products.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Affiliate Leaderboard
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Top 20 Affiliate Leaderboard 🏆
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Ranked by performance score (Clicks 50% • Content 30% • Campaigns 20%)
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <select
+                    value={selectedProductId || ""}
+                    onChange={(e) => setSelectedProductId(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  >
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.product_name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={leaderboardDays}
+                    onChange={(e) => setLeaderboardDays(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value={7}>Last 7 days</option>
+                    <option value={30}>Last 30 days</option>
+                    <option value={90}>Last 90 days</option>
+                    <option value={365}>Last year</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-900">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Rank
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Affiliate
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Campaigns
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Products
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Total Clicks
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Unique Clicks
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Unique Rate
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {affiliatePerformance.map((affiliate, index) => {
-                    const uniqueRate =
-                      affiliate.total_clicks > 0
-                        ? (affiliate.unique_clicks / affiliate.total_clicks) * 100
-                        : 0;
 
-                    return (
-                      <tr key={affiliate.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                          {index === 0 && "🥇 "}
-                          {index === 1 && "🥈 "}
-                          {index === 2 && "🥉 "}
-                          #{index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {affiliate.user_name}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {affiliate.user_email}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
-                          {affiliate.campaigns}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
-                          {affiliate.products_promoted}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
-                          {affiliate.total_clicks.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
-                          {affiliate.unique_clicks.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
-                          {uniqueRate.toFixed(1)}%
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {leaderboardLoading ? (
+              <div className="p-12 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="text-gray-600 dark:text-gray-400 mt-4">Loading leaderboard...</p>
+              </div>
+            ) : leaderboard && leaderboard.leaderboard.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Rank
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Affiliate
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Score
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Total Clicks
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Unique
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Content
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Campaigns
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Last Active
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {leaderboard.leaderboard.map((affiliate) => {
+                      const uniqueRate =
+                        affiliate.total_clicks > 0
+                          ? (affiliate.unique_clicks / affiliate.total_clicks) * 100
+                          : 0;
+
+                      return (
+                        <tr
+                          key={affiliate.user_id}
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            affiliate.medal ? "bg-yellow-50/30 dark:bg-yellow-900/10" : ""
+                          }`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              {affiliate.medal === "gold" && (
+                                <span className="text-3xl">🥇</span>
+                              )}
+                              {affiliate.medal === "silver" && (
+                                <span className="text-3xl">🥈</span>
+                              )}
+                              {affiliate.medal === "bronze" && (
+                                <span className="text-3xl">🥉</span>
+                              )}
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                #{affiliate.rank}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {affiliate.full_name || affiliate.user_email.split("@")[0]}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {affiliate.user_email}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                              {affiliate.score.toFixed(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
+                            {affiliate.total_clicks.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600 dark:text-gray-400">
+                            {affiliate.unique_clicks.toLocaleString()}
+                            <span className="text-xs ml-1">({uniqueRate.toFixed(0)}%)</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
+                            {affiliate.content_pieces}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white">
+                            {affiliate.campaigns_count}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600 dark:text-gray-400">
+                            {affiliate.last_activity
+                              ? new Date(affiliate.last_activity).toLocaleDateString()
+                              : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="p-4 bg-gray-50 dark:bg-gray-900 text-center text-sm text-gray-600 dark:text-gray-400">
+                  Showing {leaderboard.leaderboard.length} of {leaderboard.total_affiliates} total affiliates
+                </div>
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <svg
+                  className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-600 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  No Affiliate Activity Yet
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Once affiliates start promoting this product, they'll appear here
+                </p>
+              </div>
+            )}
           </div>
         )}
 
