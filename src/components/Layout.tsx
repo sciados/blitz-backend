@@ -108,9 +108,13 @@ export default function Layout({ children }: LayoutProps) {
     if (userInfo?.user_type === "product_creator") {
       return [
         { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-        { href: "/campaigns", label: "Campaigns", icon: "📢" },
         { href: "/products", label: "Product Library", icon: "📦" },
+        { href: "/intelligence", label: "Intelligence", icon: "🧠" },
+        { href: "/content", label: "Content", icon: "✍️" },
+        { href: "/campaigns", label: "Campaigns", icon: "📢" },
+        { href: "/compliance", label: "Compliance", icon: "✅" },
         { href: "/product-analytics", label: "Product Analytics", icon: "📊" },
+        { href: "/analytics", label: "Analytics", icon: "📈" },
         { href: "/settings", label: "Settings", icon: "⚙️" },
       ];
     }
