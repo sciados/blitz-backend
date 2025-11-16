@@ -64,6 +64,11 @@ export function ProductDetailsPanel({
       const response = await api.get(`/api/products/${productId}`);
       setProduct(response.data);
 
+      // Initialize compliance result from product data if available
+      if (response.data.compliance) {
+        setComplianceResult(response.data.compliance);
+      }
+
       // Check if description exists, if not, generate one
       if (!response.data.product_description && !isGeneratingDesc) {
         generateDescription(response.data.id);
