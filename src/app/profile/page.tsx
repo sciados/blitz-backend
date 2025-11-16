@@ -22,6 +22,9 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Fetch user profile
   const { data: user, isLoading } = useQuery<UserProfile>({
@@ -60,7 +63,70 @@ export default function ProfilePage() {
   const handleCancel = () => {
     setFullName(user?.full_name || "");
     setProfileImageUrl(user?.profile_image_url || "");
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setIsEditing(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedFile) {
+      toast.error('Please select an image first');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await api.post('/api/auth/upload-profile-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      toast.success('Profile image uploaded successfully');
+      setProfileImageUrl(response.data.profile_image_url);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+
+      // Refresh user data
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['userInfo'] });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   if (isLoading) {
@@ -122,9 +188,9 @@ export default function ProfilePage() {
           {/* Profile Image Section */}
           <div className="flex items-start space-x-6 pb-6 border-b border-[var(--border-color)]">
             <div className="flex-shrink-0">
-              {user?.profile_image_url || profileImageUrl ? (
+              {previewUrl || user?.profile_image_url ? (
                 <img
-                  src={profileImageUrl || user?.profile_image_url}
+                  src={previewUrl || user?.profile_image_url}
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border-2 border-[var(--border-color)]"
                   onError={(e) => {
@@ -145,17 +211,54 @@ export default function ProfilePage() {
                 Profile Image
               </label>
               {isEditing ? (
-                <div className="space-y-2">
-                  <input
-                    type="url"
-                    value={profileImageUrl}
-                    onChange={(e) => setProfileImageUrl(e.target.value)}
-                    className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <label className="flex-1 cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                      <div className="flex items-center space-x-2 px-4 py-2 border-2 border-dashed border-[var(--border-color)] hover:border-blue-400 rounded-lg transition bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                        <span className="text-xl">📁</span>
+                        <span className="text-sm">
+                          {selectedFile ? selectedFile.name : 'Choose image file'}
+                        </span>
+                      </div>
+                    </label>
+                    {selectedFile && (
+                      <button
+                        onClick={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {uploadingImage ? (
+                          <span className="flex items-center space-x-2">
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Uploading...</span>
+                          </span>
+                        ) : (
+                          'Upload'
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Enter a URL to an image hosted online. Recommended size: 400x400px
+                    JPG, PNG, GIF or WebP. Max 5MB. Recommended size: 400x400px
                   </p>
+                  {selectedFile && (
+                    <div className="flex items-center space-x-2 text-xs text-green-600 dark:text-green-400">
+                      <span>✓</span>
+                      <span>
+                        {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -163,7 +266,7 @@ export default function ProfilePage() {
                     {user?.profile_image_url ? "Custom image set" : "Using default avatar"}
                   </p>
                   <p className="text-xs text-[var(--text-secondary)] mt-1">
-                    Click "Edit Profile" to change your profile image
+                    Click "Edit Profile" to upload a new profile image
                   </p>
                 </div>
               )}
