@@ -13,12 +13,12 @@ class R2Storage:
     """Cloudflare R2 storage client for file uploads"""
 
     def __init__(self):
-        # R2 configuration from environment
+        # R2 configuration from environment (matches existing Railway env vars)
         self.account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
-        self.access_key_id = os.getenv("R2_ACCESS_KEY_ID")
-        self.secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
-        self.bucket_name = os.getenv("R2_BUCKET_NAME", "blitz-uploads")
-        self.public_url = os.getenv("R2_PUBLIC_URL")  # e.g., https://uploads.yourdomain.com
+        self.access_key_id = os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID")
+        self.secret_access_key = os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+        self.bucket_name = os.getenv("CLOUDFLARE_R2_BUCKET_NAME", "campaignforge-storage")
+        self.public_url = os.getenv("CLOUDFLARE_R2_PUBLIC_URL")  # e.g., https://pub-xxx.r2.dev
 
         # Initialize S3 client for R2
         if self.account_id and self.access_key_id and self.secret_access_key:
