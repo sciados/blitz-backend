@@ -9,7 +9,7 @@ import logging
 
 from app.core.config.settings import settings
 from app.db.session import engine, Base
-from app.api import auth, campaigns, content, intelligence, compliance, products, links, product_analytics
+from app.api import auth, campaigns, content, intelligence, compliance, products, links, product_analytics, platform_credentials
 from app.api.admin import ai_router as admin_ai_router
 from app.api.admin import products as admin_products
 from app.api.admin import campaigns as admin_campaigns
@@ -169,6 +169,7 @@ app.include_router(compliance.router)
 app.include_router(links.router)  # Link management API under /api/links
 app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(product_analytics.router)  # Product analytics and leaderboards
+app.include_router(platform_credentials.router)  # Platform API credentials management
 app.include_router(admin_ai_router.router)
 app.include_router(admin_config.router)
 app.include_router(admin_users.router)
