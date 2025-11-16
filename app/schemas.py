@@ -211,6 +211,7 @@ class ComplianceCheckRequest(BaseModel):
     content: str
     content_type: ContentType
     affiliate_network: Optional[str] = None
+    product_category: Optional[str] = None
 
 class ComplianceCheckResponse(BaseModel):
     status: ComplianceStatus

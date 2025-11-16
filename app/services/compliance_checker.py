@@ -159,7 +159,7 @@ class ComplianceChecker:
             
             # Ensure score doesn't go below 0
             score = max(0, score)
-            
+
             # Determine compliance status
             if score >= 90:
                 status = 'compliant'
@@ -167,13 +167,31 @@ class ComplianceChecker:
                 status = 'needs_review'
             else:
                 status = 'non_compliant'
-            
+
+            # Determine FTC and network compliance based on issues
+            ftc_issues = [i for i in issues if i['type'] in ['missing_disclosure', 'prohibited_claim', 'missing_element']]
+            network_issues = [i for i in issues if i['type'] in ['prohibited_claim', 'exaggerated_language']]
+
+            ftc_compliance = len(ftc_issues) == 0
+            network_compliance = len(network_issues) == 0
+
+            # Combine all issues and warnings
+            all_issues = issues + warnings
+
+            # Generate suggestions from issues
+            suggestions = []
+            for issue in all_issues[:5]:  # Top 5 most important
+                if issue.get('suggestion'):
+                    suggestions.append(issue['suggestion'])
+
             return {
                 'compliant': status == 'compliant',
                 'status': status,
                 'score': score,
-                'issues': issues,
-                'warnings': warnings,
+                'issues': all_issues,
+                'suggestions': suggestions,
+                'ftc_compliance': ftc_compliance,
+                'network_compliance': network_compliance,
                 'summary': self._generate_summary(status, score, issues, warnings)
             }
             
@@ -181,14 +199,17 @@ class ComplianceChecker:
             logger.error(f"Error checking compliance: {str(e)}")
             return {
                 'compliant': False,
-                'status': 'error',
+                'status': 'non_compliant',
                 'score': 0,
                 'issues': [{
                     'severity': 'critical',
                     'type': 'check_error',
                     'message': f"Error during compliance check: {str(e)}"
                 }],
-                'warnings': []
+                'suggestions': ['Please try again or contact support if the issue persists'],
+                'ftc_compliance': False,
+                'network_compliance': False,
+                'summary': 'An error occurred during compliance checking'
             }
     
     def _check_disclosure(self, content: str, content_type: str) -> Dict[str, Any]:
@@ -398,38 +419,86 @@ class ComplianceChecker:
     def suggest_improvements(self, compliance_report: Dict[str, Any]) -> List[str]:
         """
         Generate actionable improvement suggestions based on compliance report
-        
+
         Args:
             compliance_report: Report from check_content()
-            
+
         Returns:
             List of improvement suggestions
         """
         suggestions = []
-        
+
         # Prioritize critical issues
         critical_issues = [
             issue for issue in compliance_report.get('issues', [])
             if issue.get('severity') == 'critical'
         ]
-        
+
         for issue in critical_issues:
             if issue.get('suggestion'):
                 suggestions.append(f"🔴 CRITICAL: {issue['suggestion']}")
-        
+
         # Add high-priority issues
         high_issues = [
             issue for issue in compliance_report.get('issues', [])
             if issue.get('severity') == 'high'
         ]
-        
+
         for issue in high_issues:
             if issue.get('suggestion'):
                 suggestions.append(f"🟡 HIGH: {issue['suggestion']}")
-        
+
         # Add warnings
         for warning in compliance_report.get('warnings', [])[:3]:  # Limit to top 3
             if warning.get('suggestion'):
                 suggestions.append(f"⚠️ WARNING: {warning['suggestion']}")
-        
+
         return suggestions
+
+    def get_ftc_guidelines(self) -> Dict[str, Any]:
+        """
+        Get FTC affiliate marketing guidelines
+
+        Returns:
+            Dictionary with guidelines, last_updated, and source
+        """
+        guidelines = [
+            {
+                "title": "Clear and Conspicuous Disclosures",
+                "description": "Affiliate disclosures must be clear, prominent, and placed before affiliate links. Use plain language like 'I earn a commission if you buy through my links.'"
+            },
+            {
+                "title": "No Deceptive Claims",
+                "description": "Avoid making false or misleading claims about products. All claims must be truthful and substantiated with evidence."
+            },
+            {
+                "title": "Health and Medical Claims",
+                "description": "Health claims require scientific evidence. Don't claim products can cure, treat, or prevent diseases without FDA approval and clinical proof."
+            },
+            {
+                "title": "Income and Earnings Claims",
+                "description": "Don't guarantee specific income or results. If sharing earnings examples, disclose they are not typical and results vary."
+            },
+            {
+                "title": "Testimonials and Reviews",
+                "description": "Testimonials must reflect typical results. Disclose if reviewers received compensation or free products."
+            },
+            {
+                "title": "Social Media Disclosures",
+                "description": "Use #ad, #sponsored, or #affiliate at the beginning of posts. Disclosures must be visible without clicking 'more'."
+            },
+            {
+                "title": "Email Marketing",
+                "description": "Include affiliate disclosure in email content and provide clear unsubscribe options as required by CAN-SPAM Act."
+            },
+            {
+                "title": "Comparative Claims",
+                "description": "When comparing products, be fair and accurate. Disclose affiliate relationships for all products mentioned."
+            }
+        ]
+
+        return {
+            "guidelines": guidelines,
+            "last_updated": "2024-01-15",
+            "source": "FTC Endorsement Guides (16 CFR Part 255)"
+        }

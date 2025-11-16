@@ -28,13 +28,14 @@ async def check_compliance(
     current_user: User = Depends(get_current_active_user)
 ):
     """Check content for compliance with FTC and affiliate network guidelines."""
-    
+
     result = compliance_checker.check_content(
         content=request.content,
         content_type=request.content_type,
-        affiliate_network=request.affiliate_network
+        product_category=request.product_category,
+        is_product_description=False
     )
-    
+
     return ComplianceCheckResponse(
         status=result["status"],
         score=result["score"],
