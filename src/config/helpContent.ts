@@ -140,45 +140,6 @@ export const helpContent: Record<string, HelpContent> = {
     ],
   },
 
-  // Content
-  "/content": {
-    title: "Content Management",
-    description: "Create, edit, and manage all your marketing content in one place.",
-    steps: [
-      {
-        number: 1,
-        title: "Select a Campaign",
-        description: "Choose which campaign you want to create content for.",
-      },
-      {
-        number: 2,
-        title: "Choose Content Type",
-        description: "Select the type of content you need (email, blog post, social media, etc.).",
-      },
-      {
-        number: 3,
-        title: "Generate Content",
-        description: "Let AI generate content based on your campaign intelligence and parameters.",
-      },
-      {
-        number: 4,
-        title: "Review and Edit",
-        description: "Review the generated content and make any necessary adjustments.",
-      },
-      {
-        number: 5,
-        title: "Run Compliance Check",
-        description: "Ensure your content meets all legal and network requirements before publishing.",
-      },
-    ],
-    tips: [
-      "Generate multiple variations to test what works best",
-      "Always customize AI-generated content to add your personal touch",
-      "Run compliance checks before publishing",
-      "Track which content performs best for future reference",
-    ],
-  },
-
   // Content Hub
   "/content": {
     title: "Content Generation Hub",
