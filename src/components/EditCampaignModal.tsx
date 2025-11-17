@@ -9,9 +9,17 @@ const campaignEditSchema = z.object({
   name: z.string().min(3, "Campaign name must be at least 3 characters"),
   product_url: z.string().url("Please enter a valid URL"),
   affiliate_network: z.string().min(1, "Please select an affiliate network"),
-  affiliate_link: z.string().url("Please enter a valid affiliate URL").optional().or(z.literal("")),
+  affiliate_link: z
+    .string()
+    .url("Please enter a valid affiliate URL")
+    .optional()
+    .or(z.literal("")),
   keywords: z.string().optional(),
-  product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
+  product_description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .optional()
+    .or(z.literal("")),
   product_type: z.string().optional(),
   target_audience: z.string().optional(),
 });
@@ -92,7 +100,9 @@ export function EditCampaignModal({
   ];
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -136,7 +146,10 @@ export function EditCampaignModal({
 
     // Convert keywords string to array
     const keywords = formData.keywords
-      ? formData.keywords.split(",").map((k) => k.trim()).filter(Boolean)
+      ? formData.keywords
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean)
       : [];
 
     const updateData = {
@@ -156,14 +169,17 @@ export function EditCampaignModal({
     } catch (error: any) {
       console.error("Campaign update error:", error);
       setSubmitError(
-        error.response?.data?.detail || "Failed to update campaign. Please try again."
+        error.response?.data?.detail ||
+          "Failed to update campaign. Please try again."
       );
     }
   };
 
   const handleCancel = () => {
     if (hasChanges) {
-      if (!confirm("You have unsaved changes. Are you sure you want to close?")) {
+      if (
+        !confirm("You have unsaved changes. Are you sure you want to close?")
+      ) {
         return;
       }
     }
@@ -245,7 +261,8 @@ export function EditCampaignModal({
               htmlFor="product_url"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Sales Page URL <span className="text-gray-500 text-xs">(cannot be changed)</span>
+              Sales Page URL{" "}
+              <span className="text-gray-500 text-xs">(cannot be changed)</span>
             </label>
             <input
               type="url"
@@ -263,7 +280,8 @@ export function EditCampaignModal({
               htmlFor="affiliate_network"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Affiliate Platform <span className="text-gray-500 text-xs">(cannot be changed)</span>
+              Affiliate Platform{" "}
+              <span className="text-gray-500 text-xs">(cannot be changed)</span>
             </label>
             <input
               type="text"
@@ -300,7 +318,11 @@ export function EditCampaignModal({
                   type="button"
                   onClick={() => {
                     if (campaign.affiliate_link_short_code) {
-                      if (!confirm("This will remove the affiliate link and delete the shortened URL. Are you sure?")) {
+                      if (
+                        !confirm(
+                          "This will remove the affiliate link and delete the shortened URL. Are you sure?"
+                        )
+                      ) {
                         return;
                       }
                     }
@@ -310,8 +332,18 @@ export function EditCampaignModal({
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   title="Clear affiliate link"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               )}
@@ -321,17 +353,39 @@ export function EditCampaignModal({
                 {errors.affiliate_link}
               </p>
             )}
-            {campaign.affiliate_link_short_code && formData.affiliate_link !== campaign.affiliate_link && (
-              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Changing or removing this will delete the existing short link and all tracking data
-              </p>
-            )}
+            {campaign.affiliate_link_short_code &&
+              formData.affiliate_link !== campaign.affiliate_link && (
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  Changing or removing this will delete the existing short link
+                  and all tracking data
+                </p>
+              )}
             <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
               Link will be auto-shortened for tracking when you save
             </p>
@@ -398,7 +452,9 @@ export function EditCampaignModal({
               onChange={handleChange}
               rows={4}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
-                errors.product_description ? "border-red-500" : "border-gray-300"
+                errors.product_description
+                  ? "border-red-500"
+                  : "border-gray-300"
               }`}
               placeholder="Describe the product or offer..."
             />
@@ -446,7 +502,7 @@ export function EditCampaignModal({
                 <>
                   <svg
                     className="animate-spin h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
+                    xmlns="https://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
                   >

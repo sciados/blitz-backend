@@ -63,7 +63,9 @@ export default function AddProductPage() {
   ];
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value, type } = e.target;
 
@@ -137,7 +139,8 @@ export default function AddProductPage() {
     } catch (error: any) {
       console.error("Product submission error:", error);
       setSubmitError(
-        error.response?.data?.detail || "Failed to submit product. Please try again."
+        error.response?.data?.detail ||
+          "Failed to submit product. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -153,7 +156,8 @@ export default function AddProductPage() {
             Add Product to Library
           </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Submit a product to the public library for affiliate marketers to promote
+            Submit a product to the public library for affiliate marketers to
+            promote
           </p>
         </div>
 
@@ -172,7 +176,10 @@ export default function AddProductPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6"
+        >
           {/* Product URL */}
           <div>
             <label
@@ -246,7 +253,9 @@ export default function AddProductPage() {
               ))}
             </select>
             {errors.product_category && (
-              <p className="mt-1 text-sm text-red-600">{errors.product_category}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.product_category}
+              </p>
             )}
           </div>
 
@@ -275,7 +284,9 @@ export default function AddProductPage() {
               ))}
             </select>
             {errors.affiliate_network && (
-              <p className="mt-1 text-sm text-red-600">{errors.affiliate_network}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.affiliate_network}
+              </p>
             )}
           </div>
 
@@ -299,7 +310,9 @@ export default function AddProductPage() {
               placeholder='e.g., "50%", "$37 per sale"'
             />
             {errors.commission_rate && (
-              <p className="mt-1 text-sm text-red-600">{errors.commission_rate}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.commission_rate}
+              </p>
             )}
           </div>
 
@@ -327,7 +340,8 @@ export default function AddProductPage() {
               htmlFor="product_description"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Product Description <span className="text-gray-400">(Optional)</span>
+              Product Description{" "}
+              <span className="text-gray-400">(Optional)</span>
             </label>
             <textarea
               id="product_description"
@@ -336,12 +350,16 @@ export default function AddProductPage() {
               onChange={handleChange}
               rows={4}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                errors.product_description ? "border-red-500" : "border-gray-300"
+                errors.product_description
+                  ? "border-red-500"
+                  : "border-gray-300"
               }`}
               placeholder="Describe the product, its benefits, target audience, etc."
             />
             {errors.product_description && (
-              <p className="mt-1 text-sm text-red-600">{errors.product_description}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.product_description}
+              </p>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               This helps affiliate marketers understand the product better
@@ -366,7 +384,7 @@ export default function AddProductPage() {
                 <>
                   <svg
                     className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
+                    xmlns="https://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
@@ -388,8 +406,18 @@ export default function AddProductPage() {
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
                   </svg>
                   <span>Submit Product</span>
                 </>

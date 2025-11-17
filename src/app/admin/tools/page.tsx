@@ -25,7 +25,9 @@ export default function AdminPage() {
   const [status, setStatus] = useState<MetadataStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [backfillLoading, setBackfillLoading] = useState(false);
-  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,11 @@ export default function AdminPage() {
   };
 
   const handleBackfill = async () => {
-    if (!confirm("This will extract metadata from existing intelligence data. Continue?")) {
+    if (
+      !confirm(
+        "This will extract metadata from existing intelligence data. Continue?"
+      )
+    ) {
       return;
     }
 
@@ -95,7 +101,10 @@ export default function AdminPage() {
             <div className="font-semibold mb-2">{backfillResult.message}</div>
             <div className="text-sm space-y-1">
               <div>Updated: {backfillResult.updated} products</div>
-              <div>Skipped: {backfillResult.skipped} products (already have metadata)</div>
+              <div>
+                Skipped: {backfillResult.skipped} products (already have
+                metadata)
+              </div>
               <div>Total: {backfillResult.total} products</div>
             </div>
           </div>
@@ -108,7 +117,8 @@ export default function AdminPage() {
               Product Library Metadata
             </h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Extract product names, categories, and thumbnails from intelligence data
+              Extract product names, categories, and thumbnails from
+              intelligence data
             </p>
           </div>
 
@@ -116,7 +126,9 @@ export default function AdminPage() {
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading status...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">
+                  Loading status...
+                </p>
               </div>
             ) : status ? (
               <div className="space-y-6">
@@ -140,8 +152,13 @@ export default function AdminPage() {
                     </div>
                     <div className="text-xs text-green-600 dark:text-green-500 mt-1">
                       {status.total_products > 0
-                        ? Math.round((Math.min(status.with_name, status.with_category) / status.total_products) * 100)
-                        : 0}% complete
+                        ? Math.round(
+                            (Math.min(status.with_name, status.with_category) /
+                              status.total_products) *
+                              100
+                          )
+                        : 0}
+                      % complete
                     </div>
                   </div>
 
@@ -193,13 +210,25 @@ export default function AdminPage() {
                             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-[100px]">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${status.total_products > 0 ? (status.with_name / status.total_products) * 100 : 0}%` }}
+                                style={{
+                                  width: `${
+                                    status.total_products > 0
+                                      ? (status.with_name /
+                                          status.total_products) *
+                                        100
+                                      : 0
+                                  }%`,
+                                }}
                               ></div>
                             </div>
                             <span>
                               {status.total_products > 0
-                                ? Math.round((status.with_name / status.total_products) * 100)
-                                : 0}%
+                                ? Math.round(
+                                    (status.with_name / status.total_products) *
+                                      100
+                                  )
+                                : 0}
+                              %
                             </span>
                           </div>
                         </td>
@@ -219,13 +248,26 @@ export default function AdminPage() {
                             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-[100px]">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${status.total_products > 0 ? (status.with_category / status.total_products) * 100 : 0}%` }}
+                                style={{
+                                  width: `${
+                                    status.total_products > 0
+                                      ? (status.with_category /
+                                          status.total_products) *
+                                        100
+                                      : 0
+                                  }%`,
+                                }}
                               ></div>
                             </div>
                             <span>
                               {status.total_products > 0
-                                ? Math.round((status.with_category / status.total_products) * 100)
-                                : 0}%
+                                ? Math.round(
+                                    (status.with_category /
+                                      status.total_products) *
+                                      100
+                                  )
+                                : 0}
+                              %
                             </span>
                           </div>
                         </td>
@@ -245,13 +287,26 @@ export default function AdminPage() {
                             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 max-w-[100px]">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${status.total_products > 0 ? (status.with_thumbnail / status.total_products) * 100 : 0}%` }}
+                                style={{
+                                  width: `${
+                                    status.total_products > 0
+                                      ? (status.with_thumbnail /
+                                          status.total_products) *
+                                        100
+                                      : 0
+                                  }%`,
+                                }}
                               ></div>
                             </div>
                             <span>
                               {status.total_products > 0
-                                ? Math.round((status.with_thumbnail / status.total_products) * 100)
-                                : 0}%
+                                ? Math.round(
+                                    (status.with_thumbnail /
+                                      status.total_products) *
+                                      100
+                                  )
+                                : 0}
+                              %
                             </span>
                           </div>
                         </td>
@@ -264,14 +319,18 @@ export default function AdminPage() {
                 <div className="pt-4">
                   <button
                     onClick={handleBackfill}
-                    disabled={backfillLoading || (status.missing_name === 0 && status.missing_category === 0)}
+                    disabled={
+                      backfillLoading ||
+                      (status.missing_name === 0 &&
+                        status.missing_category === 0)
+                    }
                     className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition flex items-center justify-center space-x-2"
                   >
                     {backfillLoading ? (
                       <>
                         <svg
                           className="animate-spin h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
+                          xmlns="https://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
                         >
@@ -293,15 +352,26 @@ export default function AdminPage() {
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
                         </svg>
                         <span>Run Metadata Backfill</span>
                       </>
                     )}
                   </button>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    This will extract product names, categories, and thumbnails from existing intelligence data.
+                    This will extract product names, categories, and thumbnails
+                    from existing intelligence data.
                   </p>
                 </div>
               </div>

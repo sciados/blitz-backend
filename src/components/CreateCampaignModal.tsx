@@ -9,12 +9,24 @@ import { ProductLibrarySelectionModal } from "./ProductLibrarySelectionModal";
 // Zod validation schema - URL now optional
 const campaignSchema = z.object({
   name: z.string().min(3, "Campaign name must be at least 3 characters"),
-  product_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  product_url: z
+    .string()
+    .url("Please enter a valid URL")
+    .optional()
+    .or(z.literal("")),
   affiliate_network: z.string().optional().or(z.literal("")),
   commission_rate: z.string().optional().or(z.literal("")),
-  affiliate_link: z.string().url("Please enter a valid affiliate URL").optional().or(z.literal("")),
+  affiliate_link: z
+    .string()
+    .url("Please enter a valid affiliate URL")
+    .optional()
+    .or(z.literal("")),
   keywords: z.string().optional(),
-  product_description: z.string().min(10, "Description must be at least 10 characters").optional().or(z.literal("")),
+  product_description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .optional()
+    .or(z.literal("")),
   product_type: z.string().optional(),
   target_audience: z.string().optional(),
 });
@@ -50,7 +62,9 @@ export function CreateCampaignModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showProductLibrary, setShowProductLibrary] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+    null
+  );
 
   // Auto-fill form when preselectedProductId is provided
   useEffect(() => {
@@ -84,7 +98,9 @@ export function CreateCampaignModal({
   ];
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -147,7 +163,10 @@ export function CreateCampaignModal({
     try {
       // Convert keywords string to array
       const keywords = formData.keywords
-        ? formData.keywords.split(",").map((k) => k.trim()).filter(Boolean)
+        ? formData.keywords
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean)
         : [];
 
       const campaignData: CampaignCreate = {
@@ -183,7 +202,8 @@ export function CreateCampaignModal({
     } catch (error: any) {
       console.error("Campaign creation error:", error);
       setSubmitError(
-        error.response?.data?.detail || "Failed to create campaign. Please try again."
+        error.response?.data?.detail ||
+          "Failed to create campaign. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -294,7 +314,8 @@ export function CreateCampaignModal({
               htmlFor="affiliate_network"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Affiliate Platform <span className="text-gray-400">(Optional)</span>
+              Affiliate Platform{" "}
+              <span className="text-gray-400">(Optional)</span>
             </label>
             <select
               id="affiliate_network"
@@ -344,7 +365,8 @@ export function CreateCampaignModal({
               </p>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Enter the commission structure (e.g., 50%, $37/sale, or 40% recurring)
+              Enter the commission structure (e.g., 50%, $37/sale, or 40%
+              recurring)
             </p>
           </div>
 
@@ -373,8 +395,18 @@ export function CreateCampaignModal({
               </p>
             )}
             <p className="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
               Your link will be automatically shortened for tracking
             </p>
@@ -441,7 +473,9 @@ export function CreateCampaignModal({
               onChange={handleChange}
               rows={4}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:!text-white !text-gray-900 ${
-                errors.product_description ? "border-red-500" : "border-gray-300"
+                errors.product_description
+                  ? "border-red-500"
+                  : "border-gray-300"
               }`}
               placeholder="Describe the product or offer..."
             />
@@ -489,7 +523,7 @@ export function CreateCampaignModal({
                 <>
                   <svg
                     className="animate-spin h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
+                    xmlns="https://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
