@@ -50,6 +50,7 @@ export default function ImagesPage() {
   const [style, setStyle] = useState<ImageStyle>("photorealistic");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [qualityBoost, setQualityBoost] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null);
   const [allImages, setAllImages] = useState<GeneratedImage[]>([]);
@@ -84,6 +85,7 @@ export default function ImagesPage() {
         image_type: imageType,
         style,
         aspect_ratio: aspectRatio,
+        quality_boost: qualityBoost,
       };
 
       if (customPrompt.trim()) {
@@ -310,6 +312,25 @@ export default function ImagesPage() {
                     <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
                       Leave blank to auto-generate from campaign data
                     </p>
+                  </div>
+
+                  {/* Quality Boost Toggle */}
+                  <div className="flex items-center space-x-3 p-4 border rounded-lg" style={{ borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
+                    <input
+                      type="checkbox"
+                      id="qualityBoost"
+                      checked={qualityBoost}
+                      onChange={(e) => setQualityBoost(e.target.checked)}
+                      className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="qualityBoost" className="text-sm font-medium cursor-pointer" style={{ color: "var(--text-primary)" }}>
+                        🌟 Quality Boost
+                      </label>
+                      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                        Enhanced prompts with 8K quality terms for premium results (may cost slightly more)
+                      </p>
+                    </div>
                   </div>
 
                   {/* Generate Button */}
