@@ -69,7 +69,14 @@
       "WebSearch",
       "Bash(git mv:*)",
       "Bash(python3 -m json.tool:*)",
-      "Bash(alembic revision:*)"
+      "Bash(alembic revision:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(/tmp/images_full.py:*)",
+      "Bash(python3 -c:*)",
+      "Bash(git reset:*)",
+      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend status:*)",
+      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend commit:*)",
+      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend push:*)"
     ],
     "deny": [],
     "ask": []
