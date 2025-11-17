@@ -179,41 +179,121 @@ export const helpContent: Record<string, HelpContent> = {
     ],
   },
 
-  // Images
-  "/images": {
+  // Content Hub
+  "/content": {
+    title: "Content Generation Hub",
+    description: "Central hub for generating AI-powered marketing content. Choose between text or image generation based on your needs.",
+    steps: [
+      {
+        number: 1,
+        title: "Select Your Campaign",
+        description: "Choose the campaign you want to generate content for. All generated content will use your campaign's intelligence data.",
+      },
+      {
+        number: 2,
+        title: "Choose Content Type",
+        description: "Select Text Content for articles, emails, videos, social posts, landing pages, and ads. Select Image Content for marketing visuals.",
+      },
+      {
+        number: 3,
+        title: "Configure Settings",
+        description: "In the next screen, configure specific settings like tone, length, style, or aspect ratio based on your content type.",
+      },
+      {
+        number: 4,
+        title: "Generate Content",
+        description: "AI will create content using your campaign's intelligence data (product info, target audience, marketing hooks, etc.).",
+      },
+      {
+        number: 5,
+        title: "Refine and Export",
+        description: "Review, edit, regenerate, or download your content. All content is saved to your library for future use.",
+      },
+    ],
+    tips: [
+      "Always select a campaign first - content quality depends on campaign intelligence",
+      "Use Text Content for copywriting (emails, articles, scripts)",
+      "Use Image Content for visual marketing assets",
+      "Generated content uses your campaign's product info, audience insights, and marketing angles",
+      "All content is automatically saved to your library",
+    ],
+  },
+
+  // Text Content Generation
+  "/content/text": {
+    title: "Text Content Generation",
+    description: "Create, edit, and manage all your marketing text content with automatic compliance checking.",
+    steps: [
+      {
+        number: 1,
+        title: "Verify Campaign",
+        description: "Your selected campaign is shown at the top. Content will use this campaign's intelligence data.",
+      },
+      {
+        number: 2,
+        title: "Choose Content Type",
+        description: "Select the type of content you need (article, email, video script, social post, landing page, ad copy).",
+      },
+      {
+        number: 3,
+        title: "Set Parameters",
+        description: "Choose marketing angle (problem/solution, transformation, etc.), tone (professional, casual), and length.",
+      },
+      {
+        number: 4,
+        title: "Generate Content",
+        description: "Click Generate to create AI-powered content with automatic FTC compliance checking.",
+      },
+      {
+        number: 5,
+        title: "Review and Fix Compliance",
+        description: "Check compliance score, fix any issues with 'Fix Compliance' button, then copy or download your content.",
+      },
+    ],
+    tips: [
+      "Generate multiple variations to test what works best",
+      "Always run compliance checks before publishing",
+      "Use 'Fix Compliance' button to automatically correct FTC issues",
+      "Email sequences generate multiple emails in one click",
+      "Track which content performs best for future reference",
+    ],
+  },
+
+  // Image Content Generation
+  "/content/images": {
     title: "AI Image Generation",
     description: "Generate professional marketing images using rotating AI platforms with your campaign intelligence data.",
     steps: [
       {
         number: 1,
-        title: "Select Campaign",
-        description: "Choose the campaign you want to generate images for. The AI will use your campaign's intelligence data to create relevant images.",
+        title: "Verify Campaign",
+        description: "Your selected campaign is shown at the top. Images will be generated using this campaign's intelligence data.",
       },
       {
         number: 2,
         title: "Choose Image Type",
-        description: "Select the type of image you need: hero images, product shots, social media graphics, ad creatives, email headers, blog features, infographics, or comparison images.",
+        description: "Select the type of image: hero images, product shots, social media graphics, ad creatives, email headers, blog features, infographics, or comparison images.",
       },
       {
         number: 3,
         title: "Pick Style and Aspect Ratio",
-        description: "Choose the artistic style (photorealistic, artistic, minimalist, etc.) and aspect ratio (1:1 for Instagram, 16:9 for YouTube, 9:16 for Stories, etc.).",
+        description: "Choose artistic style (photorealistic, artistic, minimalist, etc.) and aspect ratio (1:1 for Instagram, 16:9 for YouTube, 9:16 for Stories).",
       },
       {
         number: 4,
         title: "Generate Image",
-        description: "Click Generate to create your image. The system rotates through multiple AI providers (Pollinations, FAL, Stability AI, etc.) to optimize cost and quality.",
+        description: "Click Generate to create your image. The system rotates through multiple AI providers to optimize cost and quality.",
       },
       {
         number: 5,
         title: "Download or Regenerate",
-        description: "Download images you like or regenerate to get a different result. All images are saved to your library for easy access.",
+        description: "Download images you like or regenerate to get a different result. All images are saved to your library.",
       },
     ],
     tips: [
       "Images are generated using your campaign intelligence for better relevance",
       "Leave custom prompt blank to auto-generate from campaign data",
-      "Use different aspect ratios for different platforms (1:1 Instagram, 16:9 YouTube, 9:16 Stories)",
+      "Use different aspect ratios for different platforms",
       "Regenerate images to try different AI providers and styles",
       "Download high-res images directly from the library",
       "All generated images include provider, model, and cost information",

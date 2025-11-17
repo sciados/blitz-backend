@@ -66,7 +66,8 @@
       "Bash(netstat:*)",
       "Bash(cmd //c \"taskkill //F //PID 67832\")",
       "Bash(cmd /c \"taskkill /F /PID 67832\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []
