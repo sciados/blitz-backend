@@ -57,18 +57,14 @@ export default function ImagesPage() {
   const { refetch: refetchImages } = useQuery({
     queryKey: ["images", campaignId],
     queryFn: async () => {
-      if (campaignId === null) {
-        const { data } = await api.get(`/api/content/images`);
-        setAllImages(data.images || []);
-        return data.images || [];
-      } else if (campaignId) {
-        const { data } = await api.get(`/api/content/images?campaign_id=${campaignId}`);
-        setAllImages(data.images || []);
-        return data.images || [];
+      if (!campaignId) {
+        return [];
       }
-      return [];
+      const { data } = await api.get(`/api/content/images/campaign/${campaignId}`);
+      setAllImages(data.images || []);
+      return data.images || [];
     },
-    enabled: true,
+    enabled: !!campaignId, // Only enabled when campaignId is set
   });
 
   async function handleGenerate(e: React.FormEvent) {
