@@ -249,3 +249,93 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+# ============================================================================
+# IMAGE GENERATION SCHEMAS
+# ============================================================================
+
+class ImageType(str, Enum):
+    HERO = "hero"
+    PRODUCT = "product"
+    SOCIAL = "social"
+    AD = "ad"
+    EMAIL = "email"
+    BLOG = "blog"
+    INFOGRAPHIC = "infographic"
+    COMPARISON = "comparison"
+    VARIATION = "variation"
+
+class ImageStyle(str, Enum):
+    PHOTOREALISTIC = "photorealistic"
+    ARTISTIC = "artistic"
+    MINIMALIST = "minimalist"
+    LIFESTYLE = "lifestyle"
+    PRODUCT = "product"
+    ILLUSTRATION = "illustration"
+    RETRO = "retro"
+    MODERN = "modern"
+
+class AspectRatio(str, Enum):
+    SQUARE = "1:1"
+    LANDSCAPE = "16:9"
+    PORTRAIT = "9:16"
+    WIDE = "21:9"
+    CLASSIC = "4:3"
+
+class ImageGenerateRequest(BaseModel):
+    campaign_id: int
+    image_type: ImageType
+    style: Optional[ImageStyle] = ImageStyle.PHOTOREALISTIC
+    aspect_ratio: Optional[AspectRatio] = AspectRatio.SQUARE
+    custom_prompt: Optional[str] = None
+    highlight_features: Optional[List[str]] = None
+    use_testimonial: Optional[str] = None
+    include_text_overlay: Optional[str] = None
+    overlay_position: Optional[str] = "center"
+    platform: Optional[str] = None
+    quality_boost: Optional[bool] = False
+
+class ImageBatchRequest(BaseModel):
+    campaign_id: int
+    images: List[Dict[str, Any]]
+    batch_name: Optional[str] = None
+
+class ImageVariationRequest(BaseModel):
+    base_image_id: int
+    num_variations: int = Field(default=3, ge=1, le=10)
+    variation_type: Optional[str] = "style"
+    variation_strength: Optional[float] = Field(default=0.7, ge=0.0, le=1.0)
+
+class ImageResponse(BaseModel):
+    id: int
+    campaign_id: int
+    image_type: ImageType
+    image_url: str
+    thumbnail_url: Optional[str]
+    provider: str
+    model: str
+    prompt: str
+    style: ImageStyle
+    aspect_ratio: AspectRatio
+    metadata: Dict[str, Any]
+    ai_generation_cost: Optional[float] = None
+    content_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class ImageListResponse(BaseModel):
+    images: List[ImageResponse]
+    total: int
+    page: int
+    per_page: int
+
+class ImageDeleteResponse(BaseModel):
+    message: str
+    deleted_id: int
+
+
+class ImageUpgradeRequest(BaseModel):
+    """Request to upgrade a draft image to premium quality."""
+    draft_image_id: int
+    quality_boost: Optional[bool] = True  # Default to quality boost for premium

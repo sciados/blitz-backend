@@ -143,10 +143,10 @@ class R2StorageService:
     def file_exists(self, key: str) -> bool:
         """
         Check if a file exists in R2
-        
+
         Args:
             key: R2 object key
-            
+
         Returns:
             True if file exists
         """
@@ -156,6 +156,3 @@ class R2StorageService:
         except ClientError:
             return False
 
-
-# Global instance
-r2_storage = R2StorageService()

@@ -1,0 +1,536 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { GeneratedContent } from "src/lib/types";
+import { api } from "src/lib/appClient";
+import { toast } from "sonner";
+
+interface ContentRefinementModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  content: GeneratedContent | null;
+  onRefined: (content: GeneratedContent) => void;
+}
+
+export function ContentRefinementModal({
+  isOpen,
+  onClose,
+  content,
+  onRefined,
+}: ContentRefinementModalProps) {
+  const [refinementInstructions, setRefinementInstructions] = useState("");
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinedContent, setRefinedContent] = useState("");
+  const [aiIntro, setAiIntro] = useState("");
+  const [aiNotes, setAiNotes] = useState("");
+  const [editedSubject, setEditedSubject] = useState("");
+  const [editedBody, setEditedBody] = useState("");
+  const [currentCompliance, setCurrentCompliance] = useState<{
+    status: string;
+    score: number;
+    notes: string | null;
+  } | null>(null);
+
+  // Initialize edited fields when modal opens or content changes
+  useEffect(() => {
+    if (isOpen && content) {
+      setEditedSubject(content.content_data.subject || "");
+      setEditedBody(content.content_data.text || "");
+
+      // Initialize compliance tracking with current content's compliance data
+      setCurrentCompliance({
+        status: content.compliance_status,
+        score: content.compliance_score ?? 0,
+        notes: content.compliance_notes ?? null,
+      });
+    }
+  }, [isOpen, content]);
+
+  if (!isOpen || !content) return null;
+
+  // Parse refined content to separate actual content from AI notes and intro
+  const parseRefinedContent = (text: string): { content: string; intro: string; notes: string } => {
+    let workingText = text;
+    let intro = "";
+    let notes = "";
+
+    // First, extract the introductory phrase (e.g., "Here's a refined version...")
+    const introPattern = /^(Here'?s?\s+(?:a|the)\s+refined\s+.*?:|Here'?s?\s+.*?with\s+.*?:)/i;
+    const introMatch = workingText.match(introPattern);
+    if (introMatch) {
+      intro = introMatch[1].trim();
+      // Remove the intro from the working text
+      workingText = workingText.substring(introMatch[0].length).trim();
+    }
+
+    // Then, separate content from notes using common separators
+    const separators = [
+      /\n+---+\s*\n/i,  // Horizontal line separator (one or more newlines)
+      /\n+(Changes made|Modifications|Note|I've refined|I've made|I've updated|Key changes|What I changed|Changes:|Notes:)/i,
+    ];
+
+    for (const separator of separators) {
+      const match = workingText.match(separator);
+      if (match && match.index) {
+        const content = workingText.substring(0, match.index).trim();
+        notes = workingText.substring(match.index).trim();
+        return { content, intro, notes };
+      }
+    }
+
+    // No separator found, return all as content
+    return { content: workingText.trim(), intro, notes: "" };
+  };
+
+  const handleSaveChanges = async () => {
+    setIsRefining(true);
+
+    try {
+      // Prepare updated content_data
+      const updatedContentData = {
+        ...content.content_data,
+        text: editedBody,
+      };
+
+      // Add subject if it exists
+      if (content.content_data.subject) {
+        updatedContentData.subject = editedSubject;
+      }
+
+      const { data } = await api.patch(`/api/content/${content.id}`, {
+        text: editedBody,
+        subject: content.content_data.subject ? editedSubject : undefined,
+      });
+
+      onRefined(data);
+      toast.success("Changes saved successfully!");
+      onClose();
+    } catch (err: any) {
+      console.error("Failed to save changes:", err);
+      toast.error(err.response?.data?.detail || "Failed to save changes");
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleFixCompliance = () => {
+    const complianceInstructions = `Fix all FTC compliance issues to achieve a score of 90+.
+
+Current compliance issues:
+${content.compliance_notes || "Review for FTC guidelines, affiliate disclosure, and claim substantiation."}
+
+CRITICAL FIX FOR LANDING PAGES:
+Add a separate **Affiliate Disclosure** section right after the **Subheadline** section:
+
+**Affiliate Disclosure**
+This page contains affiliate links. We may earn a commission if you make a purchase through these links at no additional cost to you.
+
+STRUCTURE SHOULD BE:
+**Headline**
+[Your headline content]
+
+**Subheadline**
+[Your subheadline content]
+
+**Affiliate Disclosure**
+This page contains affiliate links. We may earn a commission if you make a purchase through these links at no additional cost to you.
+
+**Problem Agitation**
+[Continue with existing content...]
+
+ADDITIONAL REQUIREMENTS:
+- Ensure **Disclaimer and Disclosures** section exists at the bottom
+- Remove any unsubstantiated health/income claims
+- Use "may help" or "designed to support" instead of "will cure" or "guaranteed"
+- Add "Results may vary" disclaimers to testimonials
+- Set realistic expectations
+
+IMPORTANT: The **Affiliate Disclosure** must be a separate, clearly labeled section for template integration!`;
+
+    setRefinementInstructions(complianceInstructions);
+    toast.info("Compliance fix instructions loaded. Click 'Refine Content' to apply.");
+  };
+
+  const handleRefine = async () => {
+    if (!refinementInstructions.trim()) {
+      toast.error("Please provide refinement instructions");
+      return;
+    }
+
+    setIsRefining(true);
+
+    try {
+      const { data } = await api.post(`/api/content/${content.id}/refine`, {
+        refinement_instructions: refinementInstructions,
+      });
+
+      // Parse the refined content to separate actual content from AI intro and notes
+      const { content: cleanContent, intro, notes } = parseRefinedContent(data.content_data.text);
+
+      setRefinedContent(cleanContent);
+      setAiIntro(intro);
+      setAiNotes(notes);
+      // Update the edited body with only the clean content (no AI intro/notes)
+      setEditedBody(cleanContent);
+
+      // Update compliance status with the refined content's compliance data
+      setCurrentCompliance({
+        status: data.compliance_status,
+        score: data.compliance_score ?? 0,
+        notes: data.compliance_notes ?? null,
+      });
+
+      // Show success message with compliance info
+      if (data.compliance_status === "compliant") {
+        toast.success(`✅ Content refined successfully! Compliance: ${data.compliance_score}/100`);
+      } else {
+        toast.success("Content refined successfully! Review the changes below.");
+      }
+    } catch (err: any) {
+      console.error("Failed to refine content:", err);
+      toast.error(err.response?.data?.detail || "Failed to refine content");
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(refinedContent);
+      toast.success("Content copied to clipboard!");
+    } catch (err) {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div
+          className="px-6 py-4 border-b"
+          style={{ borderColor: "var(--card-border)" }}
+        >
+          <div className="flex items-center justify-between">
+            <h2
+              className="text-xl font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Refine Content
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Edit Email Subject (if email) */}
+          {content.content_data.subject && (
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Email Subject Line
+              </label>
+              <input
+                type="text"
+                value={editedSubject}
+                onChange={(e) => setEditedSubject(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                style={{
+                  borderColor: "var(--card-border)",
+                  background: "var(--card-bg)",
+                  color: "var(--text-primary)",
+                }}
+                placeholder="Enter email subject..."
+              />
+            </div>
+          )}
+
+          {/* Edit Content Body */}
+          <div>
+            <h3
+              className="text-sm font-medium mb-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {content.content_data.subject ? "Email Body" : "Content"}{" "}
+              (Editable)
+            </h3>
+            <textarea
+              value={editedBody}
+              onChange={(e) => setEditedBody(e.target.value)}
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[300px] font-mono text-sm"
+              style={{
+                borderColor: "var(--card-border)",
+                background: "var(--card-bg)",
+                color: "var(--text-primary)",
+              }}
+            />
+          </div>
+
+          {/* Compliance Warning */}
+          {currentCompliance && currentCompliance.status !== "compliant" && (
+            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center mb-2">
+                    <svg className="w-5 h-5 text-orange-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                      Compliance Score: {currentCompliance.score}/100
+                    </h4>
+                  </div>
+                  {currentCompliance.notes && (
+                    <p className="text-xs text-orange-700 dark:text-orange-400 mb-3">
+                      {currentCompliance.notes}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleFixCompliance}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition font-medium flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Fix Compliance Issues with AI</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="border-t pt-6"
+            style={{ borderColor: "var(--card-border)" }}
+          >
+            <h3
+              className="text-sm font-medium mb-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              OR Use AI to Refine
+            </h3>
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Refinement Instructions *
+              </label>
+              <textarea
+                value={refinementInstructions}
+                onChange={(e) => setRefinementInstructions(e.target.value)}
+                placeholder="e.g., Make it more persuasive, shorten to 300 words, add a stronger CTA..."
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                style={{
+                  borderColor: "var(--card-border)",
+                  background: "var(--card-bg)",
+                  color: "var(--text-primary)",
+                }}
+              />
+            </div>
+
+            {refinedContent && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3
+                    className="text-sm font-medium"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {aiIntro || "Refined Content"}
+                  </h3>
+                  <button
+                    onClick={handleCopy}
+                    className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center space-x-2"
+                    style={{
+                      borderColor: "var(--card-border)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+                <div
+                  className="p-4 rounded-lg border"
+                  style={{
+                    borderColor: "var(--card-border)",
+                    background: "var(--bg-secondary)",
+                  }}
+                >
+                  <pre
+                    className="whitespace-pre-wrap text-sm"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {refinedContent}
+                  </pre>
+                </div>
+
+                {/* AI Notes Section (if available) */}
+                {aiNotes && (
+                  <div className="mt-4">
+                    <h4
+                      className="text-xs font-medium mb-2 flex items-center"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <svg
+                        className="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      AI Notes (not included in copy)
+                    </h4>
+                    <div
+                      className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-900/20"
+                      style={{
+                        borderColor: "var(--card-border)",
+                      }}
+                    >
+                      <pre
+                        className="whitespace-pre-wrap text-xs"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {aiNotes}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="px-6 py-4 border-t flex items-center justify-between"
+          style={{ borderColor: "var(--card-border)" }}
+        >
+          <button
+            onClick={handleSaveChanges}
+            disabled={isRefining}
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium flex items-center space-x-2"
+          >
+            {isRefining ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Save Changes</span>
+              </>
+            )}
+          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              style={{
+                borderColor: "var(--card-border)",
+                color: "var(--text-primary)",
+              }}
+            >
+              Close
+            </button>
+            <button
+              onClick={handleRefine}
+              disabled={isRefining || !refinementInstructions.trim()}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium flex items-center space-x-2"
+            >
+              {isRefining ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Refining...</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>Refine Content</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

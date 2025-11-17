@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme variables */
+:root {
+  /* Sidebar + page shell */
+  --bg-primary: #1b1a19; /* dark slate (used for sidebar & page shell) */
+  /* Canvas (set same as sidebar so page matches) */
+  --bg-secondary: #242424; /* var(--bg-primary); */
+  /*Help - Right Siderbar */
+  --bg-sidebar-help: #1b1a19;
+
+  /* Cards: light shade so they stand out a little */
+  --card-bg: #0b1220; /* slightly lighter than background (dark theme) */
+  --card-bg-light: #2b2a2a; /* light mode card color */
+  --card-border: rgba(255, 255, 255, 0.04);
+
+  --text-primary: #e6eef3;
+  --text-secondary: #9aa6b2;
+
+  --accent-primary: #4f9ef5;
+  --accent-secondary: #7bd389;
+
+  --hover-bg: rgba(255, 255, 255, 0.03);
+  --border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Light theme (override) */
+[data-theme="light"] {
+  --bg-primary: #f3f6f9;
+  --bg-secondary: #f9fafb;
+  --card-bg: var(--card-bg-light);
+  --card-border: #e5e7eb;
+  --text-primary: #414347; /* #111827; */
+  --text-secondary: #6b7280;
+  --hover-bg: #f3f4f6;
+  --border-color: #e5e7eb;
+}
+
+/* Dark theme (override if you toggle data-theme="dark") */
+[data-theme="dark"] {
+  --bg-primary: #1b1a19; /* sidebar & page shell */
+  --bg-secondary: #242424; /* 767474 var(--bg-primary); match sidebar */
+  --card-bg: #313131; /* 0b1220; cards slightly lighter than shell */
+  --card-border: #1f2937;
+  --text-primary: #e6eef3;
+  --text-secondary: #9ca3af;
+  --hover-bg: #162029;
+  --border-color: #1f2937;
+}
+
+/* Global layout */
+html,
+body,
+#__next {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Centralized card helper - use this class or the Card component below */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    transform 0.12s ease;
+}
+
+/* Utility for light cards on dark theme if you need slightly brighter cards */
+.card--elevated {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* small shadow helper mapped to tailwind extend (optional) */
+.shadow-card-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Slide-in animation for product details panel */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+/* Global form input styles */
+input,
+textarea,
+select {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure text is readable in both themes */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  color: #1f2937 !important; /* Dark gray for light theme */
+  background-color: #ffffff !important; /* White background for light theme */
+  border-color: #d1d5db !important; /* Light gray border */
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  color: #1f2937 !important; /* Dark text for light background */
+  background-color: #ffffff !important; /* White background */
+  border-color: #4b5563 !important; /* Darker border for contrast */
+}

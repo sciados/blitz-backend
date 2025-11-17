@@ -2,17 +2,19 @@
 
 ## Overview
 
-Blitz's intelligence compilation is a **simplified, powerful 3-step process** that improves on Blitz's over-engineered 6-module amplifier system. We use the **best AI platforms** for each task.
+Blitz's intelligence compilation is a **simplified, powerful 3-step process** that improves on CampaignForge's over-engineered 6-module amplifier system. We use the **best AI platforms** for each task.
 
-## Key Improvements Over Blitz
+## Key Improvements Over CampaignForge
 
-### What We're Keeping:
+### What We're Keeping
+
 ✅ Sales page scraping with image extraction
 ✅ Cloudflare R2 for image storage
 ✅ RAG (Retrieval Augmented Generation)
 ✅ Semantic search capabilities
 
-### What We're Improving:
+### What We're Improving
+
 🚀 **Unified AI Analysis** - Single Claude 3.5 Sonnet call instead of 6 separate enhancers
 🚀 **Better Embeddings** - OpenAI text-embedding-3-large instead of Cohere
 🚀 **Simplified Storage** - JSONB in campaigns table instead of 6 normalized tables
@@ -23,7 +25,6 @@ Blitz's intelligence compilation is a **simplified, powerful 3-step process** th
 
 ### The 3-Step Process
 
-```
 Step 1: Scrape Sales Page
     ├─ Extract HTML content, metadata, text
     ├─ Download images (hero, product, lifestyle)
@@ -52,49 +53,55 @@ Step 3: RAG Implementation
     ├─ Enable semantic search across campaigns
     ├─ Link related intelligence and research
     └─ Support intelligent content generation
-```
 
 ## Technology Stack
 
 ### AI Platforms (Best-in-Class)
 
-**Primary Analysis: Claude 3.5 Sonnet (Anthropic)**
+Primary Analysis: Claude 3.5 Sonnet (Anthropic)
+
 - Why: Best reasoning, context understanding, and structured output
 - Use: Main intelligence extraction and amplification
 - Cost: ~$3/million input tokens, $15/million output tokens
 - Context: 200K tokens (can handle full sales pages)
 
-**Image Analysis: Claude Vision API**
+Image Analysis: Claude Vision API
+
 - Why: Superior image understanding compared to GPT-4V
 - Use: Image classification, quality scoring, context extraction
 - Replaces: Manual dimension checking and basic filters
 
-**Embeddings: OpenAI text-embedding-3-large**
+Embeddings: OpenAI text-embedding-3-large
+
 - Why: Best semantic understanding, 3072 dimensions
 - Use: RAG system, semantic search
 - Cost: $0.13/million tokens
 - Performance: Better than Cohere on retrieval benchmarks
 
-**Alternative Embeddings: Voyage AI (voyage-large-2-instruct)**
+Alternative Embeddings: Voyage AI (voyage-large-2-instruct)
+
 - Why: Optimized for RAG, beats OpenAI on some benchmarks
 - Use: Optional upgrade path
 - Cost: Similar to OpenAI
 
 ### Storage & Database
 
-**Image Storage: Cloudflare R2**
+Image Storage: Cloudflare R2
+
 - S3-compatible object storage
 - Zero egress fees (huge cost savings)
 - Global CDN included
 - Path structure: `campaigns/{campaign_id}/images/{filename}`
 
-**Vector Storage: pgvector (PostgreSQL)**
+Vector Storage: pgvector (PostgreSQL)
+
 - Native PostgreSQL extension
 - HNSW indexing for fast similarity search
 - No separate vector database needed
 - Stores embeddings directly in campaigns table
 
-**Intelligence Storage: JSONB**
+Intelligence Storage: JSONB
+
 - All intelligence in `campaigns.intelligence_data`
 - Flexible schema, no migrations needed
 - Fast queries with GIN indexes
@@ -103,12 +110,15 @@ Step 3: RAG Implementation
 ## Global Intelligence Sharing (Cost Optimization)
 
 ### The Problem
+
 Multiple users often promote the same products (especially on platforms like ClickBank, JVZoo). Without sharing, each user would trigger expensive intelligence compilation for the same URL.
 
 ### The Solution
+
 **Global Intelligence Cache**: Compile intelligence once per unique product URL, share across all users.
 
 **Benefits**:
+
 - ⚡ **Instant Intelligence**: 2nd+ users get results in <1 second (no scraping/analysis)
 - 💰 **95%+ Cost Savings**: Only first user pays compilation cost (~$0.06)
 - 🚀 **Better UX**: No waiting for common affiliate products
@@ -116,7 +126,6 @@ Multiple users often promote the same products (especially on platforms like Cli
 
 ### How It Works
 
-```
 User A creates campaign for ClickBank Product X
     ↓
 System checks: Has this URL been compiled?
@@ -136,7 +145,6 @@ Skip compilation entirely
 Link Campaign B → Same ProductIntelligence record
     ↓
 Intelligence instantly available to Campaign B
-```
 
 ## Database Schema
 
@@ -205,7 +213,6 @@ class Campaign(Base):
 
 ### Intelligence Compilation (with Global Sharing)
 
-```
 POST /api/campaigns/{campaign_id}/compile-intelligence
 Request:
 {
@@ -274,11 +281,9 @@ GET /api/campaigns/{campaign_id}/compile-progress
   "message": "Downloading images...",
   "estimated_completion": "2025-01-30T12:05:00Z"
 }
-```
 
 ### RAG Query
 
-```
 POST /api/intelligence/query
 Request:
 {
@@ -304,8 +309,6 @@ Response:
     }
   ],
   "query_time_ms": 45
-}
-```
 
 ## Implementation Details
 
@@ -465,7 +468,7 @@ class IntelligenceAmplifier:
     async def amplify_intelligence(scraped_data: dict):
         """
         Single comprehensive analysis with Claude 3.5 Sonnet.
-        Replaces Blitz's 6 separate enhancers.
+        Replaces CampaignForge's 6 separate enhancers.
         """
         prompt = f"""
 You are an expert marketing intelligence analyst. Analyze this sales page and extract comprehensive intelligence.
@@ -609,7 +612,7 @@ The "Compile Intelligence" button in Step 2 will:
    - Enable RAG toggle
 
 2. **Start Compilation** with progress tracking:
-   ```tsx
+tsx
    const [progress, setProgress] = useState({
      status: 'idle',
      stage: '',
@@ -628,36 +631,39 @@ The "Compile Intelligence" button in Step 2 will:
        const prog = await api.get(`/api/campaigns/${id}/compile-progress`);
        setProgress(prog.data);
 
-       if (prog.data.status === 'completed') {
+if (prog.data.status === 'completed') {
          clearInterval(interval);
          toast.success('Intelligence compiled successfully!');
          queryClient.invalidateQueries(['campaign', id]);
        }
      }, 1000);
    };
-   ```
 
-3. **Display Results** in expanded intelligence section showing:
-   - Product summary
-   - Target audience
-   - Key features
-   - Marketing angles
-   - Extracted images
-   - Confidence scores
+Display Results** in expanded intelligence section showing
+
+- Product summary
+- Target audience
+- Key features
+- Marketing angles
+- Extracted images
+- Confidence scores
 
 ## Performance Optimizations
 
 ### Parallel Processing
+
 - Image downloads happen concurrently (Promise.all)
 - Claude Vision analysis in parallel for multiple images
-- No artificial throttling (Blitz had 3s delays)
+- No artificial throttling (CampaignForge had 3s delays)
 
 ### Caching Strategy
+
 - Cache scraped HTML for 24 hours (avoid re-scraping same URL)
 - Reuse embeddings if intelligence hasn't changed
 - CDN caching for R2 images
 
 ### Cost Optimization
+
 - Batch embedding generation where possible
 - Use Claude's caching for repeated analysis
 - Smart image selection (top 10 by quality score)
@@ -665,11 +671,13 @@ The "Compile Intelligence" button in Step 2 will:
 ## Error Handling
 
 ### Graceful Degradation
+
 - If image scraping fails → continue with text analysis
 - If Claude Vision fails → use basic image metadata
 - If embeddings fail → intelligence still saved, RAG disabled
 
 ### Retry Logic
+
 - 3 retries for HTTP failures with exponential backoff
 - Circuit breaker for external services
 - Fallback to cached data when available
@@ -677,16 +685,19 @@ The "Compile Intelligence" button in Step 2 will:
 ## Testing Strategy
 
 ### Unit Tests
+
 - Scraper service with mocked HTML
 - Intelligence amplifier with sample responses
 - RAG service with test embeddings
 
 ### Integration Tests
+
 - Full pipeline with test sales pages
 - R2 upload/download verification
 - Database storage and retrieval
 
 ### End-to-End Tests
+
 - Real sales page compilation
 - Frontend to backend flow
 - Progress tracking accuracy
@@ -694,6 +705,7 @@ The "Compile Intelligence" button in Step 2 will:
 ## Future Enhancements
 
 ### Phase 2 Features
+
 - **Competitor Analysis**: Compare multiple products side-by-side
 - **Trend Detection**: Identify emerging marketing patterns
 - **Auto-Updates**: Re-scrape on schedule to detect changes
@@ -702,6 +714,7 @@ The "Compile Intelligence" button in Step 2 will:
 - **Multi-language**: Analyze sales pages in different languages
 
 ### Advanced RAG
+
 - **Hybrid Search**: Combine semantic + keyword search
 - **Re-ranking**: Use Cohere rerank API for better relevance
 - **Query Expansion**: Generate multiple search queries from user intent
@@ -709,31 +722,36 @@ The "Compile Intelligence" button in Step 2 will:
 
 ## Cost Analysis
 
-### Per Campaign Compilation
+## Per Campaign Compilation
 
-**Step 1: Scraping**
+Step 1: Scraping
+
 - HTTP requests: Free
 - Image downloads: ~$0.01 per 10 images
 
-**Step 2: Intelligence Amplification**
+Step 2: Intelligence Amplification
+
 - Claude 3.5 Sonnet: ~$0.05 per campaign (5K input, 2K output)
 
-**Step 3: RAG**
+Step 3: RAG
+
 - OpenAI embeddings: ~$0.002 per campaign
 - Storage: Negligible (JSONB + vector)
 
-**Total: ~$0.06 per campaign**
+Total: ~$0.06 per campaign
 
-Compare to Blitz:
+Compare to CampaignForge:
+
 - 6 separate API calls to different providers
 - Higher token usage due to redundant prompting
 - Estimated: ~$0.15-0.20 per campaign
 
-**Savings: 60-70% cost reduction**
+Savings: 60-70% cost reduction
 
 ## Deployment Checklist
 
 ### Backend (Railway)
+
 - [ ] Install pgvector extension
 - [ ] Add Anthropic API key
 - [ ] Add OpenAI API key
@@ -744,6 +762,7 @@ Compare to Blitz:
 - [ ] Test all endpoints
 
 ### Frontend (Vercel)
+
 - [ ] Add intelligence compilation modal
 - [ ] Add progress tracking UI
 - [ ] Add intelligence display section
@@ -751,6 +770,7 @@ Compare to Blitz:
 - [ ] Test end-to-end flow
 
 ### Infrastructure
+
 - [ ] Set up Cloudflare R2 bucket
 - [ ] Configure CORS for R2
 - [ ] Set up CDN for R2 public access

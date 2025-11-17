@@ -1028,6 +1028,25 @@
             "type": "string",
             "title": "Affiliate Network"
           },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": { "type": "string" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Keywords",
+            "default": []
+          },
+          "product_description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Description"
+          },
+          "product_type": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Type"
+          },
           "target_audience": {
             "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Target Audience"
@@ -1061,6 +1080,25 @@
           "affiliate_network": {
             "type": "string",
             "title": "Affiliate Network"
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": { "type": "string" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Keywords",
+            "default": []
+          },
+          "product_description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Description"
+          },
+          "product_type": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Type"
           },
           "target_audience": {
             "anyOf": [{ "type": "string" }, { "type": "null" }],
@@ -1124,6 +1162,24 @@
               { "$ref": "#/components/schemas/CampaignStatus" },
               { "type": "null" }
             ]
+          },
+          "keywords": {
+            "anyOf": [
+              {
+                "items": { "type": "string" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Keywords"
+          },
+          "product_description": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Description"
+          },
+          "product_type": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Product Type"
           },
           "target_audience": {
             "anyOf": [{ "type": "string" }, { "type": "null" }],

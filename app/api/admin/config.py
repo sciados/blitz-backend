@@ -558,3 +558,31 @@ async def get_admin_metrics(db: AsyncSession = Depends(get_db)):
         "billing_enabled": config.stripe_enabled if config else True,
         "last_updated": config.updated_at.isoformat() if config else None,
     }
+
+
+@router.post("/refresh-engines")
+async def refresh_ai_engines():
+    """Manually trigger refresh of AI provider engines."""
+    from app.services.image_generator import ImageGenerator
+
+    try:
+        image_gen = ImageGenerator()
+        result = await image_gen.refresh_provider_engines()
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to refresh engines: {str(e)}"
+        )
+
+
+@router.get("/engines/status")
+async def get_engine_status():
+    """Get current status of all AI provider engines."""
+    from app.services.image_provider_config import provider_config
+
+    return {
+        "last_updated": provider_config.last_updated.isoformat() if provider_config.last_updated else None,
+        "engines_discovered": len(provider_config.engines_cache),
+        "status": "ready"
+    }

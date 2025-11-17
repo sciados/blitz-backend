@@ -1,0 +1,70 @@
+--- a/src/app/admin/config/page.tsx
++++ b/src/app/admin/config/page.tsx
+@@ -435,6 +435,61 @@
+           </div>
+
++          {/* Campaign Limits */}
++          <div className="grid grid-cols-3 gap-4">
++            <div>
++              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
++                Max Campaigns (-1 for unlimited)
++              </label>
++              <input
++                type="number"
++                value={formData.max_campaigns}
++                onChange={(e) =>
++                  setFormData({ ...formData, max_campaigns: parseInt(e.target.value) })
++                }
++                className="w-full px-4 py-2 border rounded-lg"
++                style={{ borderColor: "var(--card-border)" }}
++              />
++            </div>
++            <div>
++              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
++                Content Pieces/Campaign (-1 for unlimited)
++              </label>
++              <input
++                type="number"
++                value={formData.content_pieces_per_campaign}
++                onChange={(e) =>
++                  setFormData({ ...formData, content_pieces_per_campaign: parseInt(e.target.value) })
++                }
++                className="w-full px-4 py-2 border rounded-lg"
++                style={{ borderColor: "var(--card-border)" }}
++              />
++            </div>
++            <div>
++              <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
++                Email Sequences (-1 for unlimited)
++              </label>
++              <input
++                type="number"
++                value={formData.email_sequences}
++                onChange={(e) =>
++                  setFormData({ ...formData, email_sequences: parseInt(e.target.value) })
++                }
++                className="w-full px-4 py-2 border rounded-lg"
++                style={{ borderColor: "var(--card-border)" }}
++              />
++            </div>
++          </div>
++
++          {/* API Limits */}
++          <div>
++            <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
++              API Calls/Day (0 for disabled, -1 for unlimited)
++            </label>
++            <input
++              type="number"
++              value={formData.api_calls_per_day}
++              onChange={(e) =>
++                setFormData({ ...formData, api_calls_per_day: parseInt(e.target.value) })
++              }
++              className="w-full px-4 py-2 border rounded-lg"
++              style={{ borderColor: "var(--card-border)" }}
++            />
++          </div>
++
+           {/* Overage Rate */}
+           <div>
+             <label className="block text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
