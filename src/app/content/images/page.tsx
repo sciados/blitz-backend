@@ -33,10 +33,10 @@ const IMAGE_STYLES = [
 
 const ASPECT_RATIOS = [
   { value: "1:1", label: "Square (1:1)", description: "1024×1024 - Instagram, profile" },
-  { value: "16:9", label: "Landscape (16:9)", description: "1024×576 - YouTube, banners" },
-  { value: "9:16", label: "Portrait (9:16)", description: "576×1024 - Stories, Reels" },
-  { value: "21:9", label: "Ultrawide (21:9)", description: "1024×438 - Cinematic banners" },
-  { value: "4:3", label: "Standard (4:3)", description: "1024×768 - Presentations" },
+  { value: "16:9", label: "Landscape (16:9)", description: "1344×768 - YouTube, banners" },
+  { value: "9:16", label: "Portrait (9:16)", description: "768×1344 - Stories, Reels" },
+  { value: "21:9", label: "Ultrawide (21:9)", description: "1536×640 - Cinematic banners" },
+  { value: "4:3", label: "Standard (4:3)", description: "1216×832 - Presentations" },
 ];
 
 export default function ImagesPage() {
