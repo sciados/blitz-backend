@@ -58,7 +58,15 @@
       "Bash(else echo \"✗ tsconfig.json missing\")",
       "Bash(curl:*)",
       "Bash(git checkout:*)",
-      "Bash(git apply:*)"
+      "Bash(git apply:*)",
+      "Bash(app/db/models.py)",
+      "Bash(.dockerignore)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(netstat:*)",
+      "Bash(cmd //c \"taskkill //F //PID 67832\")",
+      "Bash(cmd /c \"taskkill /F /PID 67832\")",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
