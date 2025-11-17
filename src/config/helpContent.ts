@@ -179,6 +179,47 @@ export const helpContent: Record<string, HelpContent> = {
     ],
   },
 
+  // Images
+  "/images": {
+    title: "AI Image Generation",
+    description: "Generate professional marketing images using rotating AI platforms with your campaign intelligence data.",
+    steps: [
+      {
+        number: 1,
+        title: "Select Campaign",
+        description: "Choose the campaign you want to generate images for. The AI will use your campaign's intelligence data to create relevant images.",
+      },
+      {
+        number: 2,
+        title: "Choose Image Type",
+        description: "Select the type of image you need: hero images, product shots, social media graphics, ad creatives, email headers, blog features, infographics, or comparison images.",
+      },
+      {
+        number: 3,
+        title: "Pick Style and Aspect Ratio",
+        description: "Choose the artistic style (photorealistic, artistic, minimalist, etc.) and aspect ratio (1:1 for Instagram, 16:9 for YouTube, 9:16 for Stories, etc.).",
+      },
+      {
+        number: 4,
+        title: "Generate Image",
+        description: "Click Generate to create your image. The system rotates through multiple AI providers (Pollinations, FAL, Stability AI, etc.) to optimize cost and quality.",
+      },
+      {
+        number: 5,
+        title: "Download or Regenerate",
+        description: "Download images you like or regenerate to get a different result. All images are saved to your library for easy access.",
+      },
+    ],
+    tips: [
+      "Images are generated using your campaign intelligence for better relevance",
+      "Leave custom prompt blank to auto-generate from campaign data",
+      "Use different aspect ratios for different platforms (1:1 Instagram, 16:9 YouTube, 9:16 Stories)",
+      "Regenerate images to try different AI providers and styles",
+      "Download high-res images directly from the library",
+      "All generated images include provider, model, and cost information",
+    ],
+  },
+
   // Intelligence
   "/intelligence": {
     title: "Campaign Intelligence",

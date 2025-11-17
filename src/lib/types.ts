@@ -241,3 +241,58 @@ export type LinkAnalytics = {
     }>;
     period_days: number;
 };
+
+// ============================================================================
+// IMAGE GENERATION TYPES
+// ============================================================================
+
+export type ImageType = "hero" | "product" | "social" | "ad" | "email" | "blog" | "infographic" | "comparison";
+
+export type ImageStyle = "photorealistic" | "artistic" | "minimalist" | "lifestyle" | "product" | "illustration" | "retro" | "modern";
+
+export type AspectRatio = "1:1" | "16:9" | "9:16" | "21:9" | "4:3";
+
+export type GeneratedImage = {
+    id: number;
+    campaign_id: number;
+    image_type: ImageType;
+    style: ImageStyle;
+    aspect_ratio: AspectRatio;
+    prompt: string;
+    image_url: string;
+    thumbnail_url: string | null;
+    provider: string;
+    model: string;
+    meta_data: {
+        width: number;
+        height: number;
+        generation_time: number;
+        campaign_intelligence_version: string | null;
+        custom_params: any;
+    };
+    cost: number;
+    created_at: string;
+};
+
+export type ImageGenerateRequest = {
+    campaign_id: number;
+    image_type: ImageType;
+    style?: ImageStyle;
+    aspect_ratio?: AspectRatio;
+    custom_prompt?: string | null;
+};
+
+export type ImageBatchRequest = {
+    campaign_id: number;
+    requests: Array<{
+        image_type: ImageType;
+        style?: ImageStyle;
+        aspect_ratio?: AspectRatio;
+        custom_prompt?: string | null;
+    }>;
+};
+
+export type ImageVariationRequest = {
+    num_variations?: number; // 1-5, default 3
+    variation_strength?: number; // 0.0-1.0, default 0.7
+};
