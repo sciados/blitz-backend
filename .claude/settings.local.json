@@ -67,7 +67,9 @@
       "Bash(cmd //c \"taskkill //F //PID 67832\")",
       "Bash(cmd /c \"taskkill /F /PID 67832\")",
       "WebSearch",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(alembic revision:*)"
     ],
     "deny": [],
     "ask": []
