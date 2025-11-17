@@ -76,7 +76,10 @@
       "Bash(git reset:*)",
       "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend status:*)",
       "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend commit:*)",
-      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend push:*)"
+      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend push:*)",
+      "Bash(git -C /c/Users/shaun/OneDrive/Documents/GitHub/blitz-backend add:*)",
+      "Bash(git config:*)",
+      "Bash(/tmp/test_login.sh:*)"
     ],
     "deny": [],
     "ask": []
