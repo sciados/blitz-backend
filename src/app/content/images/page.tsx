@@ -353,19 +353,19 @@ export default function ImagesPage() {
                     <div className="flex justify-between">
                       <span style={{ color: "var(--text-secondary)" }}>Dimensions:</span>
                       <span style={{ color: "var(--text-primary)" }} className="font-medium">
-                        {generatedImage.meta_data.width} × {generatedImage.meta_data.height}
+                        {generatedImage.metadata.width} × {generatedImage.metadata.height}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span style={{ color: "var(--text-secondary)" }}>Time:</span>
                       <span style={{ color: "var(--text-primary)" }} className="font-medium">
-                        {generatedImage.meta_data.generation_time.toFixed(2)}s
+                        {generatedImage.metadata.generation_time.toFixed(2)}s
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span style={{ color: "var(--text-secondary)" }}>Cost:</span>
                       <span style={{ color: "var(--text-primary)" }} className="font-medium">
-                        ${generatedImage.cost.toFixed(4)}
+                        ${(generatedImage.ai_generation_cost || 0).toFixed(4)}
                       </span>
                     </div>
                   </div>

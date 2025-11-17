@@ -263,14 +263,14 @@ export type GeneratedImage = {
     thumbnail_url: string | null;
     provider: string;
     model: string;
-    meta_data: {
+    metadata: {
         width: number;
         height: number;
         generation_time: number;
         campaign_intelligence_version: string | null;
         custom_params: any;
     };
-    cost: number;
+    ai_generation_cost?: number;
     created_at: string;
 };
 
