@@ -2,9 +2,13 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install PostgreSQL client libraries
+# Install PostgreSQL client libraries and XML/HTML parsing libraries for lxml
 RUN apt-get update && apt-get install -y \
     libpq-dev \
+    libxml2-dev \
+    libxslt-dev \
+    libjpeg-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies

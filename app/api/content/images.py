@@ -142,7 +142,7 @@ async def generate_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        meta_data=result.meta_data,
+        metadata=result.metadata,
         ai_generation_cost=result.cost
     )
 
@@ -161,7 +161,7 @@ async def generate_image(
         prompt=image_record.prompt,
         style=image_record.style,
         aspect_ratio=image_record.aspect_ratio,
-        meta_data=image_record.meta_data or {},
+        metadata=image_record.meta_data or {},
         ai_generation_cost=image_record.ai_generation_cost,
         content_id=image_record.content_id,
         created_at=image_record.created_at
@@ -245,7 +245,7 @@ async def preview_image(
         prompt=result.prompt,
         style=result.style,
         aspect_ratio=result.aspect_ratio,
-        meta_data=result.meta_data,
+        metadata=result.metadata,
         ai_generation_cost=result.cost,
         content_id=None,
         created_at=None  # No timestamp since not saved
@@ -319,7 +319,7 @@ async def batch_generate_images(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
-            meta_data=result.meta_data,
+            metadata=result.metadata,
             ai_generation_cost=result.cost
         )
 
@@ -344,7 +344,7 @@ async def batch_generate_images(
             prompt=record.prompt,
             style=record.style,
             aspect_ratio=record.aspect_ratio,
-            meta_data=record.meta_data or {},
+            metadata=record.meta_data or {},
             ai_generation_cost=record.ai_generation_cost,
             content_id=record.content_id,
             created_at=record.created_at
@@ -409,7 +409,7 @@ async def list_campaign_images(
                 prompt=image.prompt,
                 style=image.style,
                 aspect_ratio=image.aspect_ratio,
-                meta_data=image.meta_data or {},
+                metadata=image.meta_data or {},
                 ai_generation_cost=image.ai_generation_cost,
                 content_id=image.content_id,
                 created_at=image.created_at
@@ -457,7 +457,7 @@ async def get_image(
         style=image.style,
         aspect_ratio=image.aspect_ratio,
         prompt=image.prompt,
-        meta_data=image.meta_data or {},
+        metadata=image.meta_data or {},
         ai_generation_cost=image.ai_generation_cost,
         content_id=image.content_id,
         created_at=image.created_at
@@ -550,7 +550,7 @@ async def create_variations(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
-            meta_data={**result.meta_data, "base_image_id": image_id},
+            metadata={**result.metadata, "base_image_id": image_id},
             ai_generation_cost=result.cost,
             content_id=base_image.content_id
         )
@@ -576,7 +576,7 @@ async def create_variations(
             prompt=record.prompt,
             style=record.style,
             aspect_ratio=record.aspect_ratio,
-            meta_data=record.meta_data or {},
+            metadata=record.meta_data or {},
             ai_generation_cost=record.ai_generation_cost,
             content_id=record.content_id,
             created_at=record.created_at

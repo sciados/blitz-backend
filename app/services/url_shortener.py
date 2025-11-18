@@ -329,7 +329,7 @@ class URLShortenerService:
         # TODO: Integrate with IP geolocation service
         # Example with ip-api.com (free tier):
         # async with httpx.AsyncClient() as client:
-        #     response = await client.get(f"http://ip-api.com/json/{ip_address}")
+        #     response = await client.get(f"https://ip-api.com/json/{ip_address}")
         #     data = response.json()
         #     return {
         #         'country_code': data.get('countryCode'),

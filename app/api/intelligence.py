@@ -229,7 +229,7 @@ async def compile_intelligence(
             source=request.product_url,
             campaign_id=request.campaign_id,
             content_type="product_intelligence",
-            meta_data=intelligence_data
+            metadata=intelligence_data
         )
     
     return IntelligenceResponse(
@@ -317,7 +317,7 @@ async def add_knowledge_base_entry(
         content_type=entry.content_type,
         content=entry.content,
         source=entry.source,
-        meta_data=entry.meta_data or {}
+        meta_data=entry.metadata or {}
     )
     
     db.add(kb_entry)
@@ -330,16 +330,16 @@ async def add_knowledge_base_entry(
         source=entry.source or "manual_entry",
         campaign_id=entry.campaign_id,
         content_type=entry.content_type,
-        meta_data=entry.meta_data or {}
+        metadata=entry.metadata or {}
     )
-
+    
     return KnowledgeBaseEntry(
         id=kb_entry.id,
         campaign_id=kb_entry.campaign_id,
         content_type=kb_entry.content_type,
         content=kb_entry.content,
         source=kb_entry.source,
-        meta_data=kb_entry.meta_data,
+        metadata=kb_entry.meta_data,
         created_at=kb_entry.created_at
     )
 
@@ -374,7 +374,7 @@ async def list_knowledge_base(
             content_type=entry.content_type,
             content=entry.content,
             source=entry.source,
-            meta_data=entry.meta_data,
+            metadata=entry.meta_data,
             created_at=entry.created_at
         )
         for entry in entries

@@ -35,7 +35,7 @@ class ImageGenerationResult:
     prompt: str
     style: str
     aspect_ratio: str
-    meta_data: Dict[str, Any]
+    metadata: Dict[str, Any]
     cost: float = 0.0
 
 
@@ -327,7 +327,7 @@ class ImageGenerator:
         if save_to_r2:
             image_url = await self.r2_storage.upload_image(
                 image_data=result["image_data"],
-                filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                filename=f"{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
         else:
@@ -407,7 +407,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "image_url": image_url, "meta_data": data}
+            return {"image_data": image_data, "image_url": image_url, "metadata": data}
 
     async def _generate_with_replicate(
         self,
@@ -467,7 +467,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "image_url": image_url, "meta_data": prediction}
+            return {"image_data": image_data, "image_url": image_url, "metadata": prediction}
 
     async def _generate_with_stability(
         self,
@@ -506,7 +506,7 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "meta_data": {"model": "ultra", "format": "webp"}}
+            return {"image_data": image_data, "metadata": {"model": "ultra", "format": "webp"}}
 
     async def _generate_with_pollinations(
         self,
@@ -538,7 +538,7 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "image_url": image_url, "meta_data": {"model": "flux", "provider": "pollinations"}}
+            return {"image_data": image_data, "image_url": image_url, "metadata": {"model": "flux", "provider": "pollinations"}}
 
     async def _generate_with_huggingface(
         self,
@@ -580,7 +580,7 @@ class ImageGenerator:
 
             # For HuggingFace, we don't have the original URL, so we'll use a placeholder
             # This is fine since HuggingFace isn't used for preview (free providers are)
-            return {"image_data": image_data, "image_url": "huggingface://generated", "meta_data": {"model": "stable-diffusion-xl-base-1.0", "provider": "huggingface"}}
+            return {"image_data": image_data, "image_url": "huggingface://generated", "metadata": {"model": "stable-diffusion-xl-base-1.0", "provider": "huggingface"}}
 
     async def _generate_with_ideogram(
         self,
@@ -625,7 +625,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "image_url": image_url, "meta_data": data}
+            return {"image_data": image_data, "image_url": image_url, "metadata": data}
 
     async def _generate_with_leonardo(
         self,
@@ -688,7 +688,7 @@ class ImageGenerator:
                         image_response = await client.get(image_url)
                         image_data = image_response.content
 
-                        return {"image_data": image_data, "image_url": image_url, "meta_data": result_data}
+                        return {"image_data": image_data, "image_url": image_url, "metadata": result_data}
                 elif result_data["generations"]["by_pk"]["status"] == "FAILED":
                     raise Exception(f"Image generation failed: {result_data}")
 
@@ -712,7 +712,7 @@ class ImageGenerator:
                 # Upload to R2
                 thumbnail_url = await self.r2_storage.upload_image(
                     image_data=thumbnail_data,
-                    filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    filename=f"thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
                 )
 
