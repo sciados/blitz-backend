@@ -12,7 +12,7 @@ from urllib.parse import urljoin, urlparse
 from datetime import datetime
 import anthropic
 from app.core.config.settings import settings
-from app.services.storage_r2 import R2StorageService
+from app.utils.r2_storage import R2StorageService
 
 logger = logging.getLogger(__name__)
 
