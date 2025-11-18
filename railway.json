@@ -1,12 +1,8 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-<<<<<<< HEAD
-    "builder": "dockerfile"
-=======
-    "builder": "dockerfile",
-    "buildCommand": "pip install --upgrade pip && pip install -r requirements.txt"
->>>>>>> 05448fba982b3235b04c6e3c07053c95b3c3b76e
+    "builder": "DOCKERFILE",
+    "buildCommand": "pip install --no-cache-dir -r requirements.txt"
   },
   "deploy": {
     "numReplicas": 1,
