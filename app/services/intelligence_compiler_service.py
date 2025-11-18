@@ -14,7 +14,7 @@ from app.db.models import Campaign, ProductIntelligence, KnowledgeBase
 from app.services.scraper_service import SalesPageScraper
 from app.services.intelligence_amplifier import IntelligenceAmplifier
 from app.services.embeddings_router import EmbeddingRouterService
-from app.services.storage_r2 import R2StorageService
+from app.utils.r2_storage import R2Storage
 from app.services.rag.intelligent_rag import rag_system
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class IntelligenceCompilerService:
         self.scraper = SalesPageScraper()
         self.amplifier = IntelligenceAmplifier()
         self.embeddings = EmbeddingRouterService()
-        self.r2_storage = R2StorageService()
+        self.r2_storage = R2Storage()
 
     async def compile_for_campaign(
         self,
