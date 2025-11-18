@@ -35,7 +35,7 @@ class ImageGenerationResult:
     prompt: str
     style: str
     aspect_ratio: str
-    metadata: Dict[str, Any]
+    meta_data: Dict[str, Any]
     cost: float = 0.0
 
 
@@ -245,7 +245,8 @@ class ImageGenerator:
         campaign_intelligence: Optional[Dict[str, Any]] = None,
         custom_params: Optional[Dict[str, Any]] = None,
         quality_boost: bool = False,
-    campaign_id: Optional[int] = None,  # Campaign UUID for R2 path organization
+        campaign_id: Optional[int] = None,
+        save_to_r2: bool = True
     ) -> ImageGenerationResult:
         """
         Generate image using rotating AI providers.
@@ -317,15 +318,20 @@ class ImageGenerator:
         generation_time = time.time() - start_time
         logger.info(f"✅ Image generated in {generation_time:.2f}s using {provider.name}")
 
-        # Upload to Cloudflare R2
-        image_url = await self.r2_storage.upload_image(
-            image_data=result["image_data"],
-            filename=f"{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
-            content_type="image/png"
-        )
+        # Upload to Cloudflare R2 only if save_to_r2 is True
+        if save_to_r2:
+            image_url = await self.r2_storage.upload_image(
+                image_data=result["image_data"],
+                filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png"
+            )
+        else:
+            # For preview - use provider URL directly without uploading to R2
+            image_url = result.get("image_url", "provider://generated")
+            logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
 
         # Generate thumbnail
-        thumbnail_url = await self._generate_thumbnail(image_url)
+        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
 
         # Build result
         return ImageGenerationResult(
@@ -336,7 +342,7 @@ class ImageGenerator:
             prompt=prompt,
             style=style,
             aspect_ratio=aspect_ratio,
-            metadata={
+            meta_data={
                 "width": width,
                 "height": height,
                 "generation_time": generation_time,
@@ -396,7 +402,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "metadata": data}
+            return {"image_data": image_data, "image_url": image_url, "meta_data": data}
 
     async def _generate_with_replicate(
         self,
@@ -456,7 +462,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "metadata": prediction}
+            return {"image_data": image_data, "image_url": image_url, "meta_data": prediction}
 
     async def _generate_with_stability(
         self,
@@ -495,7 +501,7 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "metadata": {"model": "ultra", "format": "webp"}}
+            return {"image_data": image_data, "image_url": "stability://generated", "meta_data": {"model": "ultra", "format": "webp"}}
 
     async def _generate_with_pollinations(
         self,
@@ -527,7 +533,7 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "metadata": {"model": "flux", "provider": "pollinations"}}
+            return {"image_data": image_data, "image_url": image_url, "meta_data": {"model": "flux", "provider": "pollinations"}}
 
     async def _generate_with_huggingface(
         self,
@@ -567,7 +573,7 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "metadata": {"model": "stable-diffusion-xl-base-1.0", "provider": "huggingface"}}
+            return {"image_data": image_data, "image_url": "huggingface://generated", "meta_data": {"model": "stable-diffusion-xl-base-1.0", "provider": "huggingface"}}
 
     async def _generate_with_ideogram(
         self,
@@ -612,7 +618,7 @@ class ImageGenerator:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "metadata": data}
+            return {"image_data": image_data, "image_url": image_url, "meta_data": data}
 
     async def _generate_with_leonardo(
         self,
@@ -675,13 +681,13 @@ class ImageGenerator:
                         image_response = await client.get(image_url)
                         image_data = image_response.content
 
-                        return {"image_data": image_data, "metadata": result_data}
+                        return {"image_data": image_data, "image_url": image_url, "meta_data": result_data}
                 elif result_data["generations"]["by_pk"]["status"] == "FAILED":
                     raise Exception(f"Image generation failed: {result_data}")
 
             raise Exception("Image generation timed out")
 
-    async def _generate_thumbnail(self, image_url: str, size: tuple = (256, 256)) -> Optional[str]:
+    async def _generate_thumbnail(self, image_url: str, campaign_id: Optional[int] = None, size: tuple = (256, 256)) -> Optional[str]:
         """Generate thumbnail for image."""
         try:
             async with httpx.AsyncClient() as client:
@@ -699,7 +705,7 @@ class ImageGenerator:
                 # Upload to R2
                 thumbnail_url = await self.r2_storage.upload_image(
                     image_data=thumbnail_data,
-                    filename=f"thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
                 )
 
