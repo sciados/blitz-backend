@@ -58,17 +58,20 @@ class ImagePromptBuilder:
         }
     }
 
-    # Style specifications
+    # Style specifications (with enhanced quality terms)
     STYLE_SPECS = {
-        "photorealistic": "photorealistic, high detail, realistic lighting, professional photography",
-        "artistic": "artistic interpretation, creative style, painterly, high quality",
-        "minimalist": "minimalist design, clean lines, simple composition, elegant",
-        "lifestyle": "lifestyle photography, real people, authentic moments, natural",
-        "product": "product photography, clean background, commercial quality, studio shot",
-        "illustration": "illustration style, vector art, flat design, graphic design",
-        "retro": "retro style, vintage aesthetic, nostalgic, classic design",
-        "modern": "modern design, contemporary style, sleek, cutting-edge"
+        "photorealistic": "photorealistic, ultra high detail, cinematic lighting, professional photography, 8K resolution, sharp focus, perfect composition, photorealistic skin textures, studio quality",
+        "artistic": "artistic interpretation, creative style, painterly, masterpiece quality, fine art, museum quality, detailed brushwork, artistic excellence",
+        "minimalist": "minimalist design, clean lines, simple composition, elegant, refined, premium quality, sophisticated, tasteful",
+        "lifestyle": "lifestyle photography, real people, authentic moments, natural, editorial quality, magazine shoot, professional model, high-end fashion",
+        "product": "product photography, clean background, commercial quality, studio shot, product showcase, premium lighting, e-commerce quality, catalog ready",
+        "illustration": "illustration style, vector art, flat design, graphic design, professional artwork, detailed, premium design, award-winning",
+        "retro": "retro style, vintage aesthetic, nostalgic, classic design, timeless, archival quality, period accurate, vintage photography",
+        "modern": "modern design, contemporary style, sleek, cutting-edge, innovative, high-end, futuristic, state-of-the-art"
     }
+
+    # Quality enhancement terms
+    QUALITY_BOOST_TERMS = "ultra high quality, 8K resolution, premium, detailed, sharp focus, professional, masterpiece, award-winning, exceptional quality, perfect lighting, high-end"
 
     @staticmethod
     def build_prompt(
@@ -76,7 +79,9 @@ class ImagePromptBuilder:
         image_type: str,
         user_prompt: Optional[str],
         style: str = "photorealistic",
-        aspect_ratio: str = "1:1"
+        aspect_ratio: str = "1:1",
+        quality_boost: bool = False,
+        concise: bool = False
     ) -> str:
         """
         Build comprehensive image prompt from intelligence data.
@@ -87,46 +92,77 @@ class ImagePromptBuilder:
             user_prompt: User-provided custom prompt
             style: Image style preference
             aspect_ratio: Image aspect ratio
+            quality_boost: Enable quality enhancement terms
+            concise: Use shorter, visual-only prompt (for free providers)
 
         Returns:
             str: Enhanced prompt for image generation
         """
         prompt_parts = []
 
-        # 1. Extract base elements from intelligence
-        if campaign_intelligence:
-            intelligence_prompt = ImagePromptBuilder._extract_intelligence_elements(
-                campaign_intelligence
-            )
-            prompt_parts.append(intelligence_prompt)
+        if concise:
+            # For preview (free providers) - use very simple, visual prompt
+            if campaign_intelligence:
+                # Just get product name for concise version
+                product = campaign_intelligence.get("product", {})
+                product_name = product.get("name", "")
+                if product_name:
+                    prompt_parts.append(f"{product_name}")
+
+            # Basic style
+            if style and style != "photorealistic":
+                prompt_parts.append(style)
+
+            # Very basic type
+            type_enhancement = ImagePromptBuilder._get_type_enhancement(image_type)
+            if type_enhancement:
+                prompt_parts.append(type_enhancement.split(",")[0])  # Just first keyword
+
+            # Basic quality
+            prompt_parts.append("high quality")
+
+            # User custom prompt
+            if user_prompt:
+                prompt_parts.append(user_prompt)
         else:
-            logger.warning("No intelligence data available for prompt building")
+            # Full detailed prompt for premium generation
+            # 1. Extract base elements from intelligence
+            if campaign_intelligence:
+                intelligence_prompt = ImagePromptBuilder._extract_intelligence_elements(
+                    campaign_intelligence
+                )
+                prompt_parts.append(intelligence_prompt)
+            else:
+                logger.warning("No intelligence data available for prompt building")
 
-        # 2. Add image type enhancements
-        type_enhancement = ImagePromptBuilder._get_type_enhancement(image_type)
-        if type_enhancement:
-            prompt_parts.append(type_enhancement)
+            # 2. Add image type enhancements
+            type_enhancement = ImagePromptBuilder._get_type_enhancement(image_type)
+            if type_enhancement:
+                prompt_parts.append(type_enhancement)
 
-        # 3. Add style specification
-        style_spec = ImagePromptBuilder._get_style_spec(style)
-        if style_spec:
-            prompt_parts.append(style_spec)
+            # 3. Add style specification
+            style_spec = ImagePromptBuilder._get_style_spec(style)
+            if style_spec:
+                prompt_parts.append(style_spec)
 
-        # 4. Add technical specifications
-        tech_specs = ImagePromptBuilder._get_technical_specs(aspect_ratio)
-        prompt_parts.append(tech_specs)
+            # 4. Add technical specifications
+            tech_specs = ImagePromptBuilder._get_technical_specs(aspect_ratio)
+            prompt_parts.append(tech_specs)
 
-        # 5. Add user customizations
-        if user_prompt:
-            prompt_parts.append(user_prompt)
+            # 5. Add user customizations
+            if user_prompt:
+                prompt_parts.append(user_prompt)
 
-        # 6. Add quality keywords
-        prompt_parts.append("high quality, 4K resolution, professional")
+            # 6. Add quality keywords
+            if quality_boost:
+                prompt_parts.append(ImagePromptBuilder.QUALITY_BOOST_TERMS)
+            else:
+                prompt_parts.append("high quality, 4K resolution, professional")
 
         # Combine all parts
         final_prompt = ", ".join(prompt_parts)
 
-        logger.info(f"📝 Built prompt: {final_prompt[:200]}...")
+        logger.info(f"📝 Built prompt ({'concise' if concise else 'full'}): {final_prompt[:200]}...")
         return final_prompt
 
     @staticmethod

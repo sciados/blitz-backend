@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Blitz API...")
 
     # NOTE: Database tables are now managed by Alembic migrations
-    # No longer using Base.metadata.create_all()
+    # No longer using Base.meta_data.create_all()
 
     # Log JWT configuration source
     jwt_key_preview = settings.JWT_SECRET_KEY[:20] + "..." if len(settings.JWT_SECRET_KEY) > 20 else settings.JWT_SECRET_KEY

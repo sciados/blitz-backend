@@ -292,6 +292,7 @@ class ImageGenerateRequest(BaseModel):
     include_text_overlay: Optional[str] = None
     overlay_position: Optional[str] = "center"
     platform: Optional[str] = None
+    quality_boost: Optional[bool] = False
 
 class ImageBatchRequest(BaseModel):
     campaign_id: int
@@ -315,10 +316,10 @@ class ImageResponse(BaseModel):
     prompt: str
     style: ImageStyle
     aspect_ratio: AspectRatio
-    metadata: Dict[str, Any]
+    meta_data: Dict[str, Any]
     ai_generation_cost: Optional[float] = None
     content_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -333,3 +334,8 @@ class ImageDeleteResponse(BaseModel):
     message: str
     deleted_id: int
 
+
+class ImageUpgradeRequest(BaseModel):
+    """Request to upgrade a draft image to premium quality."""
+    draft_image_id: int
+    quality_boost: Optional[bool] = True  # Default to quality boost for premium

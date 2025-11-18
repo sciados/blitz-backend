@@ -317,7 +317,7 @@ async def add_knowledge_base_entry(
         content_type=entry.content_type,
         content=entry.content,
         source=entry.source,
-        meta_data=entry.metadata or {}
+        meta_data=entry.meta_data or {}
     )
     
     db.add(kb_entry)
@@ -330,7 +330,7 @@ async def add_knowledge_base_entry(
         source=entry.source or "manual_entry",
         campaign_id=entry.campaign_id,
         content_type=entry.content_type,
-        metadata=entry.metadata or {}
+        metadata=entry.meta_data or {}
     )
     
     return KnowledgeBaseEntry(
