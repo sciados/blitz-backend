@@ -34,7 +34,7 @@ httpx==0.26.0
 beautifulsoup4==4.12.3
 lxml==5.1.0
 trafilatura==1.6.3
-Pillow==10.2.0
+Pillow==10.4.0
 
 # Retry Logic & Resilience
 tenacity==8.2.3
