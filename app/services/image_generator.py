@@ -35,7 +35,7 @@ class ImageGenerationResult:
     prompt: str
     style: str
     aspect_ratio: str
-    metadata: Dict[str, Any]
+    meta_data: Dict[str, Any]
     cost: float = 0.0
 
 
