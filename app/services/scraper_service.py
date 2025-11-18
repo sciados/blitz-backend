@@ -12,7 +12,7 @@ from urllib.parse import urljoin, urlparse
 from datetime import datetime
 import anthropic
 from app.core.config.settings import settings
-from app.utils.r2_storage import R2StorageService
+from app.utils.r2_storage import R2Storage
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class SalesPageScraper:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         self.anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        self.r2_storage = R2StorageService()
+        self.r2_storage = R2Storage()
 
     async def scrape_sales_page(
         self,
