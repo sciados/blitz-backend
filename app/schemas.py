@@ -337,5 +337,9 @@ class ImageDeleteResponse(BaseModel):
 
 class ImageUpgradeRequest(BaseModel):
     """Request to upgrade a draft image to premium quality."""
-    draft_image_id: int
+    campaign_id: int
+    draft_image_url: str  # URL of the draft image to enhance
+    custom_prompt: Optional[str] = None  # Optional enhancement prompt
+    style: str = "photorealistic"
+    aspect_ratio: str = "1:1"
     quality_boost: Optional[bool] = True  # Default to quality boost for premium

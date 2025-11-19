@@ -364,6 +364,122 @@ class ImageGenerator:
             cost=provider.cost_per_image
         )
 
+    async def enhance_image(
+        self,
+        base_image_url: str,
+        prompt: str,
+        image_type: str,
+        style: str = "photorealistic",
+        aspect_ratio: str = "1:1",
+        quality_boost: bool = True,  # Enhancement always uses high-quality providers
+        campaign_id: Optional[int] = None,
+        save_to_r2: bool = True
+    ) -> ImageGenerationResult:
+        """
+        Enhance an existing draft image using premium providers.
+
+        Args:
+            base_image_url: URL of the image to enhance
+            prompt: Enhancement prompt
+            image_type: Type of image
+            style: Image style
+            aspect_ratio: Target aspect ratio
+            quality_boost: Always True for enhancement (premium providers only)
+            campaign_id: Campaign ID for R2 path organization
+            save_to_r2: Save to R2 storage
+
+        Returns:
+            ImageGenerationResult: Enhanced image data
+        """
+        start_time = time.time()
+
+        # For enhancement, always use premium providers
+        provider = self.select_provider(image_type, style, None, quality_boost=True)
+        logger.info(f"✨ Enhancing image with provider: {provider.name} ({provider.model})")
+
+        # Parse dimensions
+        width, height = self._parse_aspect_ratio(aspect_ratio)
+
+        # Enhance using selected provider
+        try:
+            if provider.name == "fal":
+                result = await self._enhance_with_fal(
+                    base_image_url, width, height, style, prompt
+                )
+            elif provider.name == "stability":
+                result = await self._enhance_with_stability(
+                    base_image_url, width, height, style, prompt
+                )
+            elif provider.name == "replicate":
+                result = await self._enhance_with_replicate(
+                    base_image_url, width, height, style, prompt
+                )
+            elif provider.name == "leonardo":
+                result = await self._enhance_with_leonardo(
+                    base_image_url, width, height, style, prompt
+                )
+            else:
+                # For other providers, regenerate as fallback
+                logger.warning(f"Provider {provider.name} doesn't support enhancement, regenerating...")
+                return await self.generate_image(
+                    prompt=prompt,
+                    image_type=image_type,
+                    style=style,
+                    aspect_ratio=aspect_ratio,
+                    quality_boost=True,
+                    campaign_id=campaign_id,
+                    save_to_r2=save_to_r2
+                )
+
+        except Exception as e:
+            logger.error(f"Provider {provider.name} enhancement failed: {e}")
+            # Fallback to regeneration with high quality
+            logger.info("Falling back to high-quality regeneration...")
+            return await self.generate_image(
+                prompt=prompt,
+                image_type=image_type,
+                style=style,
+                aspect_ratio=aspect_ratio,
+                quality_boost=True,
+                campaign_id=campaign_id,
+                save_to_r2=save_to_r2
+            )
+
+        generation_time = time.time() - start_time
+        logger.info(f"✅ Image enhanced in {generation_time:.2f}s using {provider.name}")
+
+        # Upload to R2
+        if save_to_r2:
+            r2_key, image_url = await self.r2_storage.upload_file(
+                file_bytes=result["image_data"],
+                key=f"campaigns/{campaign_id}/enhanced_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png"
+            )
+        else:
+            image_url = result["image_url"]
+
+        # Generate thumbnail
+        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
+
+        return ImageGenerationResult(
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=provider.name,
+            model=provider.model,
+            prompt=prompt,
+            style=style,
+            aspect_ratio=aspect_ratio,
+            metadata={
+                "width": width,
+                "height": height,
+                "base_image_url": base_image_url,
+                "enhancement_time": generation_time,
+                "original_provider": "enhanced",
+                "custom_params": {}
+            },
+            cost=provider.cost_per_image
+        )
+
     async def _generate_with_fal(
         self,
         prompt: str,
@@ -700,6 +816,171 @@ class ImageGenerator:
                     raise Exception(f"Image generation failed: {result_data}")
 
             raise Exception("Image generation timed out")
+
+    async def _enhance_with_fal(
+        self,
+        base_image_url: str,
+        width: int,
+        height: int,
+        style: str,
+        prompt: str
+    ) -> Dict[str, Any]:
+        """Enhance image using FAL AI image-to-image."""
+        api_key = os.getenv("FAL_API_KEY")
+        if not api_key:
+            raise ValueError("FAL_API_KEY not set")
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                "https://fal.run/fal-ai/lcm",
+                headers={"Authorization": f"Key {api_key}"},
+                json={
+                    "prompt": prompt,
+                    "image_url": base_image_url,
+                    "strength": 0.3,  # How much to enhance vs original
+                    "guidance_scale": 7.5,
+                    "num_inference_steps": 20,
+                    "num_images": 1
+                }
+            )
+
+            if response.status_code != 200:
+                logger.error(f"FAL Enhancement API error: {response.text}")
+                raise Exception(f"Image enhancement failed: {response.text}")
+
+            data = response.json()
+
+            # Extract image URL from response
+            if "images" in data and len(data["images"]) > 0:
+                image_url = data["images"][0]["url"]
+            elif "image" in data:
+                image_url = data["image"]["url"]
+            elif "url" in data:
+                image_url = data["url"]
+            else:
+                raise Exception(f"Unexpected FAL enhancement response format: {data}")
+
+            # Download enhanced image
+            image_response = await client.get(image_url)
+            image_data = image_response.content
+
+            return {"image_data": image_data, "image_url": image_url, "metadata": data}
+
+    async def _enhance_with_stability(
+        self,
+        base_image_url: str,
+        width: int,
+        height: int,
+        style: str,
+        prompt: str
+    ) -> Dict[str, Any]:
+        """Enhance image using Stability AI upscaler."""
+        api_key = os.getenv("STABILITY_API_KEY")
+        if not api_key:
+            raise ValueError("STABILITY_API_KEY not set")
+
+        # Download base image
+        async with httpx.AsyncClient(timeout=60.0) as download_client:
+            image_response = await download_client.get(base_image_url)
+            image_data = image_response.content
+
+        # Upload to Stability AI for upscaling
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                "https://api.stability.ai/v2beta/stable-image/upscale/upscale",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Accept": "image/*"
+                },
+                files={"image": ("image.png", image_data, "image/png")},
+                data={
+                    "prompt": prompt,
+                    "output_format": "png"
+                }
+            )
+
+            if response.status_code != 200:
+                logger.error(f"Stability Enhancement API error: {response.text}")
+                raise Exception(f"Image enhancement failed: {response.text}")
+
+            # Response is binary image data
+            enhanced_data = response.content
+
+            return {"image_data": enhanced_data, "image_url": base_image_url, "metadata": {"model": "upscale"}}
+
+    async def _enhance_with_replicate(
+        self,
+        base_image_url: str,
+        width: int,
+        height: int,
+        style: str,
+        prompt: str
+    ) -> Dict[str, Any]:
+        """Enhance image using Replicate ESRGAN upscaler."""
+        api_key = os.getenv("REPLICATE_API_TOKEN")
+        if not api_key:
+            raise ValueError("REPLICATE_API_TOKEN not set")
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            # Start upscaling
+            prediction_response = await client.post(
+                "https://api.replicate.com/v1/predictions",
+                headers={
+                    "Authorization": f"Token {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "version": "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",  # ESRGAN model
+                    "input": {
+                        "image": base_image_url,
+                        "prompt": prompt,
+                        "strength": 0.7
+                    }
+                }
+            )
+
+            if prediction_response.status_code != 201:
+                logger.error(f"Replicate Enhancement API error: {prediction_response.text}")
+                raise Exception(f"Image enhancement failed: {prediction_response.text}")
+
+            prediction = prediction_response.json()
+
+            # Poll for completion
+            while prediction["status"] not in ["succeeded", "failed"]:
+                await asyncio.sleep(2)
+                result = await client.get(
+                    f"https://api.replicate.com/v1/predictions/{prediction['id']}",
+                    headers={"Authorization": f"Token {api_key}"}
+                )
+                prediction = result.json()
+
+            if prediction["status"] != "succeeded":
+                raise Exception(f"Image enhancement failed: {prediction.get('error')}")
+
+            # Download enhanced image
+            image_url = prediction["output"]
+            image_response = await client.get(image_url)
+            image_data = image_response.content
+
+            return {"image_data": image_data, "image_url": image_url, "metadata": prediction}
+
+    async def _enhance_with_leonardo(
+        self,
+        base_image_url: str,
+        width: int,
+        height: int,
+        style: str,
+        prompt: str
+    ) -> Dict[str, Any]:
+        """Enhance image using Leonardo AI."""
+        api_key = os.getenv("LEONARDO_API_KEY")
+        if not api_key:
+            raise ValueError("LEONARDO_API_KEY not set")
+
+        # Leonardo doesn't have direct upscaling, so use image-to-image generation
+        # This is a simplified approach
+        logger.warning("Leonardo AI doesn't have direct upscaling, using image-to-image generation")
+        raise NotImplementedError("Leonardo AI image-to-image enhancement not yet implemented")
 
     async def _generate_thumbnail(self, image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
         """Generate thumbnail for image."""
