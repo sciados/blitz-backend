@@ -1082,8 +1082,7 @@ async def delete_product(
     logger.info(f"🗑️  Deleting product {product_id}: {product_name}")
 
     # Step 1: Delete all R2 images associated with this product
-    from app.utils.r2_storage import R2Storage
-    r2_storage = R2Storage()
+    from app.services.storage_r2 import r2_storage
 
     deleted_images = 0
     if product.intelligence_data and 'images' in product.intelligence_data:

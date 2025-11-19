@@ -19,7 +19,7 @@ import httpx
 from PIL import Image
 
 from app.core.config.settings import settings
-from app.utils.r2_storage import r2_storage
+from app.services.storage_r2 import r2_storage
 from app.services.image_provider_config import provider_config
 
 logger = logging.getLogger(__name__)
@@ -205,10 +205,10 @@ class ImageGenerator:
         # This ensures we don't get stuck on a failing provider
         provider_name = self.provider_rotation[self.current_provider_index]
 
-        # If quality boost is enabled, use premium providers
+        # If quality boost is enabled, prioritize premium providers
+        # But don't completely skip free providers - they'll be tried if premium ones fail
         if quality_boost:
-            # Skip free providers and use higher-quality paid providers
-            premium_providers = ["stability", "leonardo", "replicate", "ideogram"]
+            premium_providers = ["stability", "leonardo", "replicate", "ideogram", "fal"]
             if provider_name in ["pollinations", "huggingface", "replicate_free"]:
                 # Jump to next premium provider
                 current_idx = self.provider_rotation.index(provider_name)
@@ -218,8 +218,6 @@ class ImageGenerator:
                         provider_name = self.provider_rotation[next_idx]
                         self.current_provider_index = next_idx
                         break
-
-        self.current_provider_index = (self.current_provider_index + 1) % len(self.provider_rotation)
 
         return self.PROVIDERS[provider_name]
 
@@ -246,7 +244,8 @@ class ImageGenerator:
         custom_params: Optional[Dict[str, Any]] = None,
         quality_boost: bool = False,
         campaign_id: Optional[int] = None,  # Campaign UUID for R2 path organization
-        save_to_r2: bool = True  # Skip R2 upload for preview images
+        save_to_r2: bool = True,  # Skip R2 upload for preview images
+        retry_count: int = 0  # Internal retry counter
     ) -> ImageGenerationResult:
         """
         Generate image using rotating AI providers.
@@ -309,15 +308,23 @@ class ImageGenerator:
                 raise ValueError(f"Unsupported provider: {provider.name}")
         except Exception as e:
             logger.error(f"Provider {provider.name} failed: {e}")
+
+            # Check if we've tried all providers
+            max_retries = len(self.provider_rotation)
+            if retry_count >= max_retries:
+                logger.error(f"All {max_retries} providers failed. Giving up.")
+                raise Exception(f"All image providers failed after {max_retries} attempts. Last error: {str(e)}")
+
             # Try next provider in rotation
-            logger.info(f"Trying next provider...")
+            logger.info(f"Trying next provider... (attempt {retry_count + 1}/{max_retries})")
             self.current_provider_index = (self.current_provider_index + 1) % len(self.provider_rotation)
             return await self.generate_image(
                 prompt, image_type, style, aspect_ratio,
                 campaign_intelligence, custom_params,
-                quality_boost=quality_boost,
+                quality_boost=quality_boost,  # Preserve quality preference on retry
                 campaign_id=campaign_id,
-                save_to_r2=save_to_r2
+                save_to_r2=save_to_r2,
+                retry_count=retry_count + 1
             )
 
         generation_time = time.time() - start_time
@@ -325,9 +332,9 @@ class ImageGenerator:
 
         # Upload to Cloudflare R2 only if save_to_r2 is True
         if save_to_r2:
-            image_url = await self.r2_storage.upload_file(
-                image_data=result["image_data"],
-                filename=f"{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+            r2_key, image_url = await self.r2_storage.upload_file(
+                file_bytes=result["image_data"],
+                key=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
         else:
@@ -336,7 +343,7 @@ class ImageGenerator:
             logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
 
         # Generate thumbnail
-        thumbnail_url = await self._generate_thumbnail(image_url)
+        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
 
         # Build result
         return ImageGenerationResult(
@@ -694,7 +701,7 @@ class ImageGenerator:
 
             raise Exception("Image generation timed out")
 
-    async def _generate_thumbnail(self, image_url: str, size: tuple = (256, 256)) -> Optional[str]:
+    async def _generate_thumbnail(self, image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
         """Generate thumbnail for image."""
         try:
             async with httpx.AsyncClient() as client:
@@ -710,9 +717,9 @@ class ImageGenerator:
                 thumbnail_data = buffer.getvalue()
 
                 # Upload to R2
-                thumbnail_url = await self.r2_storage.upload_file(
-                    image_data=thumbnail_data,
-                    filename=f"thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                r2_key, thumbnail_url = await self.r2_storage.upload_file(
+                    file_bytes=thumbnail_data,
+                    key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
                 )
 
