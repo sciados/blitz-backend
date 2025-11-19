@@ -157,9 +157,11 @@ class Campaign(Base):
     user = relationship("User", back_populates="campaigns")
     product_intelligence = relationship("ProductIntelligence", back_populates="campaigns")
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
+    generated_images = relationship("GeneratedImage", cascade="all, delete-orphan")
     knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
     analytics = relationship("CampaignAnalytics", back_populates="campaign", cascade="all, delete-orphan")
+    analytics_events = relationship("AnalyticsEvent", back_populates="campaign", cascade="all, delete-orphan")
     shortened_links = relationship("ShortenedLink", back_populates="campaign", cascade="all, delete-orphan")
 
 # ============================================================================
@@ -180,10 +182,38 @@ class GeneratedContent(Base):
     version = Column(Integer, server_default="1", nullable=False)
     parent_content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
     # Relationships
     campaign = relationship("Campaign", back_populates="generated_content")
     parent = relationship("GeneratedContent", remote_side=[id], backref="variations")
+
+
+# ============================================================================
+# GENERATED IMAGES MODEL
+# ============================================================================
+
+class GeneratedImage(Base):
+    __tablename__ = "generated_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Image data
+    image_type = Column(String(50), nullable=False)  # hero, social, ad, etc.
+    image_url = Column(Text, nullable=False)
+    thumbnail_url = Column(Text, nullable=True)
+
+    # Generation details
+    provider = Column(String(50), nullable=False)    # fal, replicate, stability
+    model = Column(String(100), nullable=False)      # sdxl-turbo, flux, etc.
+    prompt = Column(Text, nullable=False)
+    style = Column(String(50), nullable=True)
+    aspect_ratio = Column(String(20), nullable=True)
+
+    # Metadata
+    meta_data = Column("metadata", JSONB, nullable=True)  # Store generation params
+    ai_generation_cost = Column(Float, nullable=True)
+    content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 # ============================================================================
 # KNOWLEDGE BASE MODEL (RAG)
@@ -310,7 +340,7 @@ class AnalyticsEvent(Base):
     # Relationships
     user = relationship("User")
     product_intelligence = relationship("ProductIntelligence")
-    campaign = relationship("Campaign")
+    campaign = relationship("Campaign", back_populates="analytics_events")
 
 # ============================================================================
 # URL SHORTENER MODELS
@@ -351,7 +381,6 @@ class ShortenedLink(Base):
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
     campaign = relationship("Campaign", back_populates="shortened_links")
