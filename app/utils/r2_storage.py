@@ -1,300 +1,157 @@
-# app/utils/r2_storage.py
+"""
+Cloudflare R2 Storage Service
+Handles image and video uploads to R2
+"""
 import boto3
+import asyncio
 from botocore.exceptions import ClientError
-from botocore.config import Config
-import os
-from datetime import datetime
-import uuid
-from typing import Optional, BinaryIO
-from fastapi import UploadFile
 from app.core.config.settings import settings
+import logging
+import uuid
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
 
 class R2Storage:
-    """Cloudflare R2 storage client for file uploads"""
-
+    """Service for interacting with Cloudflare R2 storage"""
+    
     def __init__(self):
-        # R2 configuration from environment (matches existing Railway env vars)
-        self.account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
-        self.access_key_id = os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID")
-        self.secret_access_key = os.getenv("CLOUDFLARE_R2_SECRET_ACCESS_KEY")
-        self.bucket_name = os.getenv("CLOUDFLARE_R2_BUCKET_NAME", "campaignforge-storage")
-        self.public_url = os.getenv("CLOUDFLARE_R2_PUBLIC_URL")  # e.g., https://pub-xxx.r2.dev
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=settings.r2_endpoint_url,
+            aws_access_key_id=settings.CLOUDFLARE_R2_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+            region_name="auto",
+        )
+        self.bucket = settings.CLOUDFLARE_R2_BUCKET_NAME
+        self.public_url = settings.CLOUDFLARE_R2_PUBLIC_URL
 
-        # Initialize S3 client for R2
-        if self.account_id and self.access_key_id and self.secret_access_key:
-            self.client = boto3.client(
-                's3',
-                endpoint_url=f'https://{self.account_id}.r2.cloudflarestorage.com',
-                aws_access_key_id=self.access_key_id,
-                aws_secret_access_key=self.secret_access_key,
-                config=Config(signature_version='s3v4'),
-            )
-        else:
-            self.client = None
-            print("Warning: R2 credentials not configured. File uploads will be disabled.")
-
-    def is_configured(self) -> bool:
-        """Check if R2 is properly configured"""
-        return self.client is not None
-
-    def upload_file(
+    async def upload_file(
         self,
-        file: UploadFile,
-        folder: str = "profile-images",
-        allowed_extensions: list = None
-    ) -> Optional[str]:
+        file_bytes: bytes,
+        key: str,
+        content_type: str,
+        meta_data: Optional[dict] = None
+    ) -> tuple[str, str]:
         """
-        Upload a file to R2 and return the public URL
+        Upload a file to R2
 
         Args:
-            file: FastAPI UploadFile object
-            folder: Folder/prefix in the bucket
-            allowed_extensions: List of allowed file extensions (e.g., ['.jpg', '.png'])
+            file_bytes: File content as bytes
+            key: R2 object key (path)
+            content_type: MIME type
+            meta_data: Optional meta_data dict
 
         Returns:
-            Public URL of the uploaded file, or None if upload failed
+            Tuple of (r2_key, public_url)
         """
-        if not self.is_configured():
-            raise Exception("R2 storage is not configured")
-
-        # Validate file extension
-        if allowed_extensions:
-            file_ext = os.path.splitext(file.filename)[1].lower()
-            if file_ext not in allowed_extensions:
-                raise ValueError(f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}")
-
-        # Generate unique filename
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        unique_id = str(uuid.uuid4())[:8]
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        filename = f"{timestamp}_{unique_id}{file_ext}"
-
-        # Full key (path) in bucket
-        key = f"{folder}/{filename}"
-
         try:
-            # Upload file to R2
-            self.client.upload_fileobj(
-                file.file,
-                self.bucket_name,
-                key,
-                ExtraArgs={
-                    'ContentType': file.content_type or 'application/octet-stream',
-                    'CacheControl': 'public, max-age=31536000',  # 1 year
-                }
-            )
+            extra_args = {
+                "ContentType": content_type,
+            }
 
-            # Return public URL
-            if self.public_url:
-                return f"{self.public_url}/{key}"
-            else:
-                # Fallback to R2.dev URL (note: this requires public bucket)
-                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
+            if meta_data:
+                extra_args["Metadata"] = {k: str(v) for k, v in meta_data.items()}
 
-        except ClientError as e:
-            print(f"Error uploading to R2: {e}")
-            raise Exception(f"Failed to upload file: {str(e)}")
-
-
-    async def upload_image(
-        self,
-        image_data: bytes,
-        filename: str,
-        content_type: str = "image/png",
-        folder: str = "images"
-    ) -> Optional[str]:
-        """
-        Upload raw image data to R2 and return the public URL
-
-        Args:
-            image_data: Raw image bytes
-            filename: Name of the file in the bucket
-            content_type: MIME type (e.g., 'image/png', 'image/jpeg')
-            folder: Folder/prefix in the bucket
-
-        Returns:
-            Public URL of the uploaded image, or None if upload failed
-        """
-        if not self.is_configured():
-            raise Exception("R2 storage is not configured")
-
-        try:
-            import asyncio
-            key = f"{folder.rstrip("/")}/{filename}".lstrip("/")
-            # Run sync boto3 operation in thread pool
+            # Use asyncio to run sync boto3 operation (like Blitz)
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
                 lambda: self.client.put_object(
-                    Bucket=self.bucket_name,
+                    Bucket=self.bucket,
                     Key=key,
-                    Body=image_data,
-                    ContentType=content_type,
-                    CacheControl="public, max-age=31536000"
+                    Body=file_bytes,
+                    **extra_args
                 )
             )
-            if self.public_url:
-                return f"{self.public_url}/{key}"
-            else:
-                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
+
+            public_url = f"{self.public_url}/{key}"
+            logger.info(f"✅ Uploaded to R2: {key}")
+            return key, public_url
+
         except ClientError as e:
-            print(f"Error uploading to R2: {e}")
-            raise Exception(f"Failed to upload image: {str(e)}")
+            logger.error(f"❌ R2 upload failed: {e}")
+            raise
 
-
-
-    async def upload_image(
+    def generate_key(
         self,
-        image_data: bytes,
-        filename: str,
-        content_type: str = "image/png",
-        folder: str = "images"
-    ) -> Optional[str]:
+        campaign_id: str,
+        asset_type: str,
+        extension: str,
+        prefix: Optional[str] = None
+    ) -> str:
         """
-        Upload raw image data to R2 and return the public URL
-
+        Generate a unique R2 key
+        
         Args:
-            image_data: Raw image bytes
-            filename: Name of the file in the bucket
-            content_type: MIME type (e.g., 'image/png', 'image/jpeg')
-            folder: Folder/prefix in the bucket
-
+            campaign_id: Campaign UUID
+            asset_type: Type of asset (image, video, etc.)
+            extension: File extension (jpg, mp4, etc.)
+            prefix: Optional prefix
+            
         Returns:
-            Public URL of the uploaded image, or None if upload failed
+            R2 key string
         """
-        if not self.is_configured():
-            raise Exception("R2 storage is not configured")
+        unique_id = str(uuid.uuid4())
+        
+        if prefix:
+            return f"{prefix}/{campaign_id}/{asset_type}/{unique_id}.{extension}"
+        
+        return f"{campaign_id}/{asset_type}/{unique_id}.{extension}"
 
-        try:
-            import asyncio
-            key = f"{folder}/{filename}"
-            # Run sync boto3 operation in thread pool
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: self.client.put_object(
-                    Bucket=self.bucket_name,
-                    Key=key,
-                    Body=image_data,
-                    ContentType=content_type,
-                    CacheControl="public, max-age=31536000"
-                )
-            )
-            if self.public_url:
-                return f"{self.public_url}/{key}"
-            else:
-                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
-        except ClientError as e:
-            print(f"Error uploading to R2: {e}")
-            raise Exception(f"Failed to upload image: {str(e)}")
-
-
-    async def upload_image(
-        self,
-        image_data: bytes,
-        filename: str,
-        content_type: str = "image/png",
-        folder: str = "images"
-    ) -> Optional[str]:
+    def delete_file(self, key: str) -> bool:
         """
-        Upload raw image data to R2 and return the public URL
-
+        Delete a file from R2
+        
         Args:
-            image_data: Raw image bytes
-            filename: Name of the file in the bucket
-            content_type: MIME type (e.g., 'image/png', 'image/jpeg')
-            folder: Folder/prefix in the bucket
-
+            key: R2 object key
+            
         Returns:
-            Public URL of the uploaded image, or None if upload failed
+            True if successful
         """
-        if not self.is_configured():
-            raise Exception("R2 storage is not configured")
-
         try:
-            import asyncio
-            # Clean path - remove leading/trailing slashes
-            folder_clean = folder.strip("/")
-            filename_clean = filename.strip("/")
-            key = f"{folder_clean}/{filename_clean}"
-
-            # Run sync boto3 operation in thread pool
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                lambda: self.client.put_object(
-                    Bucket=self.bucket_name,
-                    Key=key,
-                    Body=image_data,
-                    ContentType=content_type,
-                    CacheControl="public, max-age=31536000"
-                )
-            )
-            if self.public_url:
-                return f"{self.public_url}/{key}"
-            else:
-                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
-        except ClientError as e:
-            print(f"Error uploading to R2: {e}")
-            raise Exception(f"Failed to upload image: {str(e)}")
-
-    def delete_file(self, file_url: str) -> bool:
-
-    async def upload_image(
-        self,
-        image_data: bytes,
-        filename: str,
-        content_type: str = "image/png",
-        folder: str = "images"
-    ) -> Optional[str]:
-        if not self.is_configured():
-            raise Exception("R2 storage is not configured")
-        try:
-            import asyncio
-            folder_clean = folder.strip("/")
-            filename_clean = filename.strip("/")
-            key = f"{folder_clean}/{filename_clean}"
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, lambda: self.client.put_object(
-                Bucket=self.bucket_name, Key=key, Body=image_data,
-                ContentType=content_type, CacheControl="public, max-age=31536000"))
-            if self.public_url:
-                return f"{self.public_url}/{key}"
-            else:
-                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
-        except ClientError as e:
-            print(f"Error uploading to R2: {e}")
-            raise Exception(f"Failed to upload image: {str(e)}")
-        """
-        Delete a file from R2 by its URL
-
-        Args:
-            file_url: Public URL of the file
-
-        Returns:
-            True if deleted successfully, False otherwise
-        """
-        if not self.is_configured():
-            return False
-
-        try:
-            # Extract key from URL
-            if self.public_url and file_url.startswith(self.public_url):
-                key = file_url.replace(f"{self.public_url}/", "")
-            else:
-                # Parse from R2.dev URL
-                key = file_url.split(f".r2.dev/")[1] if ".r2.dev/" in file_url else None
-
-            if not key:
-                return False
-
-            # Delete from R2
-            self.client.delete_object(Bucket=self.bucket_name, Key=key)
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+            logger.info(f"✅ Deleted from R2: {key}")
             return True
-
         except ClientError as e:
-            print(f"Error deleting from R2: {e}")
+            logger.error(f"❌ R2 delete failed: {e}")
             return False
 
-# Global instance
-r2_storage = R2Storage()
+    def get_signed_url(self, key: str, expiration: int = 3600) -> str:
+        """
+        Generate a signed URL for private access
+        
+        Args:
+            key: R2 object key
+            expiration: URL expiration in seconds (default 1 hour)
+            
+        Returns:
+            Signed URL string
+        """
+        try:
+            url = self.client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket, "Key": key},
+                ExpiresIn=expiration
+            )
+            return url
+        except ClientError as e:
+            logger.error(f"❌ Failed to generate signed URL: {e}")
+            raise
+
+    def file_exists(self, key: str) -> bool:
+        """
+        Check if a file exists in R2
+
+        Args:
+            key: R2 object key
+
+        Returns:
+            True if file exists
+        """
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+            return True
+        except ClientError:
+            return False
