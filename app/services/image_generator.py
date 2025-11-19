@@ -322,8 +322,9 @@ class ImageGenerator:
         if save_to_r2:
             image_url = await self.r2_storage.upload_image(
                 image_data=result["image_data"],
-                filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
-                content_type="image/png"
+                filename=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png",
+                folder=""
             )
         else:
             # For preview - use provider URL directly without uploading to R2
@@ -705,8 +706,9 @@ class ImageGenerator:
                 # Upload to R2
                 thumbnail_url = await self.r2_storage.upload_image(
                     image_data=thumbnail_data,
-                    filename=f"campaignforge-storage/campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
-                    content_type="image/jpeg"
+                    filename=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    content_type="image/jpeg",
+                    folder=""
                 )
 
                 return thumbnail_url
