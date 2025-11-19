@@ -121,6 +121,9 @@ class ImagePromptBuilder:
             # Basic quality
             prompt_parts.append("high quality")
 
+            # No text directive
+            prompt_parts.append("NO TEXT, NO WORDS")
+
             # User custom prompt
             if user_prompt:
                 prompt_parts.append(user_prompt)
@@ -153,7 +156,10 @@ class ImagePromptBuilder:
             if user_prompt:
                 prompt_parts.append(user_prompt)
 
-            # 6. Add quality keywords
+            # 6. Add critical directives
+            prompt_parts.append("NO TEXT, NO WORDS, NO LETTERS, NO NUMBERS")
+
+            # 7. Add quality keywords
             if quality_boost:
                 prompt_parts.append(ImagePromptBuilder.QUALITY_BOOST_TERMS)
             else:
@@ -167,78 +173,50 @@ class ImagePromptBuilder:
 
     @staticmethod
     def _extract_intelligence_elements(intelligence: Dict[str, Any]) -> str:
-        """Extract key elements from intelligence for image prompt."""
+        """Extract VISUAL-ONLY elements from intelligence for image prompt."""
         parts = []
 
-        # Extract product information
+        # Extract product information (visual elements only)
         product = intelligence.get("product", {})
         if product:
             product_name = product.get("name")
             category = product.get("category")
-            features = product.get("features", [])
-            benefits = product.get("benefits", [])
-            pain_points = product.get("pain_points", [])
 
             if category:
-                parts.append(f"{category} product")
-
+                parts.append(f"{category}")
             if product_name:
-                parts.append(f"featuring {product_name}")
+                parts.append(f"{product_name}")
 
-            if benefits:
-                # Take top 2 benefits
-                top_benefits = benefits[:2]
-                parts.append(f"highlighting {', '.join(top_benefits)}")
-
-        # Extract market information
+        # Extract visual imagery from market (only visuals, not text/marketing)
         market = intelligence.get("market", {})
         if market:
-            target_audience = market.get("target_audience")
-            positioning = market.get("positioning")
+            # Only extract visual descriptors, NOT target audience or marketing
+            visuals = market.get("visuals", "")
+            if visuals:
+                parts.append(visuals)
 
-            if target_audience:
-                parts.append(f"targeting {target_audience}")
-
-            if positioning and positioning.lower() in ["premium", "luxury", "high-end"]:
-                parts.append("premium quality, luxurious")
-
-        # Extract marketing information
+        # Extract visual marketing angles ONLY
         marketing = intelligence.get("marketing", {})
         if marketing:
-            hooks = marketing.get("hooks", [])
             angles = marketing.get("angles", [])
+            # Map marketing angles to VISUAL concepts only
+            angle_visual_map = {
+                "transformation": "before and after, transformation",
+                "social_proof": "community, social validation",
+                "authority": "professional, expert, credible",
+                "scarcity": "exclusive, limited",
+                "problem_solution": "solution, relief",
+                "story": "narrative, journey"
+            }
 
-            if hooks:
-                # Take first hook
-                main_hook = hooks[0] if hooks else None
-                if main_hook:
-                    parts.append(f"conveying '{main_hook}'")
+            visual_concepts = []
+            for angle in angles[:1]:  # Just take first angle for conciseness
+                visual_concepts.append(angle_visual_map.get(angle, ""))
 
-            if angles:
-                # Map marketing angles to visual concepts
-                angle_visual_map = {
-                    "transformation": "before and after, transformation journey",
-                    "social_proof": "testimonials, social validation, community",
-                    "authority": "expert endorsement, professional, credible",
-                    "scarcity": "limited availability, urgency, exclusive",
-                    "problem_solution": "problem solved, relief, satisfaction"
-                }
+            if visual_concepts:
+                parts.extend([v for v in visual_concepts if v])
 
-                visual_concepts = []
-                for angle in angles[:2]:  # Take first 2 angles
-                    visual_concepts.append(angle_visual_map.get(angle, angle))
-
-                if visual_concepts:
-                    parts.append(", ".join(visual_concepts))
-
-        # Extract sales page insights
-        sales_page = intelligence.get("sales_page", {})
-        if sales_page:
-            page_title = sales_page.get("title")
-            if page_title and len(page_title) < 100:
-                parts.append(f"inspired by: {page_title}")
-
-        return ", ".join(parts) if parts else "professional marketing image"
+        return " ".join(parts) if parts else "professional product image"
 
     @staticmethod
     def _get_type_enhancement(image_type: str) -> Optional[str]:
