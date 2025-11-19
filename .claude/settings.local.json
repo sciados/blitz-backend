@@ -87,7 +87,15 @@
       "WebFetch(domain:mise-versions.jdx.dev)",
       "Bash(pip index versions psycopg2-binary:*)",
       "Bash(python3 -m py_compile:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(for file in ai_router compliance_checker crawler credits_alerts embeddings_router image_generator image_prompt_builder intelligence_amplifier intelligence_compiler intelligence_compiler_service prompt_builder rag url_shortener)",
+      "Bash(do echo:*)",
+      "Bash(if [:*)",
+      "Bash([:*)",
+      "Bash(then:*)",
+      "Bash(else echo \"✗ MISSING\")",
+      "Bash(for:*)",
+      "Bash(xargs -n1 basename)"
     ],
     "deny": [],
     "ask": []
