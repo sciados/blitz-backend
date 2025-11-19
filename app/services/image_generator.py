@@ -19,7 +19,7 @@ import httpx
 from PIL import Image
 
 from app.core.config.settings import settings
-from app.utils.r2_storage import r2_storage
+from app.utils.r2_storage import R2Storage
 from app.services.image_provider_config import provider_config
 
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ class ImageGenerator:
     def __init__(self):
         """Initialize image generator."""
         # Using r2_storage instance from storage_r2 module
-        self.r2_storage = r2_storage
+        self.r2_storage = R2Storage
         # Cost-optimized rotation: FREE → ULTRA-CHEAP → LOW-COST → PREMIUM
         self.provider_rotation = [
             "pollinations",       # FREE
