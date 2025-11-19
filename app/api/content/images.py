@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
 from typing import List, Optional
 import logging
 
@@ -244,10 +245,10 @@ async def preview_image(
         prompt=result.prompt,
         style=result.style,
         aspect_ratio=result.aspect_ratio,
-        meta_data=result.meta_data,
+        metadata=result.meta_data or {},
         ai_generation_cost=result.cost,
         content_id=None,
-        created_at=None  # No timestamp since not saved
+        created_at=datetime.utcnow()  # Required field for preview
     )
 
 
