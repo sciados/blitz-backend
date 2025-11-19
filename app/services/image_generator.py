@@ -321,10 +321,11 @@ class ImageGenerator:
         # Upload to Cloudflare R2 only if save_to_r2 is True
         if save_to_r2:
             image_url = await self.r2_storage.upload_image(
-                filename=f"{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
-                folder=""
+                image_data=result["image_data"],
+                filename=f"{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png",
+                folder=f"campaigns/{campaign_id}/generated_images"
             )
-        else:
             # For preview - use provider URL directly without uploading to R2
             image_url = result.get("image_url", "provider://generated")
             logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
@@ -706,9 +707,9 @@ class ImageGenerator:
                 # Upload to R2
                 thumbnail_url = await self.r2_storage.upload_image(
                     image_data=thumbnail_data,
-                    filename=f"{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    filename=f"thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg",
-                    folder=""
+                    folder=f"campaigns/{campaign_id}/generated_images"
                 )
 
                 return thumbnail_url
