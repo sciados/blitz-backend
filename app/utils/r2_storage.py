@@ -27,7 +27,7 @@ class R2Storage:
         self.bucket = settings.CLOUDFLARE_R2_BUCKET_NAME
         self.public_url = settings.CLOUDFLARE_R2_PUBLIC_URL
 
-    async def upload_file(
+    async def upload_image(
         self,
         file_bytes: bytes,
         key: str,
