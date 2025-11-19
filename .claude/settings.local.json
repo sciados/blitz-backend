@@ -95,7 +95,11 @@
       "Bash(then:*)",
       "Bash(else echo \"✗ MISSING\")",
       "Bash(for:*)",
-      "Bash(xargs -n1 basename)"
+      "Bash(xargs -n1 basename)",
+      "Bash(/tmp/r2_part1.txt)",
+      "Bash(/tmp/upload_method.txt)",
+      "Bash(/tmp/r2_part2.txt)",
+      "Bash(app/utils/r2_storage.py)"
     ],
     "deny": [],
     "ask": []
