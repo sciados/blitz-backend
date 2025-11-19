@@ -17,7 +17,8 @@ from app.schemas import (
     ImageVariationRequest,
     ImageResponse,
     ImageListResponse,
-    ImageDeleteResponse
+    ImageDeleteResponse,
+    ImageUpgradeRequest
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
