@@ -9,6 +9,7 @@ import os
 import io
 import time
 import hashlib
+import base64
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List
@@ -209,13 +210,13 @@ class ImageGenerator:
 
     def _parse_aspect_ratio(self, aspect_ratio: str) -> Dict[str, int]:
         """Parse aspect ratio string to dimensions."""
-        # Only use dimensions VALID for Stability AI
+        # Use dimensions compatible with ALL providers (Replicate requires multiples of 64)
         ratio_map = {
             "1:1": (1024, 1024),     # Square
-            "16:9": (1344, 768),     # Landscape (valid for Stability AI)
-            "9:16": (768, 1344),     # Portrait (valid for Stability AI)
-            "4:3": (1216, 832),      # Standard (valid for Stability AI)
-            "21:9": (1536, 640)      # Ultrawide (valid for Stability AI)
+            "16:9": (1024, 576),     # Landscape (16:9 ratio, multiples of 64)
+            "9:16": (576, 1024),     # Portrait (9:16 ratio, multiples of 64)
+            "4:3": (1024, 768),      # Standard (4:3 ratio, multiples of 64)
+            "21:9": (1536, 448)      # Ultrawide (21:9 ratio, multiples of 64)
         }
 
         return ratio_map.get(aspect_ratio, (1024, 1024))
@@ -489,7 +490,16 @@ class ImageGenerator:
             # Response is binary image data
             image_data = response.content
 
-            return {"image_data": image_data, "metadata": {"model": "ultra", "format": "webp"}}
+            # For preview mode (no R2), create a temporary data URL
+            # In production mode, this gets replaced with R2 URL
+            import base64
+            data_url = f"data:image/webp;base64,{base64.b64encode(image_data).decode('utf-8')}"
+
+            return {
+                "image_data": image_data,
+                "image_url": data_url,
+                "metadata": {"model": "ultra", "format": "webp"}
+            }
 
     async def _generate_with_pollinations(
         self,
