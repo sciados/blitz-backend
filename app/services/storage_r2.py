@@ -54,7 +54,7 @@ class R2StorageService:
             if meta_data:
                 extra_args["Metadata"] = {k: str(v) for k, v in meta_data.items()}
 
-            # Use asyncio to run sync boto3 operation (like Blitz)
+            # Use asyncio to run sync boto3 operation (like CampaignForge)
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
@@ -143,10 +143,10 @@ class R2StorageService:
     def file_exists(self, key: str) -> bool:
         """
         Check if a file exists in R2
-
+        
         Args:
             key: R2 object key
-
+            
         Returns:
             True if file exists
         """
