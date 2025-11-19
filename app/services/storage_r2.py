@@ -155,3 +155,7 @@ class R2StorageService:
             return True
         except ClientError:
             return False
+
+
+# Global instance
+r2_storage = R2StorageService()
