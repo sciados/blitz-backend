@@ -220,6 +220,7 @@ async def preview_image(
     try:
         result = await image_generator.generate_image(
             prompt=prompt,
+            save_to_r2=False,  # Preview mode - do not upload to R2
             image_type=request.image_type,
             style=request.style,
             aspect_ratio=request.aspect_ratio,
