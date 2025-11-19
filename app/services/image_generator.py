@@ -309,7 +309,7 @@ class ImageGenerator:
         logger.info(f"✅ Image generated in {generation_time:.2f}s using {provider.name}")
         # Upload to Cloudflare R2 only if save_to_r2 is True
         if save_to_r2:
-            image_url = await self.r2_storage.upload_file(
+            r2_key, image_url = await self.r2_storage.upload_file(
                 file_bytes=result["image_data"],
                 key=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
@@ -703,7 +703,7 @@ class ImageGenerator:
                 thumbnail_data = buffer.getvalue()
 
                 # Upload to R2
-                thumbnail_url = await self.r2_storage.upload_file(
+                _, thumbnail_url = await self.r2_storage.upload_file(
                     file_bytes=thumbnail_data,
                     key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
