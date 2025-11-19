@@ -326,7 +326,7 @@ class ImageGenerator:
         if save_to_r2:
             image_url = await self.r2_storage.upload_file(
                 file_bytes=result["image_data"],
-                key=f"{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                key=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
         else:
@@ -711,7 +711,7 @@ class ImageGenerator:
                 # Upload to R2
                 thumbnail_url = await self.r2_storage.upload_file(
                     file_bytes=thumbnail_data,
-                    key=f"thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
                 )
 
