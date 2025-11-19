@@ -219,7 +219,7 @@ async def upload_profile_image(
 
         # Upload to R2
         allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-        image_url = R2Storage.upload_image(
+        image_url = R2Storage.upload_file(
             file=file,
             folder="profile-images",
             allowed_extensions=allowed_extensions
