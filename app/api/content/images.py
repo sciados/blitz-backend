@@ -144,7 +144,7 @@ async def generate_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        meta_data=result.meta_data,
+        metadata=result.metadata,
         ai_generation_cost=result.cost
     )
 
@@ -427,7 +427,7 @@ async def batch_generate_images(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
-            meta_data=result.meta_data,
+            metadata=result.metadata,
             ai_generation_cost=result.cost
         )
 
@@ -658,7 +658,7 @@ async def create_variations(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
-            meta_data={**result.metadata, "base_image_id": image_id},
+            metadata={**result.metadata, "base_image_id": image_id},
             ai_generation_cost=result.cost,
             content_id=base_image.content_id
         )
