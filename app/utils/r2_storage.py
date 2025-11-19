@@ -188,6 +188,56 @@ class R2Storage:
             print(f"Error uploading to R2: {e}")
             raise Exception(f"Failed to upload image: {str(e)}")
 
+
+    async def upload_image(
+        self,
+        image_data: bytes,
+        filename: str,
+        content_type: str = "image/png",
+        folder: str = "images"
+    ) -> Optional[str]:
+        """
+        Upload raw image data to R2 and return the public URL
+
+        Args:
+            image_data: Raw image bytes
+            filename: Name of the file in the bucket
+            content_type: MIME type (e.g., 'image/png', 'image/jpeg')
+            folder: Folder/prefix in the bucket
+
+        Returns:
+            Public URL of the uploaded image, or None if upload failed
+        """
+        if not self.is_configured():
+            raise Exception("R2 storage is not configured")
+
+        try:
+            import asyncio
+            # Clean path - remove leading/trailing slashes
+            folder_clean = folder.strip("/")
+            filename_clean = filename.strip("/")
+            key = f"{folder_clean}/{filename_clean}"
+
+            # Run sync boto3 operation in thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    Body=image_data,
+                    ContentType=content_type,
+                    CacheControl="public, max-age=31536000"
+                )
+            )
+            if self.public_url:
+                return f"{self.public_url}/{key}"
+            else:
+                return f"https://{self.bucket_name}.{self.account_id}.r2.dev/{key}"
+        except ClientError as e:
+            print(f"Error uploading to R2: {e}")
+            raise Exception(f"Failed to upload image: {str(e)}")
+
     def delete_file(self, file_url: str) -> bool:
         """
         Delete a file from R2 by its URL
