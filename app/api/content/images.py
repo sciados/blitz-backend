@@ -245,10 +245,9 @@ async def preview_image(
         prompt=result.prompt,
         style=result.style,
         aspect_ratio=result.aspect_ratio,
-        metadata=result.meta_data or {},
         ai_generation_cost=result.cost,
-        content_id=None,
-        created_at=datetime.utcnow()  # Required field for preview
+        content_id=None
+        # metadata and created_at not provided for drafts - not saved to DB
     )
 
 

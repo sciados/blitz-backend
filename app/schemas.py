@@ -316,10 +316,10 @@ class ImageResponse(BaseModel):
     prompt: str
     style: ImageStyle
     aspect_ratio: AspectRatio
-    metadata: Dict[str, Any]
+    metadata: Optional[Dict[str, Any]] = None
     ai_generation_cost: Optional[float] = None
     content_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
