@@ -120,7 +120,7 @@ class R2Storage:
 
         try:
             import asyncio
-            key = f"{folder}/{filename}"
+            key = f"{folder.rstrip("/")}/{filename}".lstrip("/")
             # Run sync boto3 operation in thread pool
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
