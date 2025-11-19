@@ -331,8 +331,10 @@ class ImageGenerator:
             image_url = result.get("image_url", "provider://generated")
             logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
 
-        # Generate thumbnail
-        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
+        # Generate thumbnail only if saving to R2 (not for drafts)
+        thumbnail_url = None
+        if save_to_r2:
+            thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
 
         # Build result
         return ImageGenerationResult(
