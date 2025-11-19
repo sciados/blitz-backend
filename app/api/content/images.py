@@ -13,6 +13,7 @@ from app.schemas import (
     ImageGenerateRequest,
     ImageBatchRequest,
     ImageVariationRequest,
+    ImageUpgradeRequest,
     ImageResponse,
     ImageListResponse,
     ImageDeleteResponse
