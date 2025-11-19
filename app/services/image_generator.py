@@ -19,7 +19,7 @@ import httpx
 from PIL import Image
 
 from app.core.config.settings import settings
-from app.utils.r2_storage import r2_storage
+from app.services.storage_r2 import r2_storage
 from app.services.image_provider_config import provider_config
 
 logger = logging.getLogger(__name__)
