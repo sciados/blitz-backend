@@ -259,6 +259,101 @@ async def preview_image(
     )
 
 
+@router.post("/upgrade", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def upgrade_image(
+    request: ImageUpgradeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator)
+):
+    """Enhance a draft image to premium quality."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build enhancement prompt
+    prompt = request.custom_prompt or "Enhance and improve this image quality, higher resolution, detailed, sharp, premium"
+
+    # Enhance the draft image
+    try:
+        result = await image_generator.enhance_image(
+            base_image_url=request.draft_image_url,
+            prompt=prompt,
+            image_type="hero",  # Default type for enhancement
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            quality_boost=True,  # Enhancement always uses premium providers
+            campaign_id=request.campaign_id,
+            save_to_r2=True
+        )
+    except Exception as e:
+        logger.error(f"Image enhancement failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image enhancement failed: {str(e)}"
+        )
+
+    # Save enhanced image to database
+    image_record = GeneratedImage(
+        campaign_id=request.campaign_id,
+        image_type="hero",
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        meta_data=result.metadata,
+        ai_generation_cost=result.cost,
+        content_id=None
+    )
+
+    db.add(image_record)
+    await db.commit()
+    await db.refresh(image_record)
+
+    return ImageResponse(
+        id=image_record.id,
+        campaign_id=image_record.campaign_id,
+        image_type=image_record.image_type,
+        image_url=image_record.image_url,
+        thumbnail_url=image_record.thumbnail_url,
+        provider=image_record.provider,
+        model=image_record.model,
+        prompt=image_record.prompt,
+        style=image_record.style,
+        aspect_ratio=image_record.aspect_ratio,
+        metadata=image_record.meta_data or {},
+        ai_generation_cost=image_record.ai_generation_cost,
+        content_id=image_record.content_id,
+        created_at=image_record.created_at
+    )
+
+
 @router.post("/batch-generate", response_model=List[ImageResponse], status_code=status.HTTP_201_CREATED)
 async def batch_generate_images(
     request: ImageBatchRequest,

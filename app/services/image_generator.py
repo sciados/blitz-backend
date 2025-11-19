@@ -320,7 +320,7 @@ class ImageGenerator:
             logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
 
         # Generate thumbnail
-        thumbnail_url = await self._generate_thumbnail(image_url)
+        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
 
         # Build result
         return ImageGenerationResult(
@@ -687,7 +687,7 @@ class ImageGenerator:
 
             raise Exception("Image generation timed out")
 
-    async def _generate_thumbnail(self, image_url: str, size: tuple = (256, 256)) -> Optional[str]:
+    async def _generate_thumbnail(self, image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
         """Generate thumbnail for image."""
         try:
             async with httpx.AsyncClient() as client:
