@@ -114,12 +114,12 @@ class ImageGenerator:
         """Initialize image generator."""
         # Using r2_storage instance from storage_r2 module
         self.r2_storage = r2_storage
-        # Speed-optimized rotation for PREVIEW mode (fastest first)
-        # Prioritizing Stability AI for quality, removing Replicate (quality issues)
+        # Provider rotation: Stability AI (primary) + FAL (fast) + Pollinations (fallback)
+        # Replicate removed - quality issues
         self.provider_rotation = [
-            "stability",       # BEST QUALITY: ~12s (actual)
-            "fal",             # FAST BACKUP: ~8s (actual)
-            "pollinations"     # SLOW LAST RESORT: ~28s (only as fallback)
+            "stability",       # PRIMARY: Best quality with aspect ratio support (~12s)
+            "fal",             # FAST: Quick generation with aspect ratio support (~3s)
+            "pollinations"     # FALLBACK: Free, slower (~28s)
         ]
         self.current_provider_index = 0
 
@@ -370,8 +370,8 @@ class ImageGenerator:
         # Parse aspect ratio to get dimensions
         width, height = self._parse_aspect_ratio(aspect_ratio)
 
-        # For image enhancement, prioritize Stability AI for best quality
-        # Fallback to FAL if Stability AI fails
+        # For image enhancement, use Stability AI exclusively (best quality)
+        # No fallback - if Stability fails, enhancement fails
         provider_name = "stability"
         logger.info(f"🎨 Using {provider_name} for enhancement (best quality)")
 
@@ -458,20 +458,37 @@ class ImageGenerator:
                 }
             )
         else:
-            # Regular text-to-image generation
+            # Map aspect ratio to FAL's expected image_size format
+            # FAL supports: "square_hd", "square", "portrait", "landscape", or custom "WxH"
+            # For better aspect ratio support, use custom dimensions
+            image_size = f"{width}x{height}"
+
+            # Regular text-to-image generation with SDXL Lightning (faster and supports ratios better)
             payload = {
                 "prompt": enhanced_prompt,
-                "image_size": f"{width}x{height}",
+                "image_size": image_size,
                 "num_inference_steps": 4,
                 "guidance_scale": 3.5,
-                "num_images": 1
+                "num_images": 1,
+                "seed": custom_params.get("seed", 42)  # Add seed for consistency
             }
 
-            response = await httpx.AsyncClient(timeout=20.0).post(
-                "https://fal.run/fal-ai/sdxl-turbo",
-                headers={"Authorization": f"Key {api_key}"},
-                json=payload
-            )
+            # Try SDXL Lightning first (better aspect ratio support)
+            try:
+                response = await httpx.AsyncClient(timeout=20.0).post(
+                    "https://fal.run/fal-ai/sdxl-lightning-4step",
+                    headers={"Authorization": f"Key {api_key}"},
+                    json=payload
+                )
+            except Exception as e:
+                logger.warning(f"SDXL Lightning failed, falling back to SDXL Turbo: {e}")
+                # Fallback to SDXL Turbo if Lightning fails
+                payload.pop("seed", None)  # Turbo doesn't support seed parameter
+                response = await httpx.AsyncClient(timeout=20.0).post(
+                    "https://fal.run/fal-ai/sdxl-turbo",
+                    headers={"Authorization": f"Key {api_key}"},
+                    json=payload
+                )
 
             if response.status_code != 200:
                 logger.error(f"FAL API error: {response.text}")
@@ -623,7 +640,7 @@ class ImageGenerator:
                         "prompt": enhanced_prompt,
                         "output_format": "webp",
                         "aspect_ratio": ratio,
-                        "strength": 0.5,  # 0.0-1.0: how much to modify the image (0.5 = moderate enhancement)
+                        "strength": "0.5",  # Must be string for multipart form data
                     }
                 )
             else:
