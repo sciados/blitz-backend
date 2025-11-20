@@ -562,6 +562,9 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
+        # Convert dimensions to aspect ratio string (Stability AI uses aspect_ratio param)
+        ratio = f"{width}:{height}"
+
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://api.stability.ai/v2beta/stable-image/generate/ultra",
@@ -573,8 +576,7 @@ class ImageGenerator:
                 data={
                     "prompt": enhanced_prompt,
                     "output_format": "webp",
-                    "width": width,
-                    "height": height,
+                    "aspect_ratio": ratio,
                 }
             )
 
