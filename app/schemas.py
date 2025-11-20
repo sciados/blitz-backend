@@ -383,6 +383,8 @@ class ImageTextOverlayRequest(BaseModel):
     provider: str = "manual"
     model: str = "text_overlay"
     prompt: str = "Image with text overlay"
+    display_width: Optional[int] = None  # Optional: resize final image to this width
+    display_height: Optional[int] = None  # Optional: resize final image to this height
 
 
 class ImageTextOverlayResponse(BaseModel):

@@ -1097,6 +1097,26 @@ async def add_text_overlay(
         else:
             final_image = image
 
+        # If display dimensions provided, resize the final image while maintaining aspect ratio
+        if request.display_width or request.display_height:
+            if request.display_width and not request.display_height:
+                # Only width provided, calculate height maintaining aspect ratio
+                ratio = final_image.width / request.display_width
+                new_width = request.display_width
+                new_height = int(final_image.height / ratio)
+            elif request.display_height and not request.display_width:
+                # Only height provided, calculate width maintaining aspect ratio
+                ratio = final_image.height / request.display_height
+                new_height = request.display_height
+                new_width = int(final_image.width / ratio)
+            else:
+                # Both provided, use them
+                new_width = request.display_width
+                new_height = request.display_height
+
+            logger.info(f"Resizing image from {final_image.width}x{final_image.height} to {new_width}x{new_height}")
+            final_image = final_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
         # Save to bytes buffer
         buffer = BytesIO()
         final_image.save(buffer, format="PNG", quality=95)
