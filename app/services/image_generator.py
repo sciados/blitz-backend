@@ -623,6 +623,7 @@ class ImageGenerator:
                         "prompt": enhanced_prompt,
                         "output_format": "webp",
                         "aspect_ratio": ratio,
+                        "strength": 0.5,  # 0.0-1.0: how much to modify the image (0.5 = moderate enhancement)
                     }
                 )
             else:
