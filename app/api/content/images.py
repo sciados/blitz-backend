@@ -1057,17 +1057,21 @@ async def add_text_overlay(
                 fill=color_rgb
             )
 
-        # Composite text layer onto image
-        final_image = Image.alpha_composite(image, text_layer)
+        # Paste text layer onto image using alpha channel as mask
+        if image.mode != "RGBA":
+            image = image.convert("RGBA")
+
+        # Paste text layer onto image
+        image.paste(text_layer, (0, 0), text_layer)
 
         # Convert back to RGB for JPEG/PNG
-        if final_image.mode == "RGBA":
+        if image.mode == "RGBA":
             # Create white background
-            background = Image.new("RGB", final_image.size, (255, 255, 255))
-            background.paste(final_image, mask=final_image.split()[3])  # Use alpha channel as mask
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[3])  # Use alpha channel as mask
             final_image = background
         else:
-            final_image = final_image.convert("RGB")
+            final_image = image
 
         # Save to bytes buffer
         buffer = BytesIO()
