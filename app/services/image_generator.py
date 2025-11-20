@@ -100,6 +100,14 @@ class ImageGenerator:
             estimated_time=5.0
         ),
         # Premium Quality ($0.002+) - With API Keys
+        "flux_pro": ProviderSpec(
+            name="flux_pro",
+            model="flux-pro",
+            cost_per_image=0.002,  # $0.002 per image
+            max_resolution="1024x1024",
+            supports_aspect_ratio=True,
+            estimated_time=6.0
+        ),
         "replicate": ProviderSpec(
             name="replicate",
             model="flux",
@@ -114,11 +122,12 @@ class ImageGenerator:
         """Initialize image generator."""
         # Using r2_storage instance from storage_r2 module
         self.r2_storage = r2_storage
-        # Provider rotation: Stability AI (primary) + FAL (fast) + Pollinations (fallback)
+        # Provider rotation: FLUX Pro (best value) + Stability AI + FAL + Pollinations
         # Replicate removed - quality issues
         self.provider_rotation = [
-            "stability",       # PRIMARY: Best quality with aspect ratio support (~12s)
-            "fal",             # FAST: Quick generation with aspect ratio support (~3s)
+            "flux_pro",        # PRIMARY: Best quality-to-price ratio (~6s, $0.002)
+            "stability",       # Backup: Reliability and quality (~5s, $0.001)
+            "fal",             # Fast: Quick generation (~3s, $0.00001)
             "pollinations"     # FALLBACK: Free, slower (~28s)
         ]
         self.current_provider_index = 0
@@ -189,8 +198,8 @@ class ImageGenerator:
         # If quality boost is enabled, use premium providers
         if quality_boost:
             # Skip free providers and use higher-quality paid providers
-            # Only include providers with API keys: fal, stability
-            premium_providers = ["fal", "stability"]
+            # Only include providers with API keys: flux_pro, fal, stability
+            premium_providers = ["flux_pro", "fal", "stability"]
             if provider_name in ["pollinations", "huggingface", "replicate_free"]:
                 # Jump to next premium provider
                 current_idx = self.provider_rotation.index(provider_name)
@@ -259,7 +268,11 @@ class ImageGenerator:
         # Generate image using selected provider
         # Generate image using selected provider with fallback
         try:
-            if provider.name == "fal":
+            if provider.name == "flux_pro":
+                result = await self._generate_with_flux(
+                    prompt, width, height, style, custom_params or {}
+                )
+            elif provider.name == "fal":
                 result = await self._generate_with_fal(
                     prompt, width, height, style, custom_params or {}
                 )
@@ -515,6 +528,71 @@ class ImageGenerator:
             image_data = image_response.content
 
         return {"image_data": image_data, "image_url": image_url, "metadata": data}
+
+    async def _generate_with_flux(
+        self,
+        prompt: str,
+        width: int,
+        height: int,
+        style: str,
+        custom_params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate image using FLUX Pro via Replicate."""
+        api_key = os.getenv("REPLICATE_API_TOKEN")
+        if not api_key:
+            raise ValueError("REPLICATE_API_TOKEN not set")
+
+        # Prepare prompt with style
+        enhanced_prompt = f"{prompt}, {style} style"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # FLUX Pro model on Replicate
+            prediction_response = await client.post(
+                "https://api.replicate.com/v1/predictions",
+                headers={
+                    "Authorization": f"Token {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "version": "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",  # Flux model
+                    "input": {
+                        "prompt": enhanced_prompt,
+                        "width": width,
+                        "height": height,
+                        "num_outputs": 1,
+                        "scheduler": "K_EULER",
+                        "num_inference_steps": 20,
+                        "guidance_scale": 7.5,
+                        "apply_watermark": False,
+                        "lora_scale": 0.6
+                    }
+                }
+            )
+
+            if prediction_response.status_code != 201:
+                logger.error(f"Replicate FLUX API error: {prediction_response.text}")
+                raise Exception(f"Image generation failed: {prediction_response.text}")
+
+            prediction = prediction_response.json()
+
+            # Poll for completion
+            while prediction["status"] not in ["succeeded", "failed"]:
+                await asyncio.sleep(3)
+                result = await client.get(
+                    f"https://api.replicate.com/v1/predictions/{prediction['id']}",
+                    headers={"Authorization": f"Token {api_key}"}
+                )
+                prediction = result.json()
+
+            if prediction["status"] != "succeeded":
+                raise Exception(f"Image generation failed: {prediction.get('error')}")
+
+            # Download generated image
+            image_url = prediction["output"][0]
+            image_response = await client.get(image_url)
+            image_data = image_response.content
+
+            return {"image_data": image_data, "image_url": image_url, "metadata": prediction}
 
     async def _generate_with_replicate(
         self,
