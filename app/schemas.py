@@ -343,3 +343,16 @@ class ImageUpgradeRequest(BaseModel):
     style: str = "photorealistic"
     aspect_ratio: str = "1:1"
     quality_boost: Optional[bool] = True  # Default to quality boost for premium
+
+
+class ImageSaveDraftRequest(BaseModel):
+    """Request to save a draft image to the library."""
+    campaign_id: int
+    image_url: str  # URL of the draft image to save
+    image_type: str
+    style: str = "photorealistic"
+    aspect_ratio: str = "1:1"
+    custom_prompt: Optional[str] = None
+    provider: str
+    model: str
+    prompt: str

@@ -18,7 +18,8 @@ from app.schemas import (
     ImageResponse,
     ImageListResponse,
     ImageDeleteResponse,
-    ImageUpgradeRequest
+    ImageUpgradeRequest,
+    ImageSaveDraftRequest
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
@@ -257,6 +258,86 @@ async def preview_image(
         ai_generation_cost=result.cost,
         content_id=None
         # metadata and created_at not provided for drafts - not saved to DB
+    )
+
+
+@router.post("/save-draft", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def save_draft_image(
+    request: ImageSaveDraftRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator)
+):
+    """Save a draft image to the library by downloading and storing it."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    try:
+        # Download the image from the provider URL and save to R2
+        result = await image_generator.save_draft_image(
+            image_url=request.image_url,
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            custom_prompt=request.custom_prompt
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save draft image: {str(e)}"
+        )
+
+    # Save to database
+    image_record = GeneratedImage(
+        campaign_id=request.campaign_id,
+        image_type=request.image_type,
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        meta_data=result.metadata,
+        ai_generation_cost=0.0,  # Draft images are free
+        content_id=None
+    )
+
+    db.add(image_record)
+    await db.commit()
+    await db.refresh(image_record)
+
+    return ImageResponse(
+        id=image_record.id,
+        campaign_id=image_record.campaign_id,
+        image_type=image_record.image_type,
+        image_url=image_record.image_url,
+        thumbnail_url=image_record.thumbnail_url,
+        provider=image_record.provider,
+        model=image_record.model,
+        prompt=image_record.prompt,
+        style=image_record.style,
+        aspect_ratio=image_record.aspect_ratio,
+        metadata=image_record.meta_data or {},
+        ai_generation_cost=image_record.ai_generation_cost,
+        content_id=image_record.content_id,
+        created_at=image_record.created_at
     )
 
 

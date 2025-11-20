@@ -314,13 +314,13 @@ class ImageGenerator:
                 key=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
+            # Generate thumbnail for saved images
+            thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
         else:
             # For preview - use provider URL directly without uploading to R2
             image_url = result["image_url"]
+            thumbnail_url = None  # No thumbnail for preview images
             logger.info(f"🔍 Preview mode - using provider URL directly (not saved to R2)")
-
-        # Generate thumbnail
-        thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
 
         # Build result
         return ImageGenerationResult(
@@ -792,3 +792,73 @@ class ImageGenerator:
 
         logger.info(f"✅ Created {len(valid_results)} variations")
         return valid_results
+
+    async def save_draft_image(
+        self,
+        image_url: str,
+        campaign_id: int,
+        image_type: str,
+        style: str,
+        aspect_ratio: str,
+        provider: str,
+        model: str,
+        prompt: str,
+        custom_prompt: Optional[str] = None
+    ) -> ImageGenerationResult:
+        """
+        Save a draft image by downloading it from the provider URL and uploading to R2.
+
+        Args:
+            image_url: URL of the draft image to save
+            campaign_id: Campaign ID
+            image_type: Type of image
+            style: Image style
+            aspect_ratio: Image aspect ratio
+            provider: Provider name
+            model: Model name
+            prompt: Original prompt
+            custom_prompt: Custom prompt if any
+
+        Returns:
+            ImageGenerationResult: Saved image information
+        """
+        logger.info(f"💾 Saving draft image from {provider}")
+
+        try:
+            # Download image from provider URL
+            async with httpx.AsyncClient() as client:
+                response = await client.get(image_url)
+                image_data = response.content
+
+            # Generate filename
+            filename = f"draft_{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.png"
+
+            # Upload to R2
+            r2_key, saved_image_url = await self.r2_storage.upload_file(
+                file_bytes=image_data,
+                key=f"campaigns/{campaign_id}/generated_images/{filename}",
+                content_type="image/png"
+            )
+
+            # Generate thumbnail
+            thumbnail_url = await self._generate_thumbnail(saved_image_url, campaign_id)
+
+            # Return result
+            return ImageGenerationResult(
+                image_url=saved_image_url,
+                thumbnail_url=thumbnail_url,
+                provider=provider,
+                model=model,
+                prompt=prompt,
+                style=style,
+                aspect_ratio=aspect_ratio,
+                metadata={
+                    "saved_from_draft": True,
+                    "custom_prompt": custom_prompt,
+                    "original_url": image_url
+                },
+                cost=0.0  # Draft images are free
+            )
+        except Exception as e:
+            logger.error(f"Failed to save draft image: {e}")
+            raise
