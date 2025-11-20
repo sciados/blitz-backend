@@ -114,15 +114,12 @@ class ImageGenerator:
         """Initialize image generator."""
         # Using r2_storage instance from storage_r2 module
         self.r2_storage = r2_storage
-        # Cost-optimized rotation: FREE → ULTRA-CHEAP → LOW-COST → PREMIUM
-        # Only includes providers with API keys configured
+        # Speed-optimized rotation for PREVIEW mode (fastest first)
+        # Removed slow/pollinating providers and failing ones
         self.provider_rotation = [
-            "pollinations",       # FREE
-            "huggingface",        # FREE
-            "replicate_free",     # FREE
-            "fal",                # $0.00001 (FAL_API_KEY available)
-            "stability",          # $0.001 (STABILITY_API_KEY available)
-            "replicate"           # $0.002 (REPLICATE_API_TOKEN available)
+            "replicate",       # FAST: ~6s (actual)
+            "stability",       # MEDIUM: ~12s (actual)
+            "pollinations"     # SLOW: ~28s (only as last resort)
         ]
         self.current_provider_index = 0
 
@@ -453,7 +450,7 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://fal.run/fal-ai/sdxl-turbo",
                 headers={"Authorization": f"Key {api_key}"},
@@ -505,7 +502,7 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             # Start generation
             prediction_response = await client.post(
                 "https://api.replicate.com/v1/predictions",
@@ -565,7 +562,7 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://api.stability.ai/v2beta/stable-image/generate/ultra",
                 headers={
@@ -617,7 +614,7 @@ class ImageGenerator:
         # Pollinations free API
         image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&seed={custom_params.get('seed', 1)}&nologo=true"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(image_url)
 
             if response.status_code != 200:
@@ -646,7 +643,7 @@ class ImageGenerator:
         enhanced_prompt = f"{prompt}, {style} style"
 
         # HuggingFace Inference API - free tier available
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -687,7 +684,7 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://api.ideogram.ai/v1/images/generations",
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -732,7 +729,7 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             # Start generation
             generation_response = await client.post(
                 "https://cloud.leonardo.ai/api/rest/v1/generations",
