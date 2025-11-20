@@ -269,7 +269,7 @@ class ImageGenerator:
                 )
             elif provider.name == "stability":
                 result = await self._generate_with_stability(
-                    prompt, width, height, style, custom_params or {}
+                    prompt, width, height, style, custom_params or {}, aspect_ratio
                 )
             elif provider.name == "pollinations":
                 result = await self._generate_with_pollinations(
@@ -381,16 +381,26 @@ class ImageGenerator:
         start_time = time.time()
 
         try:
-            # Generate enhanced image
-            result = await self._generate_with_provider(
-                provider=provider,
-                prompt=prompt,
-                width=width,
-                height=height,
-                style=style,
-                custom_params={"base_image_url": base_image_url},
-                is_enhancement=True
-            )
+            # Generate enhanced image using provider-specific method
+            # Note: Currently only Replicate supports proper image-to-image
+            if provider.name == "replicate":
+                # Replicate supports image-to-image
+                result = await self._generate_with_replicate(
+                    prompt, width, height, style, {"base_image_url": base_image_url}
+                )
+            elif provider.name == "fal":
+                # FAL supports image-to-image
+                result = await self._generate_with_fal(
+                    prompt, width, height, style, {"base_image_url": base_image_url}
+                )
+            elif provider.name == "stability":
+                # Stability AI - pass aspect_ratio
+                result = await self._generate_with_stability(
+                    prompt, width, height, style, {"base_image_url": base_image_url}, aspect_ratio
+                )
+            else:
+                # Other providers don't support image-to-image yet
+                raise Exception(f"Provider {provider.name} does not support image enhancement yet")
         except Exception as e:
             logger.error(f"Provider {provider.name} failed: {e}")
             # For now, just re-raise - could add fallback logic here
@@ -552,7 +562,8 @@ class ImageGenerator:
         width: int,
         height: int,
         style: str,
-        custom_params: Dict[str, Any]
+        custom_params: Dict[str, Any],
+        aspect_ratio: str = "1:1"  # Pass original aspect_ratio string
     ) -> Dict[str, Any]:
         """Generate image using Stability AI v2beta API."""
         api_key = os.getenv("STABILITY_API_KEY")
@@ -562,8 +573,19 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
-        # Convert dimensions to aspect ratio string (Stability AI uses aspect_ratio param)
-        ratio = f"{width}:{height}"
+        # Map aspect ratio to Stability AI's supported enums
+        # Stability AI supports: 21:9, 16:9, 3:2, 5:4, 1:1, 4:5, 2:3, 9:16, 9:21
+        stability_ratio_map = {
+            "1:1": "1:1",         # Supported
+            "16:9": "16:9",       # Supported
+            "9:16": "9:16",       # Supported
+            "21:9": "21:9",       # Supported
+            "4:3": "3:2",         # Not supported - use closest (3:2)
+            "3:2": "3:2",         # Already supported
+        }
+
+        # Get the mapped ratio or default to 1:1
+        ratio = stability_ratio_map.get(aspect_ratio, "1:1")
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
@@ -576,7 +598,7 @@ class ImageGenerator:
                 data={
                     "prompt": enhanced_prompt,
                     "output_format": "webp",
-                    "aspect_ratio": ratio,
+                    "aspect_ratio": ratio,  # Use enum string, not dimensions
                 }
             )
 
