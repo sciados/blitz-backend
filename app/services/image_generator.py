@@ -812,18 +812,22 @@ class ImageGenerator:
 
     async def batch_generate(
         self,
-        requests: List[Dict[str, Any]]
+        requests: List[Dict[str, Any]],
+        save_to_r2: bool = True,
+        campaign_id: Optional[int] = None
     ) -> List[ImageGenerationResult]:
         """
         Generate multiple images in parallel.
 
         Args:
             requests: List of generation request dicts
+            save_to_r2: Whether to save images to R2 (False for preview drafts)
+            campaign_id: Campaign ID for R2 path organization
 
         Returns:
             List[ImageGenerationResult]: Generated images
         """
-        logger.info(f"🎨 Starting batch generation of {len(requests)} images")
+        logger.info(f"🎨 Starting batch generation of {len(requests)} images (save_to_r2={save_to_r2})")
 
         tasks = []
         for req in requests:
@@ -833,7 +837,9 @@ class ImageGenerator:
                 style=req.get("style", "photorealistic"),
                 aspect_ratio=req.get("aspect_ratio", "1:1"),
                 campaign_intelligence=req.get("campaign_intelligence"),
-                custom_params=req.get("custom_params")
+                custom_params=req.get("custom_params"),
+                save_to_r2=save_to_r2,
+                campaign_id=campaign_id
             )
             tasks.append(task)
 

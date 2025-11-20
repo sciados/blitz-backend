@@ -235,9 +235,13 @@ async def preview_images(
             "custom_params": {"seed": random_seed}
         })
 
-    # Generate images in batch (NOT saved to database)
+    # Generate images in batch (NOT saved to database, NOT saved to R2)
     try:
-        results = await image_generator.batch_generate(generation_requests)
+        results = await image_generator.batch_generate(
+            requests=generation_requests,
+            save_to_r2=False,  # Don't save preview drafts to R2
+            campaign_id=request.campaign_id  # Pass campaign_id for proper organization
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -552,12 +556,24 @@ async def batch_generate_images(
             detail="Campaign not found"
         )
 
+    # Get intelligence data (consistent with other endpoints)
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
     # Build generation requests
     generation_requests = []
     for img_request in request.images:
         # Build prompt
         prompt = prompt_builder.build_prompt(
-            campaign_intelligence=campaign.intelligence_data,
+            campaign_intelligence=intelligence_data,
             image_type=img_request["image_type"],
             user_prompt=img_request.get("custom_prompt"),
             style=img_request.get("style", "photorealistic"),
@@ -569,13 +585,17 @@ async def batch_generate_images(
             "image_type": img_request["image_type"],
             "style": img_request.get("style", "photorealistic"),
             "aspect_ratio": img_request.get("aspect_ratio", "1:1"),
-            "campaign_intelligence": campaign.intelligence_data,
+            "campaign_intelligence": intelligence_data,
             "custom_params": img_request.get("custom_params", {})
         })
 
     # Generate images in batch
     try:
-        results = await image_generator.batch_generate(generation_requests)
+        results = await image_generator.batch_generate(
+            requests=generation_requests,
+            save_to_r2=True,  # Save batch-generated images to R2
+            campaign_id=request.campaign_id
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

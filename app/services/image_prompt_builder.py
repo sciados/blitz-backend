@@ -109,6 +109,43 @@ class ImagePromptBuilder:
                 if product_name:
                     prompt_parts.append(f"{product_name}")
 
+                # Extract benefits and features (for health-related keywords)
+                import random
+                benefits = product.get("benefits", [])
+                features = product.get("features", [])
+
+                # Combine benefits and features
+                all_points = []
+                if benefits and isinstance(benefits, list):
+                    all_points.extend(benefits[:5])
+                if features and isinstance(features, list):
+                    all_points.extend(features[:5])
+
+                # Randomly select 1-2 benefits/features for concise version
+                if all_points:
+                    selected = random.sample(all_points, min(2, len(all_points)))
+                    # Convert to visual descriptors
+                    visual_keywords = []
+                    for point in selected:
+                        point_lower = point.lower()
+                        if "energy" in point_lower or "fatigue" in point_lower:
+                            visual_keywords.append("energy vitality")
+                        elif "focus" in point_lower or "memory" in point_lower or "brain" in point_lower:
+                            visual_keywords.append("focus mental clarity")
+                        elif "immune" in point_lower or "health" in point_lower or "wellness" in point_lower:
+                            visual_keywords.append("health wellness")
+                        elif "weight" in point_lower or "diet" in point_lower:
+                            visual_keywords.append("healthy lifestyle")
+                        elif "stress" in point_lower or "anxiety" in point_lower or "relax" in point_lower:
+                            visual_keywords.append("calm peaceful")
+                        elif "sleep" in point_lower or "rest" in point_lower or "night" in point_lower:
+                            visual_keywords.append("restful sleep")
+                        elif "support" in point_lower or "help" in point_lower or "relief" in point_lower:
+                            visual_keywords.append("relief support")
+
+                    if visual_keywords:
+                        prompt_parts.extend(visual_keywords[:2])
+
             # Basic style
             if style and style != "photorealistic":
                 prompt_parts.append(style)
