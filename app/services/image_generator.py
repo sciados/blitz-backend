@@ -925,9 +925,32 @@ class ImageGenerator:
         logger.info(f"💾 Saving draft image from {provider}")
 
         try:
+            # Shorten extremely long URLs (e.g., Pollinations URLs with encoded prompts)
+            # HTTP clients have limits on URL length, so we extract just the essential parts
+            shortened_url = image_url
+            if "image.pollinations.ai" in image_url and len(image_url) > 200:
+                # Extract seed from long Pollinations URL and create shorter version
+                import re
+                seed_match = re.search(r'seed=(\d+)', image_url)
+                width_match = re.search(r'width=(\d+)', image_url)
+                height_match = re.search(r'height=(\d+)', image_url)
+
+                if seed_match and width_match and height_match:
+                    seed = seed_match.group(1)
+                    width = width_match.group(1)
+                    height = height_match.group(1)
+                    # Create minimal URL with just seed and dimensions
+                    shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                    logger.info(f"Shortened Pollinations URL from {len(image_url)} to {len(shortened_url)} chars")
+            elif len(image_url) > 2000:
+                # Generic fallback for any other extremely long URLs
+                # This shouldn't happen in normal operation, but prevents crashes
+                logger.warning(f"Extremely long URL detected ({len(image_url)} chars), may fail to download")
+                # Try anyway - some HTTP clients support longer URLs
+
             # Download image from provider URL
-            async with httpx.AsyncClient() as client:
-                response = await client.get(image_url)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(shortened_url)
                 image_data = response.content
 
             # Generate filename
