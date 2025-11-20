@@ -614,7 +614,10 @@ class ImageGenerator:
                 }
                 response = await client.post(
                     f"https://api.stability.ai{endpoint}",
-                    headers={"Authorization": f"Bearer {api_key}"},
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Accept": "image/*"
+                    },
                     files=files,
                     data={
                         "prompt": enhanced_prompt,
