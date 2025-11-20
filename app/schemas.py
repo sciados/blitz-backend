@@ -1,4 +1,5 @@
-# app/schemas.py
+# /app/schemas.py
+
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, validator
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
