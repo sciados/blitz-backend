@@ -475,17 +475,47 @@ async def upgrade_image(
     # Build enhancement prompt
     prompt = request.custom_prompt or "Enhance and improve this image quality, higher resolution, detailed, sharp, premium"
 
-    # Enhance the draft image
+    # File Organization for Enhancement:
+    # 1. Download draft and save to: campaigns/{id}/generated_images/temp/  (intermediate)
+    # 2. Enhance image and save to: campaigns/{id}/generated_images/         (final result)
+    # This keeps the main folder clean with only final enhanced images
+    logger.info(f"💾 Preparing draft for enhancement...")
+    try:
+        import httpx
+        import hashlib
+        import time
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Download the draft image
+            img_response = await client.get(request.draft_image_url)
+            image_data = img_response.content
+
+        # Upload to temp folder (not main generated_images)
+        draft_filename = f"draft_for_enhancement_{int(time.time())}_{hashlib.md5(request.draft_image_url.encode()).hexdigest()[:8]}.png"
+        _, draft_url = await image_generator.r2_storage.upload_file(
+            file_bytes=image_data,
+            key=f"campaigns/{request.campaign_id}/generated_images/temp/{draft_filename}",
+            content_type="image/png"
+        )
+        logger.info(f"✅ Draft saved to temp folder")
+    except Exception as e:
+        logger.error(f"Failed to save draft to temp: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save draft: {str(e)}"
+        )
+
+    # Now enhance the image using the draft URL
     try:
         result = await image_generator.enhance_image(
-            base_image_url=request.draft_image_url,
+            base_image_url=draft_url,
             prompt=prompt,
             image_type="hero",  # Default type for enhancement
             style=request.style,
             aspect_ratio=request.aspect_ratio,
             quality_boost=True,  # Enhancement always uses premium providers
             campaign_id=request.campaign_id,
-            save_to_r2=True
+            save_to_r2=True  # Saves enhanced result to generated_images folder
         )
     except Exception as e:
         logger.error(f"Image enhancement failed: {e}")
