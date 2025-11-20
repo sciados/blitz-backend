@@ -341,6 +341,102 @@ class ImageGenerator:
             cost=provider.cost_per_image
         )
 
+    async def enhance_image(
+        self,
+        base_image_url: str,
+        prompt: str,
+        image_type: str,
+        style: str,
+        aspect_ratio: str,
+        quality_boost: bool = True,
+        campaign_id: int = 0,
+        save_to_r2: bool = True
+    ) -> ImageGenerationResult:
+        """
+        Enhance an existing image using image-to-image generation.
+
+        Args:
+            base_image_url: URL of the base image to enhance
+            prompt: Enhancement prompt
+            image_type: Type of image
+            style: Image style
+            aspect_ratio: Image aspect ratio
+            quality_boost: Whether to use quality boost
+            campaign_id: Campaign ID for saving
+            save_to_r2: Whether to save to R2
+
+        Returns:
+            ImageGenerationResult: Enhanced image
+        """
+        logger.info(f"✨ Enhancing image from: {base_image_url}")
+
+        # Parse aspect ratio to get dimensions
+        width, height = self._parse_aspect_ratio(aspect_ratio)
+
+        # Select provider (use premium providers for enhancement)
+        provider = self.select_provider(
+            image_type=image_type,
+            style=style,
+            quality_boost=True
+        )
+        logger.info(f"🎨 Selected provider for enhancement: {provider.name}")
+
+        start_time = time.time()
+
+        try:
+            # Generate enhanced image
+            result = await self._generate_with_provider(
+                provider=provider,
+                prompt=prompt,
+                width=width,
+                height=height,
+                style=style,
+                custom_params={"base_image_url": base_image_url},
+                is_enhancement=True
+            )
+        except Exception as e:
+            logger.error(f"Provider {provider.name} failed: {e}")
+            # For now, just re-raise - could add fallback logic here
+            raise Exception(f"Image enhancement failed: {str(e)}")
+
+        generation_time = time.time() - start_time
+        logger.info(f"✅ Image enhanced in {generation_time:.2f}s using {provider.name}")
+
+        # Upload to R2 if requested
+        if save_to_r2:
+            r2_key, image_url = await self.r2_storage.upload_file(
+                file_bytes=result["image_data"],
+                key=f"campaigns/{campaign_id}/generated_images/enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png"
+            )
+            # Generate thumbnail for saved images
+            thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
+        else:
+            # Use provider URL directly
+            image_url = result["image_url"]
+            thumbnail_url = None
+            logger.info(f"🔍 Enhancement preview mode - using provider URL directly")
+
+        # Build result
+        return ImageGenerationResult(
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=provider.name,
+            model=provider.model,
+            prompt=prompt,
+            style=style,
+            aspect_ratio=aspect_ratio,
+            metadata={
+                "width": width,
+                "height": height,
+                "generation_time": generation_time,
+                "is_enhanced": True,
+                "base_image_url": base_image_url,
+                "custom_params": {"base_image_url": base_image_url}
+            },
+            cost=provider.cost_per_image
+        )
+
     async def _generate_with_fal(
         self,
         prompt: str,
@@ -807,6 +903,7 @@ class ImageGenerator:
     ) -> ImageGenerationResult:
         """
         Save a draft image by downloading it from the provider URL and uploading to R2.
+        Note: Draft saves do NOT include thumbnail generation (unlike premium saves).
 
         Args:
             image_url: URL of the draft image to save
@@ -820,7 +917,7 @@ class ImageGenerator:
             custom_prompt: Custom prompt if any
 
         Returns:
-            ImageGenerationResult: Saved image information
+            ImageGenerationResult: Saved image information (no thumbnail)
         """
         logger.info(f"💾 Saving draft image from {provider}")
 
@@ -833,15 +930,15 @@ class ImageGenerator:
             # Generate filename
             filename = f"draft_{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.png"
 
-            # Upload to R2
+            # Upload to R2 (main image only, no thumbnail for drafts)
             r2_key, saved_image_url = await self.r2_storage.upload_file(
                 file_bytes=image_data,
                 key=f"campaigns/{campaign_id}/generated_images/{filename}",
                 content_type="image/png"
             )
 
-            # Generate thumbnail
-            thumbnail_url = await self._generate_thumbnail(saved_image_url, campaign_id)
+            # No thumbnail for draft saves (only premium saves get thumbnails)
+            thumbnail_url = None
 
             # Return result
             return ImageGenerationResult(
