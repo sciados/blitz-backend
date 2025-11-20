@@ -573,6 +573,8 @@ class ImageGenerator:
                 data={
                     "prompt": enhanced_prompt,
                     "output_format": "webp",
+                    "width": width,
+                    "height": height,
                 }
             )
 
