@@ -990,6 +990,8 @@ class ImageGenerator:
             # Shorten extremely long URLs (e.g., Pollinations URLs with encoded prompts)
             # HTTP clients have limits on URL length, so we extract just the essential parts
             shortened_url = image_url
+            logger.info(f"📏 Original URL length: {len(image_url)} chars")
+
             if "image.pollinations.ai" in image_url and len(image_url) > 200:
                 # Extract seed from long Pollinations URL and create shorter version
                 import re
@@ -1003,17 +1005,26 @@ class ImageGenerator:
                     height = height_match.group(1)
                     # Create minimal URL with just seed and dimensions
                     shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
-                    logger.info(f"Shortened Pollinations URL from {len(image_url)} to {len(shortened_url)} chars")
-            elif len(image_url) > 2000:
-                # Generic fallback for any other extremely long URLs
-                # This shouldn't happen in normal operation, but prevents crashes
-                logger.warning(f"Extremely long URL detected ({len(image_url)} chars), may fail to download")
-                # Try anyway - some HTTP clients support longer URLs
+                    logger.info(f"✂️ Shortened Pollinations URL: {len(image_url)} → {len(shortened_url)} chars")
+                else:
+                    # Regex didn't match - log warning but try original URL
+                    logger.warning(f"⚠️ Could not extract parameters from Pollinations URL (seed={bool(seed_match)}, width={bool(width_match)}, height={bool(height_match)})")
+                    logger.warning(f"⚠️ Will attempt with original URL, may fail if too long")
+            elif len(image_url) > 500:
+                # Generic long URL warning for non-Pollinations URLs
+                logger.warning(f"⚠️ Very long URL detected ({len(image_url)} chars) from provider: {image_url[:50]}...")
 
-            # Download image from provider URL
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(shortened_url)
-                image_data = response.content
+            # Download image from provider URL with extended timeout
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                logger.info(f"⬇️ Downloading draft from: {shortened_url[:100]}...")
+                try:
+                    response = await client.get(shortened_url)
+                    response.raise_for_status()
+                    image_data = response.content
+                    logger.info(f"✅ Downloaded {len(image_data)} bytes")
+                except httpx.HTTPError as e:
+                    logger.error(f"❌ HTTP error downloading draft: {e}")
+                    raise Exception(f"Failed to download draft image: {str(e)}")
 
             # Generate filename
             filename = f"draft_{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.png"

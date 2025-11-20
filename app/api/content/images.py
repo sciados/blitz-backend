@@ -484,11 +484,44 @@ async def upgrade_image(
         import httpx
         import hashlib
         import time
+        import re
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Download the draft image
-            img_response = await client.get(request.draft_image_url)
-            image_data = img_response.content
+        # Shorten extremely long URLs (e.g., Pollinations URLs) before downloading
+        # This prevents "URL too long" errors from HTTP clients
+        draft_url = request.draft_image_url
+        logger.info(f"📏 Original draft URL length: {len(request.draft_image_url)} chars")
+
+        if "image.pollinations.ai" in request.draft_image_url and len(request.draft_image_url) > 200:
+            seed_match = re.search(r'seed=(\d+)', request.draft_image_url)
+            width_match = re.search(r'width=(\d+)', request.draft_image_url)
+            height_match = re.search(r'height=(\d+)', request.draft_image_url)
+
+            if seed_match and width_match and height_match:
+                seed = seed_match.group(1)
+                width = width_match.group(1)
+                height = height_match.group(1)
+                # Create minimal URL with just seed and dimensions
+                draft_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                logger.info(f"✂️ Shortened Pollinations URL: {len(request.draft_image_url)} → {len(draft_url)} chars")
+            else:
+                # Regex didn't match - log warning but try original URL
+                logger.warning(f"⚠️ Could not extract parameters from Pollinations URL (seed={bool(seed_match)}, width={bool(width_match)}, height={bool(height_match)})")
+                logger.warning(f"⚠️ Will attempt with original URL, may fail if too long")
+        elif len(request.draft_image_url) > 500:
+            # Generic long URL warning for non-Pollinations URLs
+            logger.warning(f"⚠️ Very long URL detected ({len(request.draft_image_url)} chars) from provider: {request.draft_image_url[:50]}...")
+
+        # Download with extended timeout for potentially slow providers
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            logger.info(f"⬇️ Downloading draft image from: {draft_url[:100]}...")
+            try:
+                img_response = await client.get(draft_url)
+                img_response.raise_for_status()
+                image_data = img_response.content
+                logger.info(f"✅ Downloaded {len(image_data)} bytes")
+            except httpx.HTTPError as e:
+                logger.error(f"❌ HTTP error downloading draft: {e}")
+                raise Exception(f"Failed to download draft image: {str(e)}")
 
         # Upload to temp folder (not main generated_images)
         draft_filename = f"draft_for_enhancement_{int(time.time())}_{hashlib.md5(request.draft_image_url.encode()).hexdigest()[:8]}.png"
