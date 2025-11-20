@@ -115,11 +115,11 @@ class ImageGenerator:
         # Using r2_storage instance from storage_r2 module
         self.r2_storage = r2_storage
         # Speed-optimized rotation for PREVIEW mode (fastest first)
-        # Removed slow/pollinating providers and failing ones
+        # Prioritizing Stability AI for quality, removing Replicate (quality issues)
         self.provider_rotation = [
-            "replicate",       # FAST: ~6s (actual)
-            "stability",       # MEDIUM: ~12s (actual)
-            "pollinations"     # SLOW: ~28s (only as last resort)
+            "stability",       # BEST QUALITY: ~12s (actual)
+            "fal",             # FAST BACKUP: ~8s (actual)
+            "pollinations"     # SLOW LAST RESORT: ~28s (only as fallback)
         ]
         self.current_provider_index = 0
 
@@ -189,8 +189,8 @@ class ImageGenerator:
         # If quality boost is enabled, use premium providers
         if quality_boost:
             # Skip free providers and use higher-quality paid providers
-            # Only include providers with API keys: fal, stability, replicate
-            premium_providers = ["fal", "stability", "replicate"]
+            # Only include providers with API keys: fal, stability
+            premium_providers = ["fal", "stability"]
             if provider_name in ["pollinations", "huggingface", "replicate_free"]:
                 # Jump to next premium provider
                 current_idx = self.provider_rotation.index(provider_name)
@@ -447,12 +447,29 @@ class ImageGenerator:
 
         # For image-to-image, use a different endpoint/model
         if base_image_url:
+            # Shorten extremely long URLs (e.g., Pollinations URLs with encoded prompts)
+            # This prevents "URL too long" errors when downloading
+            shortened_url = base_image_url
+            if "image.pollinations.ai" in base_image_url and len(base_image_url) > 200:
+                import re
+                seed_match = re.search(r'seed=(\d+)', base_image_url)
+                width_match = re.search(r'width=(\d+)', base_image_url)
+                height_match = re.search(r'height=(\d+)', base_image_url)
+
+                if seed_match and width_match and height_match:
+                    seed = seed_match.group(1)
+                    width = width_match.group(1)
+                    height = height_match.group(1)
+                    # Create minimal URL with just seed and dimensions
+                    shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                    logger.info(f"Shortened FAL enhancement URL from {len(base_image_url)} to {len(shortened_url)} chars")
+
             # Use Real-ESRGAN for image enhancement/upscale
             response = await httpx.AsyncClient(timeout=30.0).post(
                 "https://fal.run/fal-ai/real-esrgan",
                 headers={"Authorization": f"Key {api_key}"},
                 json={
-                    "image_url": base_image_url,
+                    "image_url": shortened_url,
                     "scale": 2,  # 2x upscale
                     "face_enhance": True
                 }
@@ -597,9 +614,26 @@ class ImageGenerator:
         # then upload it as multipart form data
         image_data = None
         if base_image_url:
+            # Shorten extremely long URLs (e.g., Pollinations URLs with encoded prompts)
+            # This prevents "URL too long" errors when downloading
+            shortened_url = base_image_url
+            if "image.pollinations.ai" in base_image_url and len(base_image_url) > 200:
+                import re
+                seed_match = re.search(r'seed=(\d+)', base_image_url)
+                width_match = re.search(r'width=(\d+)', base_image_url)
+                height_match = re.search(r'height=(\d+)', base_image_url)
+
+                if seed_match and width_match and height_match:
+                    seed = seed_match.group(1)
+                    width = width_match.group(1)
+                    height = height_match.group(1)
+                    # Create minimal URL with just seed and dimensions
+                    shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                    logger.info(f"Shortened enhancement URL from {len(base_image_url)} to {len(shortened_url)} chars")
+
             # Download the base image
             async with httpx.AsyncClient(timeout=20.0) as client:
-                img_response = await client.get(base_image_url)
+                img_response = await client.get(shortened_url)
                 image_data = img_response.content
 
         # Use the generate endpoint - Stability AI automatically detects image-to-image
