@@ -20,7 +20,9 @@ from app.schemas import (
     ImageListResponse,
     ImageDeleteResponse,
     ImageUpgradeRequest,
-    ImageSaveDraftRequest
+    ImageSaveDraftRequest,
+    ImageTextOverlayRequest,
+    ImageTextOverlayResponse
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
@@ -959,3 +961,210 @@ async def create_variations(
         )
         for record in variation_records
     ]
+
+
+@router.post("/text-overlay", response_model=ImageTextOverlayResponse, status_code=status.HTTP_201_CREATED)
+async def add_text_overlay(
+    request: ImageTextOverlayRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add text overlay to an image using PIL/Pillow."""
+    from PIL import Image, ImageDraw, ImageFont
+    import httpx
+    from io import BytesIO
+    import hashlib
+    import time
+
+    # Verify campaign ownership if campaign_id is provided
+    campaign = None
+    if request.campaign_id:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == request.campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+
+    try:
+        # Download image from URL
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            image_response = await client.get(request.image_url)
+            image_response.raise_for_status()
+            image_data = image_response.content
+
+        # Open image from bytes
+        image = Image.open(BytesIO(image_data)).convert("RGBA")
+
+        # Create a transparent layer for text
+        text_layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(text_layer)
+
+        # Font cache to avoid loading same font multiple times
+        font_cache = {}
+
+        # Process each text layer
+        for text_layer_config in request.text_layers:
+            # Get or load font
+            font_key = f"{text_layer_config.font_family}_{text_layer_config.font_size}"
+            if font_key not in font_cache:
+                try:
+                    # Try to load the font
+                    font = ImageFont.truetype(f"{text_layer_config.font_family}.ttf", text_layer_config.font_size)
+                except (OSError, IOError):
+                    # Fall back to default font
+                    font = ImageFont.load_default()
+                font_cache[font_key] = font
+
+            font = font_cache[font_key]
+
+            # Parse color hex to RGB
+            color_hex = text_layer_config.color.lstrip("#")
+            color_rgb = tuple(int(color_hex[i:i+2], 16) for i in (0, 2, 4))
+
+            # Create text position (convert from top-left to PIL's baseline position)
+            x, y = text_layer_config.x, text_layer_config.y
+
+            # Draw stroke/outline if specified
+            if text_layer_config.stroke_color and text_layer_config.stroke_width > 0:
+                stroke_hex = text_layer_config.stroke_color.lstrip("#")
+                stroke_rgb = tuple(int(stroke_hex[i:i+2], 16) for i in (0, 2, 4))
+
+                # Draw text with stroke
+                for dx in range(-text_layer_config.stroke_width, text_layer_config.stroke_width + 1):
+                    for dy in range(-text_layer_config.stroke_width, text_layer_config.stroke_width + 1):
+                        if dx*dx + dy*dy <= text_layer_config.stroke_width * text_layer_config.stroke_width:
+                            draw.text(
+                                (x + dx, y + dy),
+                                text_layer_config.text,
+                                font=font,
+                                fill=stroke_rgb
+                            )
+
+            # Draw main text
+            draw.text(
+                (x, y),
+                text_layer_config.text,
+                font=font,
+                fill=color_rgb
+            )
+
+        # Composite text layer onto image
+        final_image = Image.alpha_composite(image, text_layer)
+
+        # Convert back to RGB for JPEG/PNG
+        if final_image.mode == "RGBA":
+            # Create white background
+            background = Image.new("RGB", final_image.size, (255, 255, 255))
+            background.paste(final_image, mask=final_image.split()[3])  # Use alpha channel as mask
+            final_image = background
+        else:
+            final_image = final_image.convert("RGB")
+
+        # Save to bytes buffer
+        buffer = BytesIO()
+        final_image.save(buffer, format="PNG", quality=95)
+        composed_image_data = buffer.getvalue()
+
+        # Upload to R2
+        r2_key, image_url = await r2_storage.upload_file(
+            file_bytes=composed_image_data,
+            key=f"campaigns/{request.campaign_id or 0}/generated_images/text_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            content_type="image/png"
+        )
+
+        # Generate thumbnail
+        thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
+
+        # Save to database
+        image_record = GeneratedImage(
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            meta_data={
+                "text_overlay": True,
+                "original_image_url": request.image_url,
+                "text_layers": [layer.dict() for layer in request.text_layers]
+            },
+            ai_generation_cost=0.0,  # Text overlay is free
+            content_id=None
+        )
+
+        db.add(image_record)
+        await db.commit()
+        await db.refresh(image_record)
+
+        return ImageTextOverlayResponse(
+            id=image_record.id,
+            campaign_id=image_record.campaign_id,
+            image_type=image_record.image_type,
+            image_url=image_record.image_url,
+            thumbnail_url=image_record.thumbnail_url,
+            provider=image_record.provider,
+            model=image_record.model,
+            prompt=image_record.prompt,
+            style=image_record.style,
+            aspect_ratio=image_record.aspect_ratio,
+            metadata=image_record.meta_data or {},
+            ai_generation_cost=0.0,
+            created_at=image_record.created_at
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download image: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Text overlay failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Text overlay failed: {str(e)}"
+        )
+
+
+async def generate_thumbnail(image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
+    """Generate thumbnail for image."""
+    from PIL import Image
+    from io import BytesIO
+    import httpx
+    import time
+    import hashlib
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(image_url)
+            image = Image.open(BytesIO(response.content))
+
+            # Resize image
+            image.thumbnail(size, Image.Resampling.LANCZOS)
+
+            # Save to bytes
+            buffer = BytesIO()
+            image.save(buffer, format="JPEG", quality=80)
+            thumbnail_data = buffer.getvalue()
+
+            # Upload to R2
+            _, thumbnail_url = await r2_storage.upload_file(
+                file_bytes=thumbnail_data,
+                key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                content_type="image/jpeg"
+            )
+
+            return thumbnail_url
+    except Exception as e:
+        logger.error(f"Failed to generate thumbnail: {e}")
+        return None

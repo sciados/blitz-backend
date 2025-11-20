@@ -356,3 +356,46 @@ class ImageSaveDraftRequest(BaseModel):
     provider: str
     model: str
     prompt: str
+
+
+class TextLayer(BaseModel):
+    """A single text layer to overlay on an image."""
+    text: str
+    x: int = 0  # X position in pixels
+    y: int = 0  # Y position in pixels
+    font_size: int = 48
+    font_family: str = "Arial"
+    color: str = "#FFFFFF"
+    stroke_color: Optional[str] = None
+    stroke_width: int = 0
+    opacity: float = 1.0  # 0.0 to 1.0
+
+
+class ImageTextOverlayRequest(BaseModel):
+    """Request to add text overlay to an image."""
+    image_url: str
+    text_layers: List[TextLayer]
+    campaign_id: Optional[int] = None
+    image_type: str = "social"
+    style: str = "photorealistic"
+    aspect_ratio: str = "1:1"
+    provider: str = "manual"
+    model: str = "text_overlay"
+    prompt: str = "Image with text overlay"
+
+
+class ImageTextOverlayResponse(BaseModel):
+    """Response from text overlay operation."""
+    id: int
+    campaign_id: Optional[int]
+    image_type: str
+    image_url: str
+    thumbnail_url: Optional[str]
+    provider: str
+    model: str
+    prompt: str
+    style: str
+    aspect_ratio: str
+    metadata: Optional[Dict[str, Any]] = None
+    ai_generation_cost: Optional[float] = 0.0  # Text overlay is free
+    created_at: Optional[datetime] = None
