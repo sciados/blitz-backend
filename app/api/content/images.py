@@ -173,6 +173,98 @@ async def generate_image(
     )
 
 
+@router.post("/previews", response_model=List[ImageResponse], status_code=status.HTTP_201_CREATED)
+async def preview_images(
+    request: ImageGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator),
+    prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
+):
+    """Generate 4 preview/draft images in a batch (free, temporary)."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build prompt - use concise version for preview (free providers)
+    prompt = prompt_builder.build_prompt(
+        campaign_intelligence=intelligence_data,
+        image_type=request.image_type,
+        user_prompt=request.custom_prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        quality_boost=False,  # Preview always uses free/low-cost providers
+        concise=True  # Use shorter prompts for free providers
+    )
+
+    # Generate 4 unique drafts with different seeds
+    generation_requests = []
+    for i in range(4):
+        # Generate unique seed for each draft
+        random_seed = int(time.time() * 1000000) + random.randint(1, 1000000) + i
+
+        generation_requests.append({
+            "prompt": prompt,
+            "image_type": request.image_type,
+            "style": request.style,
+            "aspect_ratio": request.aspect_ratio,
+            "campaign_intelligence": intelligence_data,
+            "custom_params": {"seed": random_seed}
+        })
+
+    # Generate images in batch (NOT saved to database)
+    try:
+        results = await image_generator.batch_generate(generation_requests)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image generation failed: {str(e)}"
+        )
+
+    # Return image data WITHOUT saving to database
+    return [
+        ImageResponse(
+            id=0,  # No ID since not saved
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=result.image_url,
+            thumbnail_url=result.thumbnail_url,
+            provider=result.provider,
+            model=result.model,
+            prompt=result.prompt,
+            style=result.style,
+            aspect_ratio=result.aspect_ratio,
+            ai_generation_cost=result.cost,
+            content_id=None
+            # metadata and created_at not provided for drafts - not saved to DB
+        )
+        for result in results
+    ]
+
+
 @router.post("/preview", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
 async def preview_image(
     request: ImageGenerateRequest,
