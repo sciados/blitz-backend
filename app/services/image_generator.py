@@ -370,44 +370,35 @@ class ImageGenerator:
         # Parse aspect ratio to get dimensions
         width, height = self._parse_aspect_ratio(aspect_ratio)
 
-        # Select provider (use premium providers for enhancement)
-        provider = self.select_provider(
-            image_type=image_type,
-            style=style,
-            quality_boost=True
-        )
-        logger.info(f"🎨 Selected provider for enhancement: {provider.name}")
+        # For image enhancement, prioritize Stability AI for best quality
+        # Fallback to FAL if Stability AI fails
+        provider_name = "stability"
+        logger.info(f"🎨 Using {provider_name} for enhancement (best quality)")
 
         start_time = time.time()
 
         try:
-            # Generate enhanced image using provider-specific method
-            # Note: Currently only Replicate supports proper image-to-image
-            if provider.name == "replicate":
-                # Replicate supports image-to-image
-                result = await self._generate_with_replicate(
-                    prompt, width, height, style, {"base_image_url": base_image_url}
-                )
-            elif provider.name == "fal":
-                # FAL supports image-to-image
+            # Generate enhanced image using Stability AI (best quality)
+            result = await self._generate_with_stability(
+                prompt, width, height, style, {"base_image_url": base_image_url}, aspect_ratio
+            )
+        except Exception as e:
+            logger.warning(f"Stability AI enhancement failed: {e}")
+            logger.info("🔄 Trying FAL as fallback...")
+            try:
+                # Fallback to FAL
                 result = await self._generate_with_fal(
                     prompt, width, height, style, {"base_image_url": base_image_url}
                 )
-            elif provider.name == "stability":
-                # Stability AI - pass aspect_ratio
-                result = await self._generate_with_stability(
-                    prompt, width, height, style, {"base_image_url": base_image_url}, aspect_ratio
-                )
-            else:
-                # Other providers don't support image-to-image yet
-                raise Exception(f"Provider {provider.name} does not support image enhancement yet")
-        except Exception as e:
-            logger.error(f"Provider {provider.name} failed: {e}")
-            # For now, just re-raise - could add fallback logic here
-            raise Exception(f"Image enhancement failed: {str(e)}")
-
+                provider_name = "fal"
+            except Exception as e2:
+                logger.error(f"FAL enhancement also failed: {e2}")
+                raise Exception(f"Image enhancement failed with all providers")
         generation_time = time.time() - start_time
-        logger.info(f"✅ Image enhanced in {generation_time:.2f}s using {provider.name}")
+        logger.info(f"✅ Image enhanced in {generation_time:.2f}s using {provider_name}")
+
+        # Get provider details
+        provider_details = self.PROVIDERS[provider_name]
 
         # Upload to R2 if requested
         if save_to_r2:
@@ -428,8 +419,8 @@ class ImageGenerator:
         return ImageGenerationResult(
             image_url=image_url,
             thumbnail_url=thumbnail_url,
-            provider=provider.name,
-            model=provider.model,
+            provider=provider_details.name,
+            model=provider_details.model,
             prompt=prompt,
             style=style,
             aspect_ratio=aspect_ratio,
@@ -441,7 +432,7 @@ class ImageGenerator:
                 "base_image_url": base_image_url,
                 "custom_params": {"base_image_url": base_image_url}
             },
-            cost=provider.cost_per_image
+            cost=provider_details.cost_per_image
         )
 
     async def _generate_with_fal(
@@ -460,17 +451,27 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
+        # Check if this is image-to-image enhancement
+        base_image_url = custom_params.get("base_image_url")
+
+        # Build request payload
+        payload = {
+            "prompt": enhanced_prompt,
+            "image_size": f"{width}x{height}",
+            "num_inference_steps": 4,
+            "guidance_scale": 3.5,
+            "num_images": 1
+        }
+
+        # Add image input for enhancement
+        if base_image_url:
+            payload["image_url"] = base_image_url
+
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(
                 "https://fal.run/fal-ai/sdxl-turbo",
                 headers={"Authorization": f"Key {api_key}"},
-                json={
-                    "prompt": enhanced_prompt,
-                    "image_size": f"{width}x{height}",
-                    "num_inference_steps": 4,
-                    "guidance_scale": 3.5,
-                    "num_images": 1
-                }
+                json=payload
             )
 
             if response.status_code != 200:
@@ -573,6 +574,9 @@ class ImageGenerator:
         # Prepare prompt with style
         enhanced_prompt = f"{prompt}, {style} style"
 
+        # Check if this is image-to-image enhancement
+        base_image_url = custom_params.get("base_image_url")
+
         # Map aspect ratio to Stability AI's supported enums
         # Stability AI supports: 21:9, 16:9, 3:2, 5:4, 1:1, 4:5, 2:3, 9:16, 9:21
         stability_ratio_map = {
@@ -587,20 +591,40 @@ class ImageGenerator:
         # Get the mapped ratio or default to 1:1
         ratio = stability_ratio_map.get(aspect_ratio, "1:1")
 
+        # Choose endpoint based on whether this is image-to-image
+        endpoint = "/v2beta/stable-image/edit/ultra" if base_image_url else "/v2beta/stable-image/generate/ultra"
+
         async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
-                "https://api.stability.ai/v2beta/stable-image/generate/ultra",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Accept": "image/*"
-                },
-                files={"none": b""},
-                data={
-                    "prompt": enhanced_prompt,
-                    "output_format": "webp",
-                    "aspect_ratio": ratio,  # Use enum string, not dimensions
-                }
-            )
+            if base_image_url:
+                # Image-to-image enhancement
+                response = await client.post(
+                    f"https://api.stability.ai{endpoint}",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Accept": "image/*"
+                    },
+                    data={
+                        "prompt": enhanced_prompt,
+                        "output_format": "webp",
+                        "aspect_ratio": ratio,
+                        "image": base_image_url  # URL reference
+                    }
+                )
+            else:
+                # Text-to-image generation
+                response = await client.post(
+                    f"https://api.stability.ai{endpoint}",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Accept": "image/*"
+                    },
+                    files={"none": b""},
+                    data={
+                        "prompt": enhanced_prompt,
+                        "output_format": "webp",
+                        "aspect_ratio": ratio,  # Use enum string, not dimensions
+                    }
+                )
 
             if response.status_code != 200:
                 logger.error(f"Stability API error: {response.text}")
