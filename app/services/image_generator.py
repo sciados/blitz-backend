@@ -383,17 +383,8 @@ class ImageGenerator:
                 prompt, width, height, style, {"base_image_url": base_image_url}, aspect_ratio
             )
         except Exception as e:
-            logger.warning(f"Stability AI enhancement failed: {e}")
-            logger.info("🔄 Trying FAL as fallback...")
-            try:
-                # Fallback to FAL
-                result = await self._generate_with_fal(
-                    prompt, width, height, style, {"base_image_url": base_image_url}
-                )
-                provider_name = "fal"
-            except Exception as e2:
-                logger.error(f"FAL enhancement also failed: {e2}")
-                raise Exception(f"Image enhancement failed with all providers")
+            logger.error(f"Stability AI enhancement failed: {e}")
+            raise Exception(f"Image enhancement failed with Stability AI: {str(e)}")
         generation_time = time.time() - start_time
         logger.info(f"✅ Image enhanced in {generation_time:.2f}s using {provider_name}")
 
@@ -454,21 +445,29 @@ class ImageGenerator:
         # Check if this is image-to-image enhancement
         base_image_url = custom_params.get("base_image_url")
 
-        # Build request payload
-        payload = {
-            "prompt": enhanced_prompt,
-            "image_size": f"{width}x{height}",
-            "num_inference_steps": 4,
-            "guidance_scale": 3.5,
-            "num_images": 1
-        }
-
-        # Add image input for enhancement
+        # For image-to-image, use a different endpoint/model
         if base_image_url:
-            payload["image_url"] = base_image_url
+            # Use Real-ESRGAN for image enhancement/upscale
+            response = await httpx.AsyncClient(timeout=30.0).post(
+                "https://fal.run/fal-ai/real-esrgan",
+                headers={"Authorization": f"Key {api_key}"},
+                json={
+                    "image_url": base_image_url,
+                    "scale": 2,  # 2x upscale
+                    "face_enhance": True
+                }
+            )
+        else:
+            # Regular text-to-image generation
+            payload = {
+                "prompt": enhanced_prompt,
+                "image_size": f"{width}x{height}",
+                "num_inference_steps": 4,
+                "guidance_scale": 3.5,
+                "num_images": 1
+            }
 
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(
+            response = await httpx.AsyncClient(timeout=20.0).post(
                 "https://fal.run/fal-ai/sdxl-turbo",
                 headers={"Authorization": f"Key {api_key}"},
                 json=payload
@@ -478,24 +477,27 @@ class ImageGenerator:
                 logger.error(f"FAL API error: {response.text}")
                 raise Exception(f"Image generation failed: {response.text}")
 
-            data = response.json()
-            logger.info(f"FAL response keys: {list(data.keys())}")
-            logger.info(f"FAL response structure: {data}")
+        # Common response handling for both paths
+        data = response.json()
+        logger.info(f"FAL response keys: {list(data.keys())}")
 
-            # FAL returns different response format - handle both old and new formats
-            if "images" in data and len(data["images"]) > 0:
-                image_url = data["images"][0]["url"]
-            elif "image" in data:
-                image_url = data["image"]["url"]
-            elif "url" in data:
-                image_url = data["url"]
-            else:
-                logger.error(f"Unexpected FAL response format: {data}")
-                raise Exception(f"Unexpected FAL response format")
+        # FAL returns different response format - handle both old and new formats
+        if "images" in data and len(data["images"]) > 0:
+            image_url = data["images"][0]["url"]
+        elif "image" in data:
+            image_url = data["image"]["url"]
+        elif "url" in data:
+            image_url = data["url"]
+        else:
+            logger.error(f"Unexpected FAL response format: {data}")
+            raise Exception(f"Unexpected FAL response format")
+
+        # Download the generated image
+        async with httpx.AsyncClient(timeout=20.0) as client:
             image_response = await client.get(image_url)
             image_data = image_response.content
 
-            return {"image_data": image_data, "image_url": image_url, "metadata": data}
+        return {"image_data": image_data, "image_url": image_url, "metadata": data}
 
     async def _generate_with_replicate(
         self,
@@ -591,23 +593,33 @@ class ImageGenerator:
         # Get the mapped ratio or default to 1:1
         ratio = stability_ratio_map.get(aspect_ratio, "1:1")
 
-        # Choose endpoint based on whether this is image-to-image
-        endpoint = "/v2beta/stable-image/edit/ultra" if base_image_url else "/v2beta/stable-image/generate/ultra"
+        # For image-to-image, we need to download the base image first
+        # then upload it as multipart form data
+        image_data = None
+        if base_image_url:
+            # Download the base image
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                img_response = await client.get(base_image_url)
+                image_data = img_response.content
+
+        # Use the generate endpoint - Stability AI automatically detects image-to-image
+        # when an image is provided in the files parameter
+        endpoint = "/v2beta/stable-image/generate/ultra"
 
         async with httpx.AsyncClient(timeout=20.0) as client:
-            if base_image_url:
-                # Image-to-image enhancement
+            if base_image_url and image_data:
+                # Image-to-image enhancement - upload image as file
+                files = {
+                    "image": ("image.webp", image_data, "image/webp"),
+                }
                 response = await client.post(
                     f"https://api.stability.ai{endpoint}",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Accept": "image/*"
-                    },
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    files=files,
                     data={
                         "prompt": enhanced_prompt,
                         "output_format": "webp",
                         "aspect_ratio": ratio,
-                        "image": base_image_url  # URL reference
                     }
                 )
             else:
