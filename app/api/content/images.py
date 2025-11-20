@@ -26,6 +26,7 @@ from app.schemas import (
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
+from app.services.storage_r2 import r2_storage
 
 logger = logging.getLogger(__name__)
 
