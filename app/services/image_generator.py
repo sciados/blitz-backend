@@ -987,44 +987,60 @@ class ImageGenerator:
         logger.info(f"💾 Saving draft image from {provider}")
 
         try:
-            # Shorten extremely long URLs (e.g., Pollinations URLs with encoded prompts)
-            # HTTP clients have limits on URL length, so we extract just the essential parts
+            # Handle different URL types for draft images
             shortened_url = image_url
             logger.info(f"📏 Original URL length: {len(image_url)} chars")
 
-            if "image.pollinations.ai" in image_url and len(image_url) > 200:
-                # Extract seed from long Pollinations URL and create shorter version
-                import re
-                seed_match = re.search(r'seed=(\d+)', image_url)
-                width_match = re.search(r'width=(\d+)', image_url)
-                height_match = re.search(r'height=(\d+)', image_url)
-
-                if seed_match and width_match and height_match:
-                    seed = seed_match.group(1)
-                    width = width_match.group(1)
-                    height = height_match.group(1)
-                    # Create minimal URL with just seed and dimensions
-                    shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
-                    logger.info(f"✂️ Shortened Pollinations URL: {len(image_url)} → {len(shortened_url)} chars")
-                else:
-                    # Regex didn't match - log warning but try original URL
-                    logger.warning(f"⚠️ Could not extract parameters from Pollinations URL (seed={bool(seed_match)}, width={bool(width_match)}, height={bool(height_match)})")
-                    logger.warning(f"⚠️ Will attempt with original URL, may fail if too long")
-            elif len(image_url) > 500:
-                # Generic long URL warning for non-Pollinations URLs
-                logger.warning(f"⚠️ Very long URL detected ({len(image_url)} chars) from provider: {image_url[:50]}...")
-
-            # Download image from provider URL with extended timeout
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                logger.info(f"⬇️ Downloading draft from: {shortened_url[:100]}...")
+            # Check if this is a data URL (base64-encoded image)
+            if image_url.startswith("data:image/"):
+                # Data URL - extract base64 data directly (no HTTP download needed)
+                logger.info(f"🔍 Detected data URL (base64-encoded image)")
                 try:
-                    response = await client.get(shortened_url)
-                    response.raise_for_status()
-                    image_data = response.content
-                    logger.info(f"✅ Downloaded {len(image_data)} bytes")
-                except httpx.HTTPError as e:
-                    logger.error(f"❌ HTTP error downloading draft: {e}")
-                    raise Exception(f"Failed to download draft image: {str(e)}")
+                    # Extract base64 data from data URL format: data:image/webp;base64,<data>
+                    if ";base64," in image_url:
+                        base64_data = image_url.split(";base64,")[1]
+                        image_data = base64.b64decode(base64_data)
+                        logger.info(f"✅ Decoded {len(image_data)} bytes from base64 data URL")
+                    else:
+                        raise Exception("Data URL does not contain base64 data")
+                except Exception as e:
+                    logger.error(f"❌ Failed to decode data URL: {e}")
+                    raise Exception(f"Failed to decode data URL: {str(e)}")
+            else:
+                # Regular HTTP URL - download via HTTP client
+                if "image.pollinations.ai" in image_url and len(image_url) > 200:
+                    # Extract seed from long Pollinations URL and create shorter version
+                    import re
+                    seed_match = re.search(r'seed=(\d+)', image_url)
+                    width_match = re.search(r'width=(\d+)', image_url)
+                    height_match = re.search(r'height=(\d+)', image_url)
+
+                    if seed_match and width_match and height_match:
+                        seed = seed_match.group(1)
+                        width = width_match.group(1)
+                        height = height_match.group(1)
+                        # Create minimal URL with just seed and dimensions
+                        shortened_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                        logger.info(f"✂️ Shortened Pollinations URL: {len(image_url)} → {len(shortened_url)} chars")
+                    else:
+                        # Regex didn't match - log warning but try original URL
+                        logger.warning(f"⚠️ Could not extract parameters from Pollinations URL (seed={bool(seed_match)}, width={bool(width_match)}, height={bool(height_match)})")
+                        logger.warning(f"⚠️ Will attempt with original URL, may fail if too long")
+                elif len(image_url) > 500:
+                    # Generic long URL warning for non-Pollinations URLs
+                    logger.warning(f"⚠️ Very long URL detected ({len(image_url)} chars) from provider: {image_url[:50]}...")
+
+                # Download image from provider URL with extended timeout
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    logger.info(f"⬇️ Downloading draft from: {shortened_url[:100]}...")
+                    try:
+                        response = await client.get(shortened_url)
+                        response.raise_for_status()
+                        image_data = response.content
+                        logger.info(f"✅ Downloaded {len(image_data)} bytes")
+                    except httpx.HTTPError as e:
+                        logger.error(f"❌ HTTP error downloading draft: {e}")
+                        raise Exception(f"Failed to download draft image: {str(e)}")
 
             # Generate filename
             filename = f"draft_{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.png"
