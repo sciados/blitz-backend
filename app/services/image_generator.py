@@ -1,3 +1,5 @@
+# services/image_generator.py
+
 """
 Image Generation Service
 Handles rotating AI platform image generation with Cloudflare R2 storage.
