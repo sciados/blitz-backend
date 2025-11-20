@@ -174,6 +174,8 @@ class ImagePromptBuilder:
     @staticmethod
     def _extract_intelligence_elements(intelligence: Dict[str, Any]) -> str:
         """Extract VISUAL-ONLY elements from intelligence for image prompt."""
+        import random
+
         parts = []
 
         # Extract product information (visual elements only)
@@ -186,6 +188,46 @@ class ImagePromptBuilder:
                 parts.append(f"{category}")
             if product_name:
                 parts.append(f"{product_name}")
+
+            # Extract benefits and features (randomly select 2-3 for context)
+            benefits = product.get("benefits", [])
+            features = product.get("features", [])
+
+            # Combine benefits and features
+            all_points = []
+            if benefits and isinstance(benefits, list):
+                all_points.extend(benefits[:5])  # Limit to first 5
+            if features and isinstance(features, list):
+                all_points.extend(features[:5])  # Limit to first 5
+
+            # Randomly select 2-3 benefits/features to include
+            if all_points:
+                selected = random.sample(all_points, min(3, len(all_points)))
+                # Convert to visual descriptors where possible
+                visual_descriptors = []
+                for point in selected:
+                    # If benefit/feature mentions pain points, use visual representation
+                    point_lower = point.lower()
+                    if "energy" in point_lower or "fatigue" in point_lower:
+                        visual_descriptors.append("energetic, vitality")
+                    elif "focus" in point_lower or "memory" in point_lower or "brain" in point_lower:
+                        visual_descriptors.append("sharp, focused")
+                    elif "immune" in point_lower or "health" in point_lower or "wellness" in point_lower:
+                        visual_descriptors.append("healthy, wellness")
+                    elif "weight" in point_lower or "diet" in point_lower:
+                        visual_descriptors.append("fit, healthy lifestyle")
+                    elif "stress" in point_lower or "anxiety" in point_lower or "relax" in point_lower:
+                        visual_descriptors.append("calm, peaceful")
+                    elif "sleep" in point_lower or "rest" in point_lower or "night" in point_lower:
+                        visual_descriptors.append("restful sleep")
+                    elif "support" in point_lower or "help" in point_lower or "relief" in point_lower:
+                        visual_descriptors.append("support, relief")
+                    else:
+                        # Generic visual descriptors
+                        visual_descriptors.append("beneficial, improvement")
+
+                if visual_descriptors:
+                    parts.extend(visual_descriptors[:3])
 
         # Extract visual imagery from market (only visuals, not text/marketing)
         market = intelligence.get("market", {})
