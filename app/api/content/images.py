@@ -1013,15 +1013,38 @@ async def add_text_overlay(
 
         # Process each text layer
         for text_layer_config in request.text_layers:
+            logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({text_layer_config.x}, {text_layer_config.y}), font_size: {text_layer_config.font_size}, font_family: {text_layer_config.font_family}")
+            logger.info(f"🔍 Text layer properties - x: {text_layer_config.x}, y: {text_layer_config.y}, font_size: {text_layer_config.font_size}, font_family: {text_layer_config.font_family}, color: {text_layer_config.color}, stroke_width: {text_layer_config.stroke_width}, opacity: {text_layer_config.opacity}")
+
             # Get or load font
             font_key = f"{text_layer_config.font_family}_{text_layer_config.font_size}"
             if font_key not in font_cache:
                 try:
                     # Try to load the font
                     font = ImageFont.truetype(f"{text_layer_config.font_family}.ttf", text_layer_config.font_size)
-                except (OSError, IOError):
-                    # Fall back to default font
-                    font = ImageFont.load_default()
+                    logger.info(f"✅ Loaded font: {text_layer_config.font_family} at size {text_layer_config.font_size}")
+                except (OSError, IOError) as e:
+                    # Fall back to default font - but pass the size so PIL renders it larger
+                    logger.warning(f"⚠️ Font file not found: {text_layer_config.font_family}.ttf, using default font")
+                    # PIL's load_default ignores size, but we'll use a common system font path
+                    font_paths = [
+                        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+                        "/System/Library/Fonts/Arial.ttf",
+                        "/Windows/Fonts/arial.ttf"
+                    ]
+                    font = None
+                    for font_path in font_paths:
+                        try:
+                            font = ImageFont.truetype(font_path, text_layer_config.font_size)
+                            logger.info(f"✅ Found system font at {font_path}")
+                            break
+                        except:
+                            continue
+
+                    if font is None:
+                        logger.warning("⚠️ No system fonts found, using tiny default font")
+                        font = ImageFont.load_default()
                 font_cache[font_key] = font
 
             font = font_cache[font_key]
@@ -1032,6 +1055,7 @@ async def add_text_overlay(
 
             # Create text position (convert from top-left to PIL's baseline position)
             x, y = text_layer_config.x, text_layer_config.y
+            logger.info(f"📍 Drawing at coordinates: x={x}, y={y}")
 
             # Draw stroke/outline if specified
             if text_layer_config.stroke_color and text_layer_config.stroke_width > 0:
