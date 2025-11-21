@@ -1043,19 +1043,20 @@ async def add_text_overlay(
                             continue
 
                     if font is None:
-                        logger.warning("⚠️ No system fonts found, downloading DejaVuSans...")
+                        logger.warning("⚠️ No system fonts found, downloading font from Google Fonts...")
                         try:
-                            # Download a font file from GitHub
+                            # Use Google Fonts CDN - has TTF files directly
                             import httpx
                             import os
 
-                            font_url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf"
-                            font_path = "/tmp/DejaVuSans.ttf"
+                            # Google Fonts TTF URLs work reliably
+                            font_url = "https://fonts.gstatic.com/s/opensans/v40/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsg-1x4taVQUwaEQbjwN71k.ttf"
+                            font_path = "/tmp/OpenSans-Regular.ttf"
 
                             # Download if not exists
                             if not os.path.exists(font_path):
                                 async with httpx.AsyncClient(timeout=30.0) as client:
-                                    logger.info(f"📥 Downloading font from {font_url}")
+                                    logger.info(f"📥 Downloading font from Google Fonts CDN")
                                     response = await client.get(font_url)
                                     response.raise_for_status()
                                     with open(font_path, "wb") as f:
@@ -1065,7 +1066,7 @@ async def add_text_overlay(
                                 logger.info(f"✅ Using cached font at {font_path}")
 
                             font = ImageFont.truetype(font_path, text_layer_config.font_size)
-                            logger.info(f"✅ Loaded downloaded font at size {text_layer_config.font_size}")
+                            logger.info(f"✅ Loaded Google Fonts at size {text_layer_config.font_size}")
 
                         except Exception as e:
                             logger.error(f"❌ Font download/loading error: {e}")
