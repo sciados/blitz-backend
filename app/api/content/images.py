@@ -1,3 +1,5 @@
+# app/api/content/images.py
+
 """Image generation API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession

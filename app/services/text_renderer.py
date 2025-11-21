@@ -1,3 +1,5 @@
+# app/services/text_renderer.py
+
 """Text rendering service using Tkinter for high-quality text overlay."""
 import os
 import glob
