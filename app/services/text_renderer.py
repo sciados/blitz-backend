@@ -1,6 +1,3 @@
-# app/services/text_renderer.py
-# add, commit & push to  git
-
 """Text rendering service using Tkinter for high-quality text overlay."""
 import os
 import glob
@@ -27,7 +24,7 @@ class TkinterTextRenderer:
 
             # Check if we're in a headless environment
             if os.environ.get('DISPLAY') is None:
-                logger.info("🖥️ Headless environment detected, setting up Xvfb...")
+                logger.info("Headless environment detected, setting up Xvfb...")
 
                 # Start Xvfb on display :99
                 subprocess.Popen(
@@ -36,10 +33,10 @@ class TkinterTextRenderer:
                     stderr=subprocess.DEVNULL
                 )
                 os.environ['DISPLAY'] = ':99'
-                logger.info("✅ Started Xvfb virtual display")
+                logger.info("Started Xvfb virtual display")
 
         except Exception as e:
-            logger.warning(f"⚠️ Could not set up virtual display: {e}")
+            logger.warning(f"Could not set up virtual display: {e}")
 
     def _hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
         """Convert hex color to RGB tuple."""
@@ -50,8 +47,8 @@ class TkinterTextRenderer:
         """Find TTF font file for given font family."""
         font_name = font_family.lower().strip()
 
-        # Common font directories - prioritize /app/fonts first
-        font_dirs = ["/app/fonts", "/fonts", "/tmp/fonts", "/usr/share/fonts", "/System/Library/Fonts", "/Windows/Fonts"]
+        # Common font directories - prioritize /app/app/fonts first (Railway path)
+        font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts", "/usr/share/fonts", "/System/Library/Fonts", "/Windows/Fonts"]
 
         # Search in /fonts and subdirectories
         for font_dir in font_dirs:
@@ -105,15 +102,15 @@ class TkinterTextRenderer:
             from PIL import Image, ImageDraw, ImageFont
             from io import BytesIO
 
-            logger.info(f"🎨 Rendering text with PIL: '{text}' font={font_family} size={font_size}")
+            logger.info(f"Rendering text with PIL: '{text}' font={font_family} size={font_size}")
 
             # Find font file
             font_path = self._find_font_file(font_family)
             if font_path:
-                logger.info(f"✅ Found font: {font_path}")
+                logger.info(f"Found font: {font_path}")
                 font = ImageFont.truetype(font_path, font_size)
             else:
-                logger.warning(f"⚠️ Font not found: {font_family}")
+                logger.warning(f"Font not found: {font_family}")
                 font = ImageFont.load_default()
 
             # Calculate text size
@@ -168,9 +165,9 @@ class TkinterTextRenderer:
             img.save(buffer, format='PNG')
             img_bytes = buffer.getvalue()
 
-            logger.info(f"✅ Text rendered successfully: {len(img_bytes)} bytes")
+            logger.info(f"Text rendered successfully: {len(img_bytes)} bytes")
             return img_bytes
 
         except Exception as e:
-            logger.error(f"❌ PIL text rendering failed: {e}", exc_info=True)
+            logger.error(f"PIL text rendering failed: {e}", exc_info=True)
             raise

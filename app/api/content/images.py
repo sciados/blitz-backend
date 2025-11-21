@@ -850,7 +850,7 @@ async def list_available_fonts():
     fonts = []
 
     # Search in /fonts (repo root) and subdirectories
-    font_dir = "/app/fonts"
+    font_dir = "/app/app/fonts"
 
     if os.path.exists(font_dir):
         # Find all .ttf files recursively
