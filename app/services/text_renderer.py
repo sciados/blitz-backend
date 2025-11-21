@@ -132,19 +132,21 @@ class TkinterTextRenderer:
                 logger.warning(f"Font not found: {font_family}")
                 font = ImageFont.load_default()
 
-            # Calculate text size
+            # Calculate text size and position
             dummy_img = Image.new('RGB', (1, 1))
             draw = ImageDraw.Draw(dummy_img)
             bbox = draw.textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
+            text_descent = bbox[3] - bbox[1]  # Height below baseline
 
-            # Add padding for stroke
-            padding = stroke_width * 2 if stroke_width > 0 else 0
+            # Calculate padding needed for stroke (extra space around text)
+            stroke_padding = stroke_width * 2 if stroke_width > 0 else 0
 
-            # Create image - just big enough for the text with padding
-            img_width = text_width + padding * 2
-            img_height = text_height + padding * 2
+            # Create image - big enough for text + stroke padding
+            # Position text at top-left (0, 0) within this image
+            img_width = text_width + stroke_padding
+            img_height = text_height + stroke_padding
 
             img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
@@ -153,21 +155,25 @@ class TkinterTextRenderer:
             color_rgb = self._hex_to_rgb(color)
             stroke_rgb = self._hex_to_rgb(stroke_color) if stroke_color else (0, 0, 0)
 
-            # Draw stroke if specified
+            # Calculate text position within the image (accounting for stroke padding)
+            text_x = stroke_width
+            text_y = stroke_width
+
+            # Draw stroke if specified (around the text)
             if stroke_width > 0 and stroke_color:
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (padding + dx, padding + dy),
+                                (text_x + dx, text_y + dy),
                                 text,
                                 font=font,
                                 fill=stroke_rgb
                             )
 
-            # Draw main text at top-left with padding
+            # Draw main text at calculated position
             draw.text(
-                (padding, padding),
+                (text_x, text_y),
                 text,
                 font=font,
                 fill=color_rgb

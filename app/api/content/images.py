@@ -1118,6 +1118,9 @@ async def add_text_overlay(
                 # Paste the background image
                 result.paste(image, (0, 0))
 
+                # Log text image dimensions and position
+                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}, pasting at ({text_layer_config.x}, {text_layer_config.y})")
+
                 # Paste the text image at the correct position
                 result.paste(text_img, (text_layer_config.x, text_layer_config.y), text_img)
 
