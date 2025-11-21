@@ -1043,37 +1043,32 @@ async def add_text_overlay(
                             continue
 
                     if font is None:
-                        logger.warning("⚠️ No system fonts found, attempting to use DejaVuSans from Python environment")
+                        logger.warning("⚠️ No system fonts found, downloading DejaVuSans...")
                         try:
-                            # Try importing font from PIL's default font location
-                            from PIL import ImageFont
+                            # Download a font file from GitHub
+                            import httpx
                             import os
-                            # Try to find PIL's bundled fonts
-                            pil_font_paths = [
-                                "/usr/local/lib/python3.11/site-packages/PILDejaVuSans.ttf",
-                                "/usr/local/lib/python3.10/site-packages/PILDejaVuSans.ttf",
-                                "/opt/homebrew/lib/python3.11/site-packages/PILDejaVuSans.ttf",
-                            ]
-                            for pil_path in pil_font_paths:
-                                if os.path.exists(pil_path):
-                                    font = ImageFont.truetype(pil_path, text_layer_config.font_size)
-                                    logger.info(f"✅ Found PIL bundled font at {pil_path}")
-                                    break
-                            else:
-                                # Last resort: try DejaVuSans-Bold which is commonly available
-                                font_paths = [
-                                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-                                ]
-                                for font_path in font_paths:
-                                    if os.path.exists(font_path):
-                                        font = ImageFont.truetype(font_path, text_layer_config.font_size)
-                                        logger.info(f"✅ Found bold font at {font_path}")
-                                        break
-                        except Exception as e:
-                            logger.error(f"❌ Font loading error: {e}")
 
-                        if font is None:
+                            font_url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf"
+                            font_path = "/tmp/DejaVuSans.ttf"
+
+                            # Download if not exists
+                            if not os.path.exists(font_path):
+                                async with httpx.AsyncClient(timeout=30.0) as client:
+                                    logger.info(f"📥 Downloading font from {font_url}")
+                                    response = await client.get(font_url)
+                                    response.raise_for_status()
+                                    with open(font_path, "wb") as f:
+                                        f.write(response.content)
+                                logger.info(f"✅ Downloaded font to {font_path}")
+                            else:
+                                logger.info(f"✅ Using cached font at {font_path}")
+
+                            font = ImageFont.truetype(font_path, text_layer_config.font_size)
+                            logger.info(f"✅ Loaded downloaded font at size {text_layer_config.font_size}")
+
+                        except Exception as e:
+                            logger.error(f"❌ Font download/loading error: {e}")
                             logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
                             font = ImageFont.load_default()
                 font_cache[font_key] = font
