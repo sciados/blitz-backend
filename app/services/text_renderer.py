@@ -50,36 +50,55 @@ class TkinterTextRenderer:
         # Common font directories - prioritize /app/app/fonts first (Railway path)
         font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts", "/usr/share/fonts", "/System/Library/Fonts", "/Windows/Fonts"]
 
+        # Normalize font name: remove spaces, replace with common variations
+        font_name_normalized = font_name.replace(" ", "").replace("-", "")
+
         # Search in /fonts and subdirectories
         for font_dir in font_dirs:
             if os.path.exists(font_dir):
                 # Recursively find all .ttf files
                 for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
                     font_basename = os.path.basename(ttf_file).lower()
+                    font_name_only = os.path.splitext(font_basename)[0]
 
-                    # Check if font name is in filename
-                    if font_name in font_basename:
+                    # Remove extension and normalize
+                    font_name_only_normalized = font_name_only.replace("-", "").replace("_", "")
+
+                    # Check if normalized font name matches
+                    if font_name_normalized in font_name_only_normalized or font_name_only_normalized in font_name_normalized:
+                        logger.info(f"✅ Font matched: '{font_family}' -> '{ttf_file}'")
                         return ttf_file
 
-                    # Check alternative names
+                    # Check alternative names with better matching
                     name_map = {
                         "arial": ["arial", "helvetica"],
-                        "times new roman": ["times", "timesnewroman"],
-                        "times": ["times", "timesnewroman"],
+                        "times new roman": ["times", "timesnewroman", "timesnewromanpsmt"],
+                        "times": ["times", "timesnewroman", "timesnewromanpsmt"],
                         "open sans": ["opensans", "open-sans"],
                         "roboto": ["roboto"],
                         "helvetica": ["helvetica", "arial"],
                         "impact": ["impact"],
                         "georgia": ["georgia"],
                         "verdana": ["verdana"],
-                        "trebuchet": ["trebuchet"],
+                        "trebuchet": ["trebuchet", "trebuchetsms"],
+                        "dejavusans": ["dejavusans", "dejavusansans"],
+                        "dejavusans bold": ["dejavusans-bold", "dejavusansbold"],
+                        "dejavuserif": ["dejavuserif", "dejavuserifcondensed"],
+                        "dejavuserif bold": ["dejavuserif-bold", "dejavuserifbold"],
+                        "liberationsans": ["liberationsans", "liberationsans-regular"],
+                        "liberationsans bold": ["liberationsans-bold", "liberationsansbold"],
+                        "liberationserif": ["liberationserif", "liberationserif-regular"],
+                        "liberationserif bold": ["liberationserif-bold", "liberationserifbold"],
                     }
 
                     if font_name in name_map:
                         for alt_name in name_map[font_name]:
-                            if alt_name in font_basename:
+                            alt_normalized = alt_name.replace("-", "").replace("_", "")
+                            if alt_normalized in font_name_only_normalized:
+                                logger.info(f"✅ Font matched via map: '{font_family}' -> '{ttf_file}'")
                                 return ttf_file
 
+        logger.warning(f"❌ Font not found: '{font_family}' (normalized: '{font_name_normalized}')")
         return None
 
     def render_text_with_pil(
@@ -123,9 +142,9 @@ class TkinterTextRenderer:
             # Add padding for stroke
             padding = stroke_width * 2 if stroke_width > 0 else 0
 
-            # Create image
-            img_width = text_width + position[0] + padding * 2
-            img_height = text_height + position[1] + padding * 2
+            # Create image - just big enough for the text with padding
+            img_width = text_width + padding * 2
+            img_height = text_height + padding * 2
 
             img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
@@ -140,15 +159,15 @@ class TkinterTextRenderer:
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (position[0] + padding + dx, position[1] + padding + dy),
+                                (padding + dx, padding + dy),
                                 text,
                                 font=font,
                                 fill=stroke_rgb
                             )
 
-            # Draw main text
+            # Draw main text at top-left with padding
             draw.text(
-                (position[0] + padding, position[1] + padding),
+                (padding, padding),
                 text,
                 font=font,
                 fill=color_rgb
