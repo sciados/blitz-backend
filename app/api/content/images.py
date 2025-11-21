@@ -1076,8 +1076,8 @@ async def add_text_overlay(
                             # Add common fallbacks
                             search_names.extend(["opensans", "arial", "dejavu", "roboto", "helvetica"])
 
-                            # Search for .ttf files in /app/fonts and all subdirectories
-                            font_dirs = ["/app/fonts", "/tmp/fonts"]
+                            # Search for .ttf files in /fonts and all subdirectories
+                            font_dirs = ["/fonts", "/tmp/fonts"]
                             for font_dir in font_dirs:
                                 if os.path.exists(font_dir):
                                     # Recursively find all .ttf files
@@ -1095,7 +1095,7 @@ async def add_text_overlay(
                                     break
 
                             if font is None:
-                                logger.error("❌ No bundled fonts found. Place .ttf files in /app/fonts/ or subdirectories")
+                                logger.error("❌ No bundled fonts found. Place .ttf files in /fonts/ or subdirectories")
                                 logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
                                 font = ImageFont.load_default()
 
@@ -1258,8 +1258,8 @@ async def list_available_fonts():
 
     fonts = []
 
-    # Search in /app/fonts and subdirectories
-    font_dir = "/app/fonts"
+    # Search in /fonts (repo root) and subdirectories
+    font_dir = "/fonts"
 
     if os.path.exists(font_dir):
         # Find all .ttf files recursively
