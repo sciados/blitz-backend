@@ -1043,34 +1043,32 @@ async def add_text_overlay(
                             continue
 
                     if font is None:
-                        logger.warning("⚠️ No system fonts found, downloading font from Google Fonts...")
+                        logger.warning("⚠️ No system fonts found, trying bundled fonts...")
                         try:
-                            # Use Google Fonts CDN - has TTF files directly
-                            import httpx
+                            # Try bundled fonts from repo
                             import os
 
-                            # Google Fonts TTF URLs work reliably
-                            font_url = "https://fonts.gstatic.com/s/opensans/v40/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsg-1x4taVQUwaEQbjwN71k.ttf"
-                            font_path = "/tmp/OpenSans-Regular.ttf"
-
-                            # Download if not exists
-                            if not os.path.exists(font_path):
-                                async with httpx.AsyncClient(timeout=30.0) as client:
-                                    logger.info(f"📥 Downloading font from Google Fonts CDN")
-                                    response = await client.get(font_url)
-                                    response.raise_for_status()
-                                    with open(font_path, "wb") as f:
-                                        f.write(response.content)
-                                logger.info(f"✅ Downloaded font to {font_path}")
+                            # Check for bundled fonts in the repo
+                            bundled_fonts = [
+                                "/app/fonts/DejaVuSans.ttf",
+                                "/app/fonts/OpenSans-Regular.ttf",
+                                "/app/fonts/Roboto-Regular.ttf",
+                                "/tmp/fonts/DejaVuSans.ttf",
+                                "/tmp/fonts/OpenSans-Regular.ttf",
+                                "/app/fonts/Arial.ttf",
+                            ]
+                            for font_path in bundled_fonts:
+                                if os.path.exists(font_path):
+                                    font = ImageFont.truetype(font_path, text_layer_config.font_size)
+                                    logger.info(f"✅ Loaded bundled font: {font_path}")
+                                    break
                             else:
-                                logger.info(f"✅ Using cached font at {font_path}")
-
-                            font = ImageFont.truetype(font_path, text_layer_config.font_size)
-                            logger.info(f"✅ Loaded Google Fonts at size {text_layer_config.font_size}")
+                                logger.error("❌ No bundled fonts found. Place .ttf files in /app/fonts/")
+                                logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
+                                font = ImageFont.load_default()
 
                         except Exception as e:
-                            logger.error(f"❌ Font download/loading error: {e}")
-                            logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
+                            logger.error(f"❌ Font loading error: {e}")
                             font = ImageFont.load_default()
                 font_cache[font_key] = font
 
