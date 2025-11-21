@@ -1043,11 +1043,48 @@ async def add_text_overlay(
                             continue
 
                     if font is None:
-                        logger.warning("⚠️ No system fonts found, using tiny default font")
-                        font = ImageFont.load_default()
+                        logger.warning("⚠️ No system fonts found, attempting to use DejaVuSans from Python environment")
+                        try:
+                            # Try importing font from PIL's default font location
+                            from PIL import ImageFont
+                            import os
+                            # Try to find PIL's bundled fonts
+                            pil_font_paths = [
+                                "/usr/local/lib/python3.11/site-packages/PILDejaVuSans.ttf",
+                                "/usr/local/lib/python3.10/site-packages/PILDejaVuSans.ttf",
+                                "/opt/homebrew/lib/python3.11/site-packages/PILDejaVuSans.ttf",
+                            ]
+                            for pil_path in pil_font_paths:
+                                if os.path.exists(pil_path):
+                                    font = ImageFont.truetype(pil_path, text_layer_config.font_size)
+                                    logger.info(f"✅ Found PIL bundled font at {pil_path}")
+                                    break
+                            else:
+                                # Last resort: try DejaVuSans-Bold which is commonly available
+                                font_paths = [
+                                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                                ]
+                                for font_path in font_paths:
+                                    if os.path.exists(font_path):
+                                        font = ImageFont.truetype(font_path, text_layer_config.font_size)
+                                        logger.info(f"✅ Found bold font at {font_path}")
+                                        break
+                        except Exception as e:
+                            logger.error(f"❌ Font loading error: {e}")
+
+                        if font is None:
+                            logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
+                            font = ImageFont.load_default()
                 font_cache[font_key] = font
 
             font = font_cache[font_key]
+
+            # Log which font was loaded and its size
+            if hasattr(font, 'path'):
+                logger.info(f"📝 Using font: {font.path} at {text_layer_config.font_size}px")
+            else:
+                logger.info(f"📝 Using font: {type(font).__name__} (default/tiny) at {text_layer_config.font_size}px")
 
             # Parse color hex to RGB
             color_hex = text_layer_config.color.lstrip("#")
@@ -1081,12 +1118,13 @@ async def add_text_overlay(
                 fill=color_rgb
             )
 
-        # Paste text layer onto image using alpha channel as mask
+        # Paste text layer onto image using alpha channel as mask (like tkinter's compound='center')
         if image.mode != "RGBA":
             image = image.convert("RGBA")
 
-        # Paste text layer onto image
-        image.paste(text_layer, (0, 0), text_layer)
+        logger.info(f"🎨 Composing text layer with alpha channel (compound='center' style)")
+        # Use alpha_composite for proper layering like tkinter's compound='center'
+        image = Image.alpha_composite(image, text_layer)
 
         # Convert back to RGB for JPEG/PNG
         if image.mode == "RGBA":
