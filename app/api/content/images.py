@@ -27,6 +27,7 @@ from app.schemas import (
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
 from app.services.storage_r2 import r2_storage
+from app.services.text_renderer import TkinterTextRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -811,7 +812,7 @@ async def list_available_fonts():
     fonts = []
 
     # Search in /fonts (repo root) and subdirectories
-    font_dir = "/fonts"
+    font_dir = "/app/fonts"
 
     if os.path.exists(font_dir):
         # Find all .ttf files recursively
@@ -1011,8 +1012,10 @@ async def add_text_overlay(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add text overlay to an image using PIL/Pillow."""
-    from PIL import Image, ImageDraw, ImageFont
+    """Add text overlay to an image using Tkinter for better text rendering."""
+    # Initialize Tkinter text renderer
+    text_renderer = TkinterTextRenderer()
+    from PIL import Image
     import httpx
     from io import BytesIO
     import hashlib
@@ -1045,153 +1048,52 @@ async def add_text_overlay(
         # Open image from bytes
         image = Image.open(BytesIO(image_data)).convert("RGBA")
 
-        # Create a transparent layer for text
-        text_layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(text_layer)
+        logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using Tkinter")
 
-        # Font cache to avoid loading same font multiple times
-        font_cache = {}
-
-        # Process each text layer
+        # Process each text layer with Tkinter
         for text_layer_config in request.text_layers:
             logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({text_layer_config.x}, {text_layer_config.y}), font_size: {text_layer_config.font_size}, font_family: {text_layer_config.font_family}")
-            logger.info(f"🔍 Text layer properties - x: {text_layer_config.x}, y: {text_layer_config.y}, font_size: {text_layer_config.font_size}, font_family: {text_layer_config.font_family}, color: {text_layer_config.color}, stroke_width: {text_layer_config.stroke_width}, opacity: {text_layer_config.opacity}")
 
-            # Get or load font
-            font_key = f"{text_layer_config.font_family}_{text_layer_config.font_size}"
-            if font_key not in font_cache:
-                try:
-                    # Try to load the font
-                    font = ImageFont.truetype(f"{text_layer_config.font_family}.ttf", text_layer_config.font_size)
-                    logger.info(f"✅ Loaded font: {text_layer_config.font_family} at size {text_layer_config.font_size}")
-                except (OSError, IOError) as e:
-                    # Fall back to default font - but pass the size so PIL renders it larger
-                    logger.warning(f"⚠️ Font file not found: {text_layer_config.font_family}.ttf, using default font")
-                    # PIL's load_default ignores size, but we'll use a common system font path
-                    font_paths = [
-                        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-                        "/System/Library/Fonts/Arial.ttf",
-                        "/Windows/Fonts/arial.ttf"
-                    ]
-                    font = None
-                    for font_path in font_paths:
-                        try:
-                            font = ImageFont.truetype(font_path, text_layer_config.font_size)
-                            logger.info(f"✅ Found system font at {font_path}")
-                            break
-                        except:
-                            continue
+            try:
+                # Render text using Tkinter
+                text_image_bytes = text_renderer.render_text_with_pil(
+                    text=text_layer_config.text,
+                    font_family=text_layer_config.font_family,
+                    font_size=text_layer_config.font_size,
+                    color=text_layer_config.color,
+                    stroke_color=text_layer_config.stroke_color,
+                    stroke_width=text_layer_config.stroke_width,
+                    opacity=text_layer_config.opacity,
+                    position=(text_layer_config.x, text_layer_config.y)
+                )
 
-                    if font is None:
-                        logger.warning("⚠️ No system fonts found, trying bundled fonts...")
-                        try:
-                            # Search for bundled fonts recursively in /app/fonts/ and subdirectories
-                            import os
-                            import glob
+                # Open the rendered text as PIL Image
+                text_img = Image.open(BytesIO(text_image_bytes)).convert("RGBA")
 
-                            # Common font names to search for (without .ttf extension)
-                            font_name_map = {
-                                "arial": "Arial",
-                                "helvetica": "Helvetica",
-                                "times new roman": "Times New Roman",
-                                "times": "Times New Roman",
-                                "georgia": "Georgia",
-                                "verdana": "Verdana",
-                                "trebuchet": "Trebuchet MS",
-                                "impact": "Impact",
-                                "comic sans": "Comic Sans MS",
-                                "open sans": "Open Sans",
-                                "roboto": "Roboto",
-                                "dejavu": "DejaVu Sans",
-                            }
+                # Composite text onto the main image
+                if image.mode != "RGBA":
+                    image = image.convert("RGBA")
 
-                            # Normalize the requested font family name
-                            requested_font = text_layer_config.font_family.lower().strip()
-                            search_names = [requested_font]
+                # Create a new image to hold the composition
+                result = Image.new("RGBA", image.size, (0, 0, 0, 0))
 
-                            # Add alternative names if we have a mapping
-                            if requested_font in font_name_map:
-                                search_names.append(font_name_map[requested_font].lower())
+                # Paste the background image
+                result.paste(image, (0, 0))
 
-                            # Add common fallbacks
-                            search_names.extend(["opensans", "arial", "dejavu", "roboto", "helvetica"])
+                # Paste the text image
+                result.paste(text_img, (0, 0), text_img)
 
-                            # Search for .ttf files in /fonts and all subdirectories
-                            font_dirs = ["/fonts", "/tmp/fonts"]
-                            for font_dir in font_dirs:
-                                if os.path.exists(font_dir):
-                                    # Recursively find all .ttf files
-                                    for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
-                                        # Check if this font matches any of our search names
-                                        font_basename = os.path.basename(ttf_file).lower()
-                                        for search_name in search_names:
-                                            if search_name in font_basename:
-                                                font = ImageFont.truetype(ttf_file, text_layer_config.font_size)
-                                                logger.info(f"✅ Loaded bundled font: {ttf_file}")
-                                                break
-                                        if font is not None:
-                                            break
-                                if font is not None:
-                                    break
+                # Update image
+                image = result
 
-                            if font is None:
-                                logger.error("❌ No bundled fonts found. Place .ttf files in /fonts/ or subdirectories")
-                                logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
-                                font = ImageFont.load_default()
+            except Exception as e:
+                logger.error(f"❌ Failed to render text layer: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Text rendering failed: {str(e)}"
+                )
 
-                        except Exception as e:
-                            logger.error(f"❌ Font loading error: {e}")
-                            font = ImageFont.load_default()
-                font_cache[font_key] = font
-
-            font = font_cache[font_key]
-
-            # Log which font was loaded and its size
-            if hasattr(font, 'path'):
-                logger.info(f"📝 Using font: {font.path} at {text_layer_config.font_size}px")
-            else:
-                logger.info(f"📝 Using font: {type(font).__name__} (default/tiny) at {text_layer_config.font_size}px")
-
-            # Parse color hex to RGB
-            color_hex = text_layer_config.color.lstrip("#")
-            color_rgb = tuple(int(color_hex[i:i+2], 16) for i in (0, 2, 4))
-
-            # Create text position (convert from top-left to PIL's baseline position)
-            x, y = text_layer_config.x, text_layer_config.y
-            logger.info(f"📍 Drawing at coordinates: x={x}, y={y}")
-
-            # Draw stroke/outline if specified
-            if text_layer_config.stroke_color and text_layer_config.stroke_width > 0:
-                stroke_hex = text_layer_config.stroke_color.lstrip("#")
-                stroke_rgb = tuple(int(stroke_hex[i:i+2], 16) for i in (0, 2, 4))
-
-                # Draw text with stroke
-                for dx in range(-text_layer_config.stroke_width, text_layer_config.stroke_width + 1):
-                    for dy in range(-text_layer_config.stroke_width, text_layer_config.stroke_width + 1):
-                        if dx*dx + dy*dy <= text_layer_config.stroke_width * text_layer_config.stroke_width:
-                            draw.text(
-                                (x + dx, y + dy),
-                                text_layer_config.text,
-                                font=font,
-                                fill=stroke_rgb
-                            )
-
-            # Draw main text
-            draw.text(
-                (x, y),
-                text_layer_config.text,
-                font=font,
-                fill=color_rgb
-            )
-
-        # Paste text layer onto image using alpha channel as mask (like tkinter's compound='center')
-        if image.mode != "RGBA":
-            image = image.convert("RGBA")
-
-        logger.info(f"🎨 Composing text layer with alpha channel (compound='center' style)")
-        # Use alpha_composite for proper layering like tkinter's compound='center'
-        image = Image.alpha_composite(image, text_layer)
+        logger.info(f"✅ Text overlay complete")
 
         # Convert back to RGB for JPEG/PNG
         if image.mode == "RGBA":
