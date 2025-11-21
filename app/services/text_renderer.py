@@ -1,4 +1,5 @@
 # app/services/text_renderer.py
+# add, commit & push to  git
 
 """Text rendering service using Tkinter for high-quality text overlay."""
 import os

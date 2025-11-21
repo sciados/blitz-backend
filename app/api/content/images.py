@@ -1,4 +1,5 @@
 # app/api/content/images.py
+# add, commit & push to  git
 
 """Image generation API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
