@@ -1045,25 +1045,57 @@ async def add_text_overlay(
                     if font is None:
                         logger.warning("⚠️ No system fonts found, trying bundled fonts...")
                         try:
-                            # Try bundled fonts from repo
+                            # Search for bundled fonts recursively in /app/fonts/ and subdirectories
                             import os
+                            import glob
 
-                            # Check for bundled fonts in the repo
-                            bundled_fonts = [
-                                "/app/fonts/DejaVuSans.ttf",
-                                "/app/fonts/OpenSans-Regular.ttf",
-                                "/app/fonts/Roboto-Regular.ttf",
-                                "/tmp/fonts/DejaVuSans.ttf",
-                                "/tmp/fonts/OpenSans-Regular.ttf",
-                                "/app/fonts/Arial.ttf",
-                            ]
-                            for font_path in bundled_fonts:
-                                if os.path.exists(font_path):
-                                    font = ImageFont.truetype(font_path, text_layer_config.font_size)
-                                    logger.info(f"✅ Loaded bundled font: {font_path}")
+                            # Common font names to search for (without .ttf extension)
+                            font_name_map = {
+                                "arial": "Arial",
+                                "helvetica": "Helvetica",
+                                "times new roman": "Times New Roman",
+                                "times": "Times New Roman",
+                                "georgia": "Georgia",
+                                "verdana": "Verdana",
+                                "trebuchet": "Trebuchet MS",
+                                "impact": "Impact",
+                                "comic sans": "Comic Sans MS",
+                                "open sans": "Open Sans",
+                                "roboto": "Roboto",
+                                "dejavu": "DejaVu Sans",
+                            }
+
+                            # Normalize the requested font family name
+                            requested_font = text_layer_config.font_family.lower().strip()
+                            search_names = [requested_font]
+
+                            # Add alternative names if we have a mapping
+                            if requested_font in font_name_map:
+                                search_names.append(font_name_map[requested_font].lower())
+
+                            # Add common fallbacks
+                            search_names.extend(["opensans", "arial", "dejavu", "roboto", "helvetica"])
+
+                            # Search for .ttf files in /app/fonts and all subdirectories
+                            font_dirs = ["/app/fonts", "/tmp/fonts"]
+                            for font_dir in font_dirs:
+                                if os.path.exists(font_dir):
+                                    # Recursively find all .ttf files
+                                    for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+                                        # Check if this font matches any of our search names
+                                        font_basename = os.path.basename(ttf_file).lower()
+                                        for search_name in search_names:
+                                            if search_name in font_basename:
+                                                font = ImageFont.truetype(ttf_file, text_layer_config.font_size)
+                                                logger.info(f"✅ Loaded bundled font: {ttf_file}")
+                                                break
+                                        if font is not None:
+                                            break
+                                if font is not None:
                                     break
-                            else:
-                                logger.error("❌ No bundled fonts found. Place .ttf files in /app/fonts/")
+
+                            if font is None:
+                                logger.error("❌ No bundled fonts found. Place .ttf files in /app/fonts/ or subdirectories")
                                 logger.error("❌ CRITICAL: No fonts available. Text will be tiny!")
                                 font = ImageFont.load_default()
 
