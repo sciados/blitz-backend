@@ -801,6 +801,47 @@ async def list_campaign_images(
     )
 
 
+@router.get("/fonts", response_model=List[dict])
+async def list_available_fonts():
+    """List all available TTF fonts in the fonts directory."""
+    import os
+    import glob
+    from pathlib import Path
+
+    fonts = []
+
+    # Search in /fonts (repo root) and subdirectories
+    font_dir = "/fonts"
+
+    if os.path.exists(font_dir):
+        # Find all .ttf files recursively
+        for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+            # Get relative path from fonts directory
+            rel_path = os.path.relpath(ttf_file, font_dir)
+            # Get just the filename without extension
+            filename = os.path.basename(ttf_file)
+            name_without_ext = os.path.splitext(filename)[0]
+
+            # Create a friendly display name
+            # Replace underscores and dashes with spaces, title case
+            display_name = name_without_ext.replace("_", " ").replace("-", " ").title()
+
+            fonts.append({
+                "value": display_name,  # Used in frontend
+                "label": display_name,  # Display label
+                "filename": filename,   # Actual filename
+                "path": rel_path,       # Relative path
+                "full_path": ttf_file   # Full filesystem path
+            })
+
+    # Sort alphabetically by label
+    fonts.sort(key=lambda x: x["label"])
+
+    logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
+
+    return fonts
+
+
 @router.get("/{image_id}", response_model=ImageResponse)
 async def get_image(
     image_id: int,
@@ -1247,47 +1288,6 @@ async def add_text_overlay(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Text overlay failed: {str(e)}"
         )
-
-
-@router.get("/fonts", response_model=List[dict])
-async def list_available_fonts():
-    """List all available TTF fonts in the fonts directory."""
-    import os
-    import glob
-    from pathlib import Path
-
-    fonts = []
-
-    # Search in /fonts (repo root) and subdirectories
-    font_dir = "/fonts"
-
-    if os.path.exists(font_dir):
-        # Find all .ttf files recursively
-        for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
-            # Get relative path from fonts directory
-            rel_path = os.path.relpath(ttf_file, font_dir)
-            # Get just the filename without extension
-            filename = os.path.basename(ttf_file)
-            name_without_ext = os.path.splitext(filename)[0]
-
-            # Create a friendly display name
-            # Replace underscores and dashes with spaces, title case
-            display_name = name_without_ext.replace("_", " ").replace("-", " ").title()
-
-            fonts.append({
-                "value": display_name,  # Used in frontend
-                "label": display_name,  # Display label
-                "filename": filename,   # Actual filename
-                "path": rel_path,       # Relative path
-                "full_path": ttf_file   # Full filesystem path
-            })
-
-    # Sort alphabetically by label
-    fonts.sort(key=lambda x: x["label"])
-
-    logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
-
-    return fonts
 
 
 async def generate_thumbnail(image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
