@@ -1133,9 +1133,10 @@ async def add_text_overlay(
             if text_layer_config.font_size_percent is not None:
                 scaled_font_size = int(image.width * text_layer_config.font_size_percent / 100)
                 logger.info(f"🎨 Font size: {text_layer_config.font_size_percent}% of {image.width} = {scaled_font_size}px")
+                logger.info(f"🎨 Frontend sent font_size_percent: {text_layer_config.font_size_percent}%")
             else:
                 scaled_font_size = int(text_layer_config.font_size)
-                logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px")
+                logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px (no percentage)")
 
             logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
 
