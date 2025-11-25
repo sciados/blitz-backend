@@ -1087,22 +1087,46 @@ async def add_text_overlay(
         image = Image.open(BytesIO(image_data)).convert("RGBA")
 
         logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using Tkinter")
+        logger.info(f"🖼️ Original image size: {image.width}x{image.height}")
+
+        # Calculate resize ratio if display dimensions provided
+        resize_ratio_x = 1.0
+        resize_ratio_y = 1.0
+        if request.display_width or request.display_height:
+            if request.display_width and not request.display_height:
+                resize_ratio_x = image.width / request.display_width
+                resize_ratio_y = image.height / int(image.height / resize_ratio_x)
+            elif request.display_height and not request.display_width:
+                resize_ratio_y = image.height / request.display_height
+                resize_ratio_x = image.width / int(image.width / resize_ratio_y)
+            else:
+                resize_ratio_x = image.width / request.display_width
+                resize_ratio_y = image.height / request.display_height
+
+        logger.info(f"📐 Resize ratios: X={resize_ratio_x:.2f}, Y={resize_ratio_y:.2f}")
 
         # Process each text layer with Tkinter
         for text_layer_config in request.text_layers:
-            logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({text_layer_config.x}, {text_layer_config.y}), font_size: {text_layer_config.font_size}, font_family: {text_layer_config.font_family}")
+            # Scale coordinates to match the image if it will be resized
+            # This ensures text appears at the correct position relative to display size
+            scaled_x = int(text_layer_config.x * resize_ratio_x)
+            scaled_y = int(text_layer_config.y * resize_ratio_y)
+            scaled_font_size = int(text_layer_config.font_size * resize_ratio_y)
+
+            logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
+            logger.info(f"🎨 Original position: ({text_layer_config.x}, {text_layer_config.y}), original font_size: {text_layer_config.font_size}")
 
             try:
-                # Render text using Tkinter
+                # Render text using Tkinter with scaled coordinates and font size
                 text_image_bytes = text_renderer.render_text_with_pil(
                     text=text_layer_config.text,
                     font_family=text_layer_config.font_family,
-                    font_size=text_layer_config.font_size,
+                    font_size=scaled_font_size,
                     color=text_layer_config.color,
                     stroke_color=text_layer_config.stroke_color,
                     stroke_width=text_layer_config.stroke_width,
                     opacity=text_layer_config.opacity,
-                    position=(text_layer_config.x, text_layer_config.y)
+                    position=(scaled_x, scaled_y)
                 )
 
                 # Open the rendered text as PIL Image
@@ -1119,10 +1143,10 @@ async def add_text_overlay(
                 result.paste(image, (0, 0))
 
                 # Log text image dimensions and position
-                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}, pasting at ({text_layer_config.x}, {text_layer_config.y})")
+                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}, pasting at ({scaled_x}, {scaled_y})")
 
-                # Paste the text image at the correct position
-                result.paste(text_img, (text_layer_config.x, text_layer_config.y), text_img)
+                # Paste the text image at the scaled position
+                result.paste(text_img, (scaled_x, scaled_y), text_img)
 
                 # Update image
                 image = result
