@@ -1107,14 +1107,31 @@ async def add_text_overlay(
 
         # Process each text layer with Tkinter
         for text_layer_config in request.text_layers:
-            # Scale coordinates to match the image if it will be resized
-            # This ensures text appears at the correct position relative to display size
-            scaled_x = int(text_layer_config.x * resize_ratio_x)
-            scaled_y = int(text_layer_config.y * resize_ratio_y)
-            scaled_font_size = int(text_layer_config.font_size * resize_ratio_y)
+            # Use PERCENTAGES for consistent positioning across all image sizes
+            # If percentage provided, calculate pixel position from percentage
+            # Otherwise fall back to pixel value (for backward compatibility)
+            if text_layer_config.x_percent is not None:
+                scaled_x = int(image.width * text_layer_config.x_percent / 100)
+                logger.info(f"🎨 X: {text_layer_config.x_percent}% of {image.width} = {scaled_x}px")
+            else:
+                scaled_x = int(text_layer_config.x * resize_ratio_x)
+                logger.info(f"🎨 X: absolute pixel value scaled by {resize_ratio_x:.2f} = {scaled_x}px")
+
+            if text_layer_config.y_percent is not None:
+                scaled_y = int(image.height * text_layer_config.y_percent / 100)
+                logger.info(f"🎨 Y: {text_layer_config.y_percent}% of {image.height} = {scaled_y}px")
+            else:
+                scaled_y = int(text_layer_config.y * resize_ratio_y)
+                logger.info(f"🎨 Y: absolute pixel value scaled by {resize_ratio_y:.2f} = {scaled_y}px")
+
+            if text_layer_config.font_size_percent is not None:
+                scaled_font_size = int(image.width * text_layer_config.font_size_percent / 100)
+                logger.info(f"🎨 Font size: {text_layer_config.font_size_percent}% of {image.width} = {scaled_font_size}px")
+            else:
+                scaled_font_size = int(text_layer_config.font_size * resize_ratio_y)
+                logger.info(f"🎨 Font size: absolute value scaled by {resize_ratio_y:.2f} = {scaled_font_size}px")
 
             logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
-            logger.info(f"🎨 Original position: ({text_layer_config.x}, {text_layer_config.y}), original font_size: {text_layer_config.font_size}")
 
             try:
                 # Render text using Tkinter with scaled coordinates and font size

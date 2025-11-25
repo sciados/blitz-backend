@@ -370,6 +370,10 @@ class TextLayer(BaseModel):
     stroke_color: Optional[str] = None
     stroke_width: int = 0
     opacity: float = 1.0  # 0.0 to 1.0
+    # Percentage-based positioning for consistent placement across image sizes
+    x_percent: Optional[float] = None
+    y_percent: Optional[float] = None
+    font_size_percent: Optional[float] = None
 
 
 class ImageTextOverlayRequest(BaseModel):
