@@ -1184,6 +1184,7 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) with anchor='lt'")
                 # Draw stroke by drawing text multiple times with offset
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
@@ -1192,7 +1193,8 @@ async def add_text_overlay(
                                 (x + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
-                                fill=stroke_rgb
+                                fill=stroke_rgb,
+                                anchor="lt"  # Match main text anchor
                             )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
@@ -1214,14 +1216,23 @@ async def add_text_overlay(
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
-            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} → {y_adjusted} (top)"
+            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} → {y_adjusted} (anchor='lt')"
             draw.text(
                 (x, image.height - 30),
                 debug_text,
                 font=debug_font,
                 fill=(255, 0, 0)  # Red text
             )
+            # Also draw a small marker at the text position
+            draw.rectangle([x-2, y_adjusted-2, x+2, y_adjusted+2], fill=(0, 255, 0))  # Green marker
+            draw.text(
+                (x + 10, y_adjusted - 10),
+                f"TOP-LEFT",
+                font=debug_font,
+                fill=(0, 255, 0)
+            )
             logger.info(f"🏷️ Debug label drawn at bottom: ({x}, {image.height - 30})")
+            logger.info(f"📍 Green marker drawn at text top-left: ({x}, {y_adjusted})")
 
         logger.info(f"✅ Text overlay complete")
 
