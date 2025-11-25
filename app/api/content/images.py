@@ -1172,23 +1172,10 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
             logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
 
-            # Calculate baseline offset more accurately
-            # For most fonts, baseline is at ~75-85% from top of bounding box
-            text_height = bbox[3] - bbox[1]
-            # For Arial, observed Y discrepancy: text appears 13px too high
-            # To move text DOWN, we need a SMALLER baseline offset
-            # Try 70% for Arial (vs 75% default)
-            baseline_percentage = 0.70 if "arial" in text_layer_config.font_family.lower() else 0.75
-            baseline_from_top = int(text_height * baseline_percentage)
-
-            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px ({int(baseline_percentage * 100)}%)")
-
-            # Position the TEXT BOX (not baseline) to match frontend positioning
-            # Frontend positions the text box top-left, so we draw at that position directly
-            y_adjusted = y  # No adjustment - position the text box directly
-
-            logger.info(f"📏 Positioning text box: Y {y} (no baseline adjustment)")
-            logger.info(f"🎯 Using y_adjusted: {y_adjusted} (baseline_from_top was: {baseline_from_top}px)")
+            # Using anchor="lt" so coordinates (x, y) represent TOP-LEFT of text
+            # No adjustment needed - frontend already sends top-left coords!
+            y_adjusted = y
+            logger.info(f"📏 Using anchor='lt' - no Y adjustment needed: {y_adjusted} (top-left position)")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
@@ -1212,20 +1199,22 @@ async def add_text_overlay(
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
 
-            # Draw main text
+            # Draw main text at TOP-LEFT position (not baseline)
+            # Use anchor="lt" to position by top-left corner
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
-                fill=color_rgb
+                fill=color_rgb,
+                anchor="lt"  # Position by top-left, not baseline!
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) using anchor='lt'")
 
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
-            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} (y_adj: {y_adjusted})"
+            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} → {y_adjusted} (top)"
             draw.text(
                 (x, image.height - 30),
                 debug_text,
