@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/content/images", tags=["images"])
 
+# Text Overlay - Simple direct positioning using bbox[1] offset
+
 
 # Dependency to get ImageGenerator instance
 def get_image_generator() -> ImageGenerator:
