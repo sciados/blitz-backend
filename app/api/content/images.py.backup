@@ -1044,21 +1044,20 @@ async def create_variations(
     ]
 
 
-
 @router.post("/text-overlay", response_model=ImageTextOverlayResponse, status_code=status.HTTP_201_CREATED)
 async def add_text_overlay(
     request: ImageTextOverlayRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add text overlay to an image using PIL - SIMPLE VERSION."""
-    from PIL import Image, ImageDraw, ImageFont
+    """Add text overlay to an image using Tkinter for better text rendering."""
+    # Initialize Tkinter text renderer
+    text_renderer = TkinterTextRenderer()
+    from PIL import Image
     import httpx
     from io import BytesIO
     import hashlib
     import time
-    import os
-    import glob
 
     # Verify campaign ownership if campaign_id is provided
     campaign = None
@@ -1077,36 +1076,6 @@ async def add_text_overlay(
                 detail="Campaign not found"
             )
 
-    def _hex_to_rgb(hex_color: str):
-        """Convert hex color to RGB tuple."""
-        hex_color = hex_color.lstrip('#')
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-
-    def _find_font_file(font_family: str):
-        """Find TTF font file for given font family."""
-        font_name = font_family.lower().strip()
-        font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts"]
-
-        # Search in directories
-        for font_dir in font_dirs:
-            if os.path.exists(font_dir):
-                # Find all .ttf files recursively
-                for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
-                    font_basename = os.path.basename(ttf_file).lower()
-                    font_name_only = os.path.splitext(font_basename)[0]
-
-                    # Normalize for comparison
-                    font_name_normalized = font_name.replace(" ", "").replace("-", "").replace("_", "")
-                    font_name_only_normalized = font_name_only.replace("-", "").replace("_", "")
-
-                    # Check if normalized font name matches
-                    if font_name_normalized in font_name_only_normalized or font_name_only_normalized in font_name_normalized:
-                        logger.info(f"✅ Font matched: '{font_family}' -> '{ttf_file}'")
-                        return ttf_file
-
-        logger.warning(f"❌ Font not found: '{font_family}', using default")
-        return None
-
     try:
         # Download image from URL
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -1117,60 +1086,103 @@ async def add_text_overlay(
         # Open image from bytes
         image = Image.open(BytesIO(image_data)).convert("RGBA")
 
-        logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using PIL")
+        logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using Tkinter")
         logger.info(f"🖼️ Original image size: {image.width}x{image.height}")
+        logger.info(f"🖼️ Display size from frontend: {request.display_width}x{request.display_height}")
 
-        # Create draw object
-        draw = ImageDraw.Draw(image)
-
-        # Process each text layer
-        for text_layer_config in request.text_layers:
-            # Use ABSOLUTE pixel coordinates
-            x = int(text_layer_config.x)
-            y = int(text_layer_config.y)
-            font_size = int(text_layer_config.font_size)
-
-            logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
-
-            # Find and load font
-            font_path = _find_font_file(text_layer_config.font_family)
-            if font_path:
-                font = ImageFont.truetype(font_path, font_size)
+        # Resize image if display dimensions provided
+        # NOTE: If no display_width/height sent, we keep FULL RESOLUTION for marketing quality
+        if request.display_width or request.display_height:
+            if request.display_width and not request.display_height:
+                # Only width provided, calculate height maintaining aspect ratio
+                ratio = image.width / request.display_width
+                new_width = request.display_width
+                new_height = int(image.height / ratio)
+            elif request.display_height and not request.display_width:
+                # Only height provided, calculate width maintaining aspect ratio
+                ratio = image.height / request.display_height
+                new_height = request.display_height
+                new_width = int(image.width / ratio)
             else:
-                font = ImageFont.load_default()
+                # Both provided, use them
+                new_width = request.display_width
+                new_height = request.display_height
 
-            # Convert colors
-            color_rgb = _hex_to_rgb(text_layer_config.color)
+            logger.info(f"🔄 Resizing image from {image.width}x{image.height} to {new_width}x{new_height}")
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"✅ Image resized successfully")
 
-            # Draw stroke if specified
-            if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
-                stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
-                stroke_width = int(text_layer_config.stroke_width)
-                # Draw stroke by drawing text multiple times with offset
-                for dx in range(-stroke_width, stroke_width + 1):
-                    for dy in range(-stroke_width, stroke_width + 1):
-                        if dx*dx + dy*dy <= stroke_width * stroke_width:
-                            draw.text(
-                                (x + dx, y + dy),
-                                text_layer_config.text,
-                                font=font,
-                                fill=stroke_rgb
-                            )
+        # Process each text layer with Tkinter
+        for text_layer_config in request.text_layers:
+            # Use ABSOLUTE pixel coordinates (no percentage scaling)
+            # Coordinates are already based on the ORIGINAL image size
+            scaled_x = int(text_layer_config.x)
+            scaled_y = int(text_layer_config.y)
+            scaled_font_size = int(text_layer_config.font_size)
 
-            # Draw main text
-            draw.text(
-                (x, y),
-                text_layer_config.text,
-                font=font,
-                fill=color_rgb
-            )
+            logger.info(f"🎨 X: absolute pixel value = {scaled_x}px")
+            logger.info(f"🎨 Y: absolute pixel value = {scaled_y}px")
+            logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px")
+
+            logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
+
+            try:
+                # Render text using Tkinter with scaled coordinates and font size
+                # The renderer draws text at position (stroke_padding + left_bearing)
+                # So we need to subtract BOTH to get precise alignment at (scaled_x, scaled_y)
+                stroke_padding = text_layer_config.stroke_width * 2 if text_layer_config.stroke_width > 0 else 0
+                text_image_bytes, left_bearing = text_renderer.render_text_with_pil(
+                    text=text_layer_config.text,
+                    font_family=text_layer_config.font_family,
+                    font_size=scaled_font_size,
+                    color=text_layer_config.color,
+                    stroke_color=text_layer_config.stroke_color,
+                    stroke_width=text_layer_config.stroke_width,
+                    opacity=text_layer_config.opacity,
+                    position=(scaled_x, scaled_y)
+                )
+
+                # Open the rendered text as PIL Image
+                text_img = Image.open(BytesIO(text_image_bytes)).convert("RGBA")
+
+                # Composite text onto the main image
+                if image.mode != "RGBA":
+                    image = image.convert("RGBA")
+
+                # Create a new image to hold the composition
+                result = Image.new("RGBA", image.size, (0, 0, 0, 0))
+
+                # Paste the background image
+                result.paste(image, (0, 0))
+
+                # Log text image dimensions and position
+                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}")
+                logger.info(f"📍 Stroke padding: {stroke_padding}px")
+                logger.info(f"📍 Left bearing offset: {left_bearing}px")
+                logger.info(f"📍 Pasting text at: ({scaled_x - stroke_padding - left_bearing}, {scaled_y}) to compensate")
+
+                # Paste the text image, adjusted for both stroke padding and left bearing offset
+                # Text ink in the text image is at position: (stroke_padding + left_bearing)
+                # So we subtract both from paste position to get precise alignment
+                result.paste(text_img, (scaled_x - stroke_padding - left_bearing, scaled_y), text_img)
+
+                # Update image
+                image = result
+
+            except Exception as e:
+                logger.error(f"❌ Failed to render text layer: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Text rendering failed: {str(e)}"
+                )
 
         logger.info(f"✅ Text overlay complete")
 
-        # Convert back to RGB
+        # Convert back to RGB for JPEG/PNG
         if image.mode == "RGBA":
+            # Create white background
             background = Image.new("RGB", image.size, (255, 255, 255))
-            background.paste(image, mask=image.split()[3])
+            background.paste(image, mask=image.split()[3])  # Use alpha channel as mask
             final_image = background
         else:
             final_image = image
@@ -1206,7 +1218,7 @@ async def add_text_overlay(
                 "original_image_url": request.image_url,
                 "text_layers": [layer.dict() for layer in request.text_layers]
             },
-            ai_generation_cost=0.0,
+            ai_generation_cost=0.0,  # Text overlay is free
             content_id=None
         )
 
@@ -1236,7 +1248,7 @@ async def add_text_overlay(
             detail=f"Failed to download image: {str(e)}"
         )
     except Exception as e:
-        logger.error(f"Text overlay failed: {e}", exc_info=True)
+        logger.error(f"Text overlay failed: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Text overlay failed: {str(e)}"
