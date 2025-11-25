@@ -1155,6 +1155,7 @@ async def add_text_overlay(
             y = int(text_layer_config.y)
             font_size = int(text_layer_config.font_size)
 
+            logger.info(f"📥 Received coords: x={x}, y={y}, font_size={font_size}")
             logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
 
             # Find and load font
@@ -1182,10 +1183,12 @@ async def add_text_overlay(
 
             logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px ({int(baseline_percentage * 100)}%)")
 
-            # Adjust Y position: we want the BASELINE at our desired Y position
-            y_adjusted = y - baseline_from_top
+            # Position the TEXT BOX (not baseline) to match frontend positioning
+            # Frontend positions the text box top-left, so we draw at that position directly
+            y_adjusted = y  # No adjustment - position the text box directly
 
-            logger.info(f"📏 Baseline calculation: Y {y} → {y_adjusted} (subtract {baseline_from_top}px)")
+            logger.info(f"📏 Positioning text box: Y {y} (no baseline adjustment)")
+            logger.info(f"🎯 Using y_adjusted: {y_adjusted} (baseline_from_top was: {baseline_from_top}px)")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
@@ -1205,6 +1208,10 @@ async def add_text_overlay(
                                 fill=stroke_rgb
                             )
 
+            logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
+            logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
+            logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
+
             # Draw main text
             draw.text(
                 (x, y_adjusted),
@@ -1213,16 +1220,19 @@ async def add_text_overlay(
                 fill=color_rgb
             )
 
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
+
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
-            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} (baseline: {y_adjusted + baseline_from_top})"
+            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} (y_adj: {y_adjusted})"
             draw.text(
                 (x, image.height - 30),
                 debug_text,
                 font=debug_font,
                 fill=(255, 0, 0)  # Red text
             )
+            logger.info(f"🏷️ Debug label drawn at bottom: ({x}, {image.height - 30})")
 
         logger.info(f"✅ Text overlay complete")
 
@@ -1238,6 +1248,9 @@ async def add_text_overlay(
         buffer = BytesIO()
         final_image.save(buffer, format="PNG", quality=95)
         composed_image_data = buffer.getvalue()
+
+        logger.info(f"💾 Saved composed image: {len(composed_image_data)} bytes, format={final_image.format if hasattr(final_image, 'format') else 'N/A'}, mode={final_image.mode}, size={final_image.size}")
+        logger.info(f"🔍 First 100 bytes (hex): {composed_image_data[:100].hex()}")
 
         # Upload to R2
         r2_key, image_url = await r2_storage.upload_file(
