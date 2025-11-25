@@ -1185,10 +1185,11 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Calculate textbox positioning using ascender
-            # The ascender is the distance from baseline to top of capital letters
-            # To position the textbox TOP at Y, we need to place the baseline at Y - ascender
-            y_adjusted = y - ascent
+            # Calculate textbox positioning
+            # Text TOP aligns with green marker (Y) in preview
+            # To move text DOWN when saving, position baseline at Y + ascender
+            # Text extends UP from baseline, so baseline at Y+ascender = text top at Y
+            y_adjusted = y + ascent
             logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
@@ -1211,15 +1212,13 @@ async def add_text_overlay(
                                 fill=stroke_rgb
                             )
 
-            # Debug: Draw a yellow rectangle at the baseline position
-            draw.rectangle([x-2, y_adjusted-2, x+50, y_adjusted+2], fill=(255, 255, 0))
-            logger.info(f"🎨 Yellow baseline marker at: ({x}, {y_adjusted})")
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
 
-            # Draw main text at BASELINE position
-            # Use default anchor (baseline) - simpler and more accurate
+            # Draw main text at baseline position
+            # Baseline is positioned at y_adjusted = y + ascent
+            # This pushes the text down so the top aligns with green marker
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
@@ -1227,7 +1226,7 @@ async def add_text_overlay(
                 fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) using baseline anchor")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) - pushed down by ascender")
 
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
