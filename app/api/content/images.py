@@ -1141,8 +1141,9 @@ async def add_text_overlay(
 
             try:
                 # Render text using Tkinter with scaled coordinates and font size
-                # NOTE: The renderer will add left_bearing_offset inside the text image
-                # so we need to subtract it from the paste position to get precise alignment
+                # The renderer draws text at position (stroke_padding + left_bearing)
+                # So we need to subtract BOTH to get precise alignment at (scaled_x, scaled_y)
+                stroke_padding = text_layer_config.stroke_width * 2 if text_layer_config.stroke_width > 0 else 0
                 text_image_bytes, left_bearing = text_renderer.render_text_with_pil(
                     text=text_layer_config.text,
                     font_family=text_layer_config.font_family,
@@ -1169,13 +1170,14 @@ async def add_text_overlay(
 
                 # Log text image dimensions and position
                 logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}")
+                logger.info(f"📍 Stroke padding: {stroke_padding}px")
                 logger.info(f"📍 Left bearing offset: {left_bearing}px")
-                logger.info(f"📍 Pasting text at: ({scaled_x - left_bearing}, {scaled_y}) to compensate")
+                logger.info(f"📍 Pasting text at: ({scaled_x - stroke_padding - left_bearing}, {scaled_y}) to compensate")
 
-                # Paste the text image, adjusted for left bearing offset
-                # Text ink starts at left_bearing_offset inside the text image
-                # So we subtract that from paste position to get precise alignment
-                result.paste(text_img, (scaled_x - left_bearing, scaled_y), text_img)
+                # Paste the text image, adjusted for both stroke padding and left bearing offset
+                # Text ink in the text image is at position: (stroke_padding + left_bearing)
+                # So we subtract both from paste position to get precise alignment
+                result.paste(text_img, (scaled_x - stroke_padding - left_bearing, scaled_y), text_img)
 
                 # Update image
                 image = result
