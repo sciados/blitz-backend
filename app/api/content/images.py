@@ -1172,10 +1172,12 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
             logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
 
-            # Using anchor="lt" so coordinates (x, y) represent TOP-LEFT of text
-            # No adjustment needed - frontend already sends top-left coords!
-            y_adjusted = y
-            logger.info(f"📏 Using anchor='lt' - no Y adjustment needed: {y_adjusted} (top-left position)")
+            # Position the TEXTBOX (bounding box) at the desired Y coordinate
+            # bbox[1] = 24 is the top of the text content within the textbox
+            # To position the textbox at Y = 155, we need to subtract the ascender offset
+            textbox_top_offset = bbox[1]  # 24 - this is the space above the text
+            y_adjusted = y - textbox_top_offset
+            logger.info(f"📏 Positioning textbox at Y={y} (subtract ascender {textbox_top_offset} = {y_adjusted})")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
