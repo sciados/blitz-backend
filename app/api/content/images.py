@@ -1139,14 +1139,6 @@ async def add_text_overlay(
             else:
                 font = ImageFont.load_default()
 
-            # Get font metrics to adjust Y position
-            # PIL positions text at top-left of bounding box, but we want baseline positioning
-            # Most fonts have ascender ~80% of font_size
-            ascender = int(font_size * 0.8)
-            y_adjusted = y - ascender
-
-            logger.info(f"📏 Font ascender: {ascender}px, adjusted Y: {y} → {y_adjusted}")
-
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
 
@@ -1159,7 +1151,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y_adjusted + dy),
+                                (x + dx, y + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1167,7 +1159,7 @@ async def add_text_overlay(
 
             # Draw main text
             draw.text(
-                (x, y_adjusted),
+                (x, y),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
