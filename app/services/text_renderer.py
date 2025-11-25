@@ -146,10 +146,14 @@ class TkinterTextRenderer:
             # Add 20% of font size as descender space
             descender_padding = int(font_size * 0.2)
 
-            # Create image - big enough for text + padding
-            # NO LEFT PADDING - text starts at left edge for precise positioning
-            img_width = text_width + stroke_padding  # Only right padding
-            img_height = text_height + stroke_padding + descender_padding  # Top + bottom padding
+            # Account for font left-side bearing - the actual text ink starts INSIDE the bounding box
+            # bbox[0] tells us how far inside the bounding box the ink starts
+            # We need to shift the text LEFT by this amount so ink aligns with x=0
+            left_bearing_offset = bbox[0]
+
+            # Create image - big enough for text + padding + left bearing compensation
+            img_width = text_width + stroke_padding + left_bearing_offset
+            img_height = text_height + stroke_padding + descender_padding
 
             img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
@@ -159,9 +163,10 @@ class TkinterTextRenderer:
             stroke_rgb = self._hex_to_rgb(stroke_color) if stroke_color else (0, 0, 0)
 
             # Calculate text position within the image
-            # NO LEFT PADDING - text starts at x=0
-            text_x = 0
-            text_y = stroke_padding  # Only top padding
+            # Draw text with negative X offset to account for left-side bearing
+            # This shifts the ink LEFT so it aligns with x=0 in the text image
+            text_x = stroke_padding - left_bearing_offset
+            text_y = stroke_padding
 
             # Draw stroke if specified (around the text)
             if stroke_width > 0 and stroke_color:
