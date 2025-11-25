@@ -1146,13 +1146,21 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
             logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
 
-            # Adjust Y position: PIL draws from top of bounding box, but we want baseline
-            # Observed: Y=155 saves at Y=141 (14 pixels too high)
-            # Fix: Add 14 pixels to move text down to correct baseline position
-            BASELINE_OFFSET = 14  # pixels to add to Y coordinate
-            y_adjusted = y + BASELINE_OFFSET
+            # Calculate baseline offset dynamically from font metrics
+            # PIL draws from TOP of bounding box (bbox[1]), but we want BASELINE
+            # Baseline is where letters like 'a', 'e', 'c' sit (typically 80-85% up from bottom)
+            text_height = bbox[3] - bbox[1]  # total height of text
+            baseline_offset = int(text_height * 0.8)  # baseline is ~80% up from bottom
 
-            logger.info(f"📏 Baseline adjustment: +{BASELINE_OFFSET}px, Y {y} → {y_adjusted}")
+            # For better precision, also check the actual text's top position
+            top_of_text = bbox[1]
+            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_offset: {baseline_offset}px, top_of_text: {top_of_text}")
+
+            # Adjust Y position: we want the BASELINE at our desired Y position
+            # If PIL draws from top, we need to move down by: (baseline_offset - top_of_text)
+            y_adjusted = y - top_of_text + baseline_offset
+
+            logger.info(f"📏 Baseline calculation: Y {y} → {y_adjusted} (adjustment: -{top_of_text} + {baseline_offset})")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
