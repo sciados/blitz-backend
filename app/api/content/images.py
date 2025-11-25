@@ -1172,12 +1172,17 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
             logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
 
-            # Position the TEXTBOX (bounding box) at the desired Y coordinate
-            # bbox[1] = 24 is the top of the text content within the textbox
-            # To position the textbox at Y = 155, we need to subtract the ascender offset
-            textbox_top_offset = bbox[1]  # 24 - this is the space above the text
-            y_adjusted = y - textbox_top_offset
-            logger.info(f"📏 Positioning textbox at Y={y} (subtract ascender {textbox_top_offset} = {y_adjusted})")
+            # Calculate ascender dynamically for this font and size
+            ascent, descent = font.getmetrics()
+            ascender_percent = ascent / font_size  # Calculate as percentage of font size
+            logger.info(f"📏 Font metrics: ascent={ascent}, descent={descent}, font_size={font_size}")
+            logger.info(f"📏 Ascender percentage: {ascender_percent:.3f} of font size")
+
+            # To position the TEXTBOX at Y, we need to position the BASELINE at Y + ascender
+            # Textbox top = baseline - ascender
+            # baseline = textbox top + ascender = Y + ascender
+            y_adjusted = y + ascent
+            logger.info(f"📏 Positioning baseline: Y={y} + ascender({ascent}) = {y_adjusted} (baseline for textbox at Y)")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
@@ -1226,15 +1231,17 @@ async def add_text_overlay(
                 fill=(255, 0, 0)  # Red text
             )
             # Also draw a small marker at the text position
-            draw.rectangle([x-2, y_adjusted-2, x+2, y_adjusted+2], fill=(0, 255, 0))  # Green marker
+            # Offset marker to show where textbox TOP should be (not where text is drawn)
+            textbox_top_marker_y = y_adjusted - 24  # Compensate for the 24px offset issue
+            draw.rectangle([x-2, textbox_top_marker_y-2, x+2, textbox_top_marker_y+2], fill=(0, 255, 0))  # Green marker
             draw.text(
-                (x + 10, y_adjusted - 10),
-                f"TOP-LEFT",
+                (x + 10, textbox_top_marker_y - 10),
+                f"TEXTBOX",
                 font=debug_font,
                 fill=(0, 255, 0)
             )
             logger.info(f"🏷️ Debug label drawn at bottom: ({x}, {image.height - 30})")
-            logger.info(f"📍 Green marker drawn at text top-left: ({x}, {y_adjusted})")
+            logger.info(f"📍 Green marker drawn at textbox top: ({x}, {textbox_top_marker_y})")
 
         logger.info(f"✅ Text overlay complete")
 
