@@ -1088,48 +1088,54 @@ async def add_text_overlay(
 
         logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using Tkinter")
         logger.info(f"🖼️ Original image size: {image.width}x{image.height}")
+        logger.info(f"🖼️ Display size from frontend: {request.display_width}x{request.display_height}")
 
-        # Calculate resize ratio if display dimensions provided
-        resize_ratio_x = 1.0
-        resize_ratio_y = 1.0
+        # Resize image if display dimensions provided
+        # NOTE: If no display_width/height sent, we keep FULL RESOLUTION for marketing quality
         if request.display_width or request.display_height:
             if request.display_width and not request.display_height:
-                resize_ratio_x = image.width / request.display_width
-                resize_ratio_y = image.height / int(image.height / resize_ratio_x)
+                # Only width provided, calculate height maintaining aspect ratio
+                ratio = image.width / request.display_width
+                new_width = request.display_width
+                new_height = int(image.height / ratio)
             elif request.display_height and not request.display_width:
-                resize_ratio_y = image.height / request.display_height
-                resize_ratio_x = image.width / int(image.width / resize_ratio_y)
+                # Only height provided, calculate width maintaining aspect ratio
+                ratio = image.height / request.display_height
+                new_height = request.display_height
+                new_width = int(image.width / ratio)
             else:
-                resize_ratio_x = image.width / request.display_width
-                resize_ratio_y = image.height / request.display_height
+                # Both provided, use them
+                new_width = request.display_width
+                new_height = request.display_height
 
-        logger.info(f"📐 Resize ratios: X={resize_ratio_x:.2f}, Y={resize_ratio_y:.2f}")
+            logger.info(f"🔄 Resizing image from {image.width}x{image.height} to {new_width}x{new_height}")
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"✅ Image resized successfully")
 
         # Process each text layer with Tkinter
         for text_layer_config in request.text_layers:
             # Use PERCENTAGES for consistent positioning across all image sizes
-            # If percentage provided, calculate pixel position from percentage
-            # Otherwise fall back to pixel value (for backward compatibility)
+            # Calculate position based on CURRENT image size (after resize)
             if text_layer_config.x_percent is not None:
                 scaled_x = int(image.width * text_layer_config.x_percent / 100)
                 logger.info(f"🎨 X: {text_layer_config.x_percent}% of {image.width} = {scaled_x}px")
             else:
-                scaled_x = int(text_layer_config.x * resize_ratio_x)
-                logger.info(f"🎨 X: absolute pixel value scaled by {resize_ratio_x:.2f} = {scaled_x}px")
+                scaled_x = int(text_layer_config.x)
+                logger.info(f"🎨 X: absolute pixel value = {scaled_x}px")
 
             if text_layer_config.y_percent is not None:
                 scaled_y = int(image.height * text_layer_config.y_percent / 100)
                 logger.info(f"🎨 Y: {text_layer_config.y_percent}% of {image.height} = {scaled_y}px")
             else:
-                scaled_y = int(text_layer_config.y * resize_ratio_y)
-                logger.info(f"🎨 Y: absolute pixel value scaled by {resize_ratio_y:.2f} = {scaled_y}px")
+                scaled_y = int(text_layer_config.y)
+                logger.info(f"🎨 Y: absolute pixel value = {scaled_y}px")
 
             if text_layer_config.font_size_percent is not None:
                 scaled_font_size = int(image.width * text_layer_config.font_size_percent / 100)
                 logger.info(f"🎨 Font size: {text_layer_config.font_size_percent}% of {image.width} = {scaled_font_size}px")
             else:
-                scaled_font_size = int(text_layer_config.font_size * resize_ratio_y)
-                logger.info(f"🎨 Font size: absolute value scaled by {resize_ratio_y:.2f} = {scaled_font_size}px")
+                scaled_font_size = int(text_layer_config.font_size)
+                logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px")
 
             logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
 
@@ -1185,26 +1191,6 @@ async def add_text_overlay(
             final_image = background
         else:
             final_image = image
-
-        # If display dimensions provided, resize the final image while maintaining aspect ratio
-        if request.display_width or request.display_height:
-            if request.display_width and not request.display_height:
-                # Only width provided, calculate height maintaining aspect ratio
-                ratio = final_image.width / request.display_width
-                new_width = request.display_width
-                new_height = int(final_image.height / ratio)
-            elif request.display_height and not request.display_width:
-                # Only height provided, calculate width maintaining aspect ratio
-                ratio = final_image.height / request.display_height
-                new_height = request.display_height
-                new_width = int(final_image.width / ratio)
-            else:
-                # Both provided, use them
-                new_width = request.display_width
-                new_height = request.display_height
-
-            logger.info(f"Resizing image from {final_image.width}x{final_image.height} to {new_width}x{new_height}")
-            final_image = final_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         # Save to bytes buffer
         buffer = BytesIO()
