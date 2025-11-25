@@ -1185,12 +1185,10 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Calculate textbox positioning
-            # bbox[1] is the TOP of text relative to baseline (usually negative, e.g., -74)
-            # To position the textbox TOP at Y, we need: baseline + bbox[1] = Y
-            # Therefore: baseline = Y - bbox[1]
-            # But since bbox[1] is negative, this = Y + |bbox[1]|
-            y_adjusted = y - text_top_offset  # text_top_offset is bbox[1]
+            # Calculate textbox positioning using ascender
+            # The ascender is the distance from baseline to top of capital letters
+            # To position the textbox TOP at Y, we need to place the baseline at Y - ascender
+            y_adjusted = y - ascent
             logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
