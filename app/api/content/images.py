@@ -1146,17 +1146,16 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
             logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
 
-            # Calculate baseline offset dynamically from font metrics
-            # PIL draws from TOP of bounding box (bbox[1]), but we want BASELINE
-            # Baseline is where letters like 'a', 'e', 'c' sit
-            text_height = bbox[3] - bbox[1]  # total height of text
-            # Typical baseline is at: top + (ascender / (ascender + descender)) * text_height
-            # Or approximately 80% from top
-            baseline_from_top = int(text_height * 0.8)
-            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px")
+            # Calculate baseline offset more accurately
+            # For most fonts, baseline is at ~75-85% from top of bounding box
+            # This varies by font, but 80% is a good approximation
+            text_height = bbox[3] - bbox[1]
+            # Try 75% instead of 80% - may be more accurate
+            baseline_from_top = int(text_height * 0.75)
+
+            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px (75%)")
 
             # Adjust Y position: we want the BASELINE at our desired Y position
-            # PIL draws from top, so we need to position it at: Y - baseline_distance
             y_adjusted = y - baseline_from_top
 
             logger.info(f"📏 Baseline calculation: Y {y} → {y_adjusted} (subtract {baseline_from_top}px)")
@@ -1185,6 +1184,15 @@ async def add_text_overlay(
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
+            )
+
+            # Draw debug info on the saved image
+            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} (baseline: {y_adjusted + baseline_from_top})"
+            draw.text(
+                (x, image.height - 30),
+                debug_text,
+                font=font,
+                fill=(255, 0, 0)  # Red text
             )
 
         logger.info(f"✅ Text overlay complete")
