@@ -1183,6 +1183,7 @@ async def add_text_overlay(
             # baseline = textbox top + ascender = Y + ascender
             y_adjusted = y + ascent
             logger.info(f"📏 Positioning baseline: Y={y} + ascender({ascent}) = {y_adjusted} (baseline for textbox at Y)")
+            logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({Math.round((y/image.height)*100)}% from top)")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
@@ -1191,7 +1192,7 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) with anchor='lt'")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) with baseline anchor")
                 # Draw stroke by drawing text multiple times with offset
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
@@ -1200,25 +1201,23 @@ async def add_text_overlay(
                                 (x + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
-                                fill=stroke_rgb,
-                                anchor="lt"  # Match main text anchor
+                                fill=stroke_rgb
                             )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
 
-            # Draw main text at TOP-LEFT position (not baseline)
-            # Use anchor="lt" to position by top-left corner
+            # Draw main text at BASELINE position
+            # Use default anchor (baseline) - simpler and more accurate
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
-                fill=color_rgb,
-                anchor="lt"  # Position by top-left, not baseline!
+                fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) using anchor='lt'")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) using baseline anchor")
 
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
@@ -1232,7 +1231,8 @@ async def add_text_overlay(
             )
             # Also draw a small marker at the text position
             # Offset marker to show where textbox TOP should be (not where text is drawn)
-            textbox_top_marker_y = y_adjusted - 24  # Compensate for the 24px offset issue
+            # Frontend sends Y + ascender (105px for Arial), so marker is at Y - ascender
+            textbox_top_marker_y = y_adjusted - ascent  # Show where textbox top should be
             draw.rectangle([x-2, textbox_top_marker_y-2, x+2, textbox_top_marker_y+2], fill=(0, 255, 0))  # Green marker
             draw.text(
                 (x + 10, textbox_top_marker_y - 10),
