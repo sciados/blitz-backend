@@ -1060,6 +1060,33 @@ async def add_text_overlay(
     import os
     import glob
 
+    # Cache for font files to avoid repeated searches
+    _FONT_CACHE = {}
+
+    # Pre-build font cache on first use
+    def _build_font_cache():
+        """Build a cache of all available font files."""
+        if _FONT_CACHE:
+            return  # Already built
+
+        font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts"]
+        logger.info("🔍 Building font cache...")
+
+        for font_dir in font_dirs:
+            if os.path.exists(font_dir):
+                # Find all .ttf files recursively
+                for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+                    font_basename = os.path.basename(ttf_file).lower()
+                    font_name_only = os.path.splitext(font_basename)[0]
+
+                    # Normalize for comparison
+                    font_name_normalized = font_name_only.replace("-", "").replace("_", "")
+
+                    # Store in cache (lowercase for case-insensitive matching)
+                    _FONT_CACHE[font_name_normalized] = ttf_file
+
+        logger.info(f"✅ Font cache built: {len(_FONT_CACHE)} fonts cached")
+
     # Verify campaign ownership if campaign_id is provided
     campaign = None
     if request.campaign_id:
@@ -1083,26 +1110,24 @@ async def add_text_overlay(
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
     def _find_font_file(font_family: str):
-        """Find TTF font file for given font family."""
+        """Find TTF font file for given font family using cache."""
+        # Build cache on first use
+        _build_font_cache()
+
         font_name = font_family.lower().strip()
-        font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts"]
+        font_name_normalized = font_name.replace(" ", "").replace("-", "").replace("_", "")
 
-        # Search in directories
-        for font_dir in font_dirs:
-            if os.path.exists(font_dir):
-                # Find all .ttf files recursively
-                for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
-                    font_basename = os.path.basename(ttf_file).lower()
-                    font_name_only = os.path.splitext(font_basename)[0]
+        # Try exact match first
+        if font_name_normalized in _FONT_CACHE:
+            font_path = _FONT_CACHE[font_name_normalized]
+            logger.info(f"✅ Font matched (exact): '{font_family}' -> '{font_path}'")
+            return font_path
 
-                    # Normalize for comparison
-                    font_name_normalized = font_name.replace(" ", "").replace("-", "").replace("_", "")
-                    font_name_only_normalized = font_name_only.replace("-", "").replace("_", "")
-
-                    # Check if normalized font name matches
-                    if font_name_normalized in font_name_only_normalized or font_name_only_normalized in font_name_normalized:
-                        logger.info(f"✅ Font matched: '{font_family}' -> '{ttf_file}'")
-                        return ttf_file
+        # Try partial match
+        for cached_font_name, cached_path in _FONT_CACHE.items():
+            if font_name_normalized in cached_font_name or cached_font_name in font_name_normalized:
+                logger.info(f"✅ Font matched (partial): '{font_family}' -> '{cached_path}'")
+                return cached_path
 
         logger.warning(f"❌ Font not found: '{font_family}', using default")
         return None
@@ -1148,12 +1173,14 @@ async def add_text_overlay(
 
             # Calculate baseline offset more accurately
             # For most fonts, baseline is at ~75-85% from top of bounding box
-            # This varies by font, but 80% is a good approximation
             text_height = bbox[3] - bbox[1]
-            # Try 75% instead of 80% - may be more accurate
-            baseline_from_top = int(text_height * 0.75)
+            # For Arial, observed Y discrepancy: text appears 13px too high
+            # To move text DOWN, we need a SMALLER baseline offset
+            # Try 70% for Arial (vs 75% default)
+            baseline_percentage = 0.70 if "arial" in text_layer_config.font_family.lower() else 0.75
+            baseline_from_top = int(text_height * baseline_percentage)
 
-            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px (75%)")
+            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px ({int(baseline_percentage * 100)}%)")
 
             # Adjust Y position: we want the BASELINE at our desired Y position
             y_adjusted = y - baseline_from_top
@@ -1186,12 +1213,14 @@ async def add_text_overlay(
                 fill=color_rgb
             )
 
-            # Draw debug info on the saved image
+            # Draw debug info on the saved image (use small font)
+            debug_font_size = max(16, font_size // 6)  # Much smaller than main text
+            debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
             debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} (baseline: {y_adjusted + baseline_from_top})"
             draw.text(
                 (x, image.height - 30),
                 debug_text,
-                font=font,
+                font=debug_font,
                 fill=(255, 0, 0)  # Red text
             )
 
