@@ -1148,19 +1148,18 @@ async def add_text_overlay(
 
             # Calculate baseline offset dynamically from font metrics
             # PIL draws from TOP of bounding box (bbox[1]), but we want BASELINE
-            # Baseline is where letters like 'a', 'e', 'c' sit (typically 80-85% up from bottom)
+            # Baseline is where letters like 'a', 'e', 'c' sit
             text_height = bbox[3] - bbox[1]  # total height of text
-            baseline_offset = int(text_height * 0.8)  # baseline is ~80% up from bottom
-
-            # For better precision, also check the actual text's top position
-            top_of_text = bbox[1]
-            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_offset: {baseline_offset}px, top_of_text: {top_of_text}")
+            # Typical baseline is at: top + (ascender / (ascender + descender)) * text_height
+            # Or approximately 80% from top
+            baseline_from_top = int(text_height * 0.8)
+            logger.info(f"📏 Font metrics - text_height: {text_height}px, baseline_from_top: {baseline_from_top}px")
 
             # Adjust Y position: we want the BASELINE at our desired Y position
-            # If PIL draws from top, we need to move down by: (baseline_offset - top_of_text)
-            y_adjusted = y - top_of_text + baseline_offset
+            # PIL draws from top, so we need to position it at: Y - baseline_distance
+            y_adjusted = y - baseline_from_top
 
-            logger.info(f"📏 Baseline calculation: Y {y} → {y_adjusted} (adjustment: -{top_of_text} + {baseline_offset})")
+            logger.info(f"📏 Baseline calculation: Y {y} → {y_adjusted} (subtract {baseline_from_top}px)")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
