@@ -1141,7 +1141,9 @@ async def add_text_overlay(
 
             try:
                 # Render text using Tkinter with scaled coordinates and font size
-                text_image_bytes = text_renderer.render_text_with_pil(
+                # NOTE: The renderer will add left_bearing_offset inside the text image
+                # so we need to subtract it from the paste position to get precise alignment
+                text_image_bytes, left_bearing = text_renderer.render_text_with_pil(
                     text=text_layer_config.text,
                     font_family=text_layer_config.font_family,
                     font_size=scaled_font_size,
@@ -1166,10 +1168,14 @@ async def add_text_overlay(
                 result.paste(image, (0, 0))
 
                 # Log text image dimensions and position
-                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}, pasting at ({scaled_x}, {scaled_y})")
+                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}")
+                logger.info(f"📍 Left bearing offset: {left_bearing}px")
+                logger.info(f"📍 Pasting text at: ({scaled_x - left_bearing}, {scaled_y}) to compensate")
 
-                # Paste the text image at the scaled position
-                result.paste(text_img, (scaled_x, scaled_y), text_img)
+                # Paste the text image, adjusted for left bearing offset
+                # Text ink starts at left_bearing_offset inside the text image
+                # So we subtract that from paste position to get precise alignment
+                result.paste(text_img, (scaled_x - left_bearing, scaled_y), text_img)
 
                 # Update image
                 image = result

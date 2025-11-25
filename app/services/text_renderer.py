@@ -143,15 +143,16 @@ class TkinterTextRenderer:
             stroke_padding = stroke_width * 2 if stroke_width > 0 else 0
 
             # Add extra bottom padding for descenders (g, p, q, y, etc.)
-            # Add 20% of font size as descender space
-            descender_padding = int(font_size * 0.2)
+            # Increase to 30% of font size for better coverage
+            descender_padding = int(font_size * 0.3)
 
-            # Account for font left-side bearing - the actual text ink starts INSIDE the bounding box
-            # bbox[0] tells us how far inside the bounding box the ink starts
-            # We need to shift the text LEFT by this amount so ink aligns with x=0
+            # Account for font left-side bearing
             left_bearing_offset = bbox[0]
+            right_bearing_offset = text_width - (bbox[2] - bbox[0])
 
-            # Create image - big enough for text + padding + left bearing compensation
+            logger.info(f"📏 Font metrics - bbox: {bbox}, left_bearing: {left_bearing_offset}, width: {text_width}, right_bearing: {right_bearing_offset}")
+
+            # Create image - big enough for text + padding
             img_width = text_width + stroke_padding + left_bearing_offset
             img_height = text_height + stroke_padding + descender_padding
 
@@ -163,10 +164,13 @@ class TkinterTextRenderer:
             stroke_rgb = self._hex_to_rgb(stroke_color) if stroke_color else (0, 0, 0)
 
             # Calculate text position within the image
-            # Draw text with negative X offset to account for left-side bearing
-            # This shifts the ink LEFT so it aligns with x=0 in the text image
-            text_x = stroke_padding - left_bearing_offset
+            # Draw text starting at left_bearing_offset (no negative coords!)
+            text_x = stroke_padding + left_bearing_offset
             text_y = stroke_padding
+
+            logger.info(f"📍 Text position in image: ({text_x}, {text_y})")
+            logger.info(f"📐 Text image size: {img_width}x{img_height}")
+            logger.info(f"📏 Left bearing (ink offset): {left_bearing_offset}px")
 
             # Draw stroke if specified (around the text)
             if stroke_width > 0 and stroke_color:
@@ -200,7 +204,8 @@ class TkinterTextRenderer:
             img_bytes = buffer.getvalue()
 
             logger.info(f"Text rendered successfully: {len(img_bytes)} bytes")
-            return img_bytes
+            # Return both the image bytes AND the left bearing offset for precise positioning
+            return img_bytes, left_bearing_offset
 
         except Exception as e:
             logger.error(f"PIL text rendering failed: {e}", exc_info=True)
