@@ -138,7 +138,6 @@ class TkinterTextRenderer:
             bbox = draw.textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
-            text_descent = bbox[3]  # Bottom of text (baseline + descender)
 
             # Calculate padding needed for stroke (extra space around text)
             stroke_padding = stroke_width * 2 if stroke_width > 0 else 0
@@ -147,9 +146,10 @@ class TkinterTextRenderer:
             # Add 20% of font size as descender space
             descender_padding = int(font_size * 0.2)
 
-            # Create image - big enough for text + stroke padding + descender space
-            img_width = text_width + stroke_padding * 2
-            img_height = text_height + stroke_padding * 2 + descender_padding
+            # Create image - big enough for text + padding
+            # NO LEFT PADDING - text starts at left edge for precise positioning
+            img_width = text_width + stroke_padding  # Only right padding
+            img_height = text_height + stroke_padding + descender_padding  # Top + bottom padding
 
             img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
@@ -158,9 +158,10 @@ class TkinterTextRenderer:
             color_rgb = self._hex_to_rgb(color)
             stroke_rgb = self._hex_to_rgb(stroke_color) if stroke_color else (0, 0, 0)
 
-            # Calculate text position within the image (accounting for stroke padding)
-            text_x = stroke_padding
-            text_y = stroke_padding
+            # Calculate text position within the image
+            # NO LEFT PADDING - text starts at x=0
+            text_x = 0
+            text_y = stroke_padding  # Only top padding
 
             # Draw stroke if specified (around the text)
             if stroke_width > 0 and stroke_color:
