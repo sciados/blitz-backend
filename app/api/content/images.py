@@ -1185,10 +1185,11 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Position the textbox directly at Y by adjusting for the top offset
-            # If we want textbox top at Y=289, we draw the text at Y - text_top_offset
-            y_adjusted = y - text_top_offset
-            logger.info(f"📏 Positioning textbox: Y={y} - offset({text_top_offset}) = {y_adjusted} (textbox at desired Y)")
+            # Calculate ascender compensation for proper positioning
+            # Ascender is the distance from baseline to top of capital letters
+            # To position textbox top at Y, position baseline at Y - ascender
+            y_adjusted = y - ascent
+            logger.info(f"📏 Positioning baseline at Y={y} - ascender({ascent}) = {y_adjusted} (textbox top at desired Y)")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
@@ -1198,7 +1199,7 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) with baseline anchor")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
                 # Draw stroke by drawing text multiple times with offset
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
