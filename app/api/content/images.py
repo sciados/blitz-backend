@@ -1136,8 +1136,23 @@ async def add_text_overlay(
             font_path = _find_font_file(text_layer_config.font_family)
             if font_path:
                 font = ImageFont.truetype(font_path, font_size)
+                logger.info(f"✅ Using font file: {font_path}")
             else:
                 font = ImageFont.load_default()
+                logger.warning(f"⚠️ Font not found, using default: {text_layer_config.font_family}")
+
+            # Get bounding box to understand positioning
+            bbox = font.getbbox(text_layer_config.text)
+            logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
+            logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
+
+            # Adjust Y position: PIL draws from top of bounding box, but we want baseline
+            # Observed: Y=155 saves at Y=141 (14 pixels too high)
+            # Fix: Add 14 pixels to move text down to correct baseline position
+            BASELINE_OFFSET = 14  # pixels to add to Y coordinate
+            y_adjusted = y + BASELINE_OFFSET
+
+            logger.info(f"📏 Baseline adjustment: +{BASELINE_OFFSET}px, Y {y} → {y_adjusted}")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
@@ -1151,7 +1166,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y + dy),
+                                (x + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1159,7 +1174,7 @@ async def add_text_overlay(
 
             # Draw main text
             draw.text(
-                (x, y),
+                (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
