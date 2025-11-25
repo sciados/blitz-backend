@@ -1185,11 +1185,13 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Calculate ascender compensation for proper positioning
-            # Ascender is the distance from baseline to top of capital letters
-            # To position textbox top at Y, position baseline at Y - ascender
-            y_adjusted = y - ascent
-            logger.info(f"📏 Positioning baseline at Y={y} - ascender({ascent}) = {y_adjusted} (textbox top at desired Y)")
+            # Calculate textbox positioning
+            # bbox[1] is the TOP of text relative to baseline (usually negative, e.g., -74)
+            # To position the textbox TOP at Y, we need: baseline + bbox[1] = Y
+            # Therefore: baseline = Y - bbox[1]
+            # But since bbox[1] is negative, this = Y + |bbox[1]|
+            y_adjusted = y - text_top_offset  # text_top_offset is bbox[1]
+            logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
@@ -1211,6 +1213,9 @@ async def add_text_overlay(
                                 fill=stroke_rgb
                             )
 
+            # Debug: Draw a yellow rectangle at the baseline position
+            draw.rectangle([x-2, y_adjusted-2, x+50, y_adjusted+2], fill=(255, 255, 0))
+            logger.info(f"🎨 Yellow baseline marker at: ({x}, {y_adjusted})")
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
