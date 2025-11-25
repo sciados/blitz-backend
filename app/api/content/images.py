@@ -1114,29 +1114,15 @@ async def add_text_overlay(
 
         # Process each text layer with Tkinter
         for text_layer_config in request.text_layers:
-            # Use PERCENTAGES for consistent positioning across all image sizes
-            # Calculate position based on CURRENT image size (after resize)
-            if text_layer_config.x_percent is not None:
-                scaled_x = int(image.width * text_layer_config.x_percent / 100)
-                logger.info(f"🎨 X: {text_layer_config.x_percent}% of {image.width} = {scaled_x}px")
-            else:
-                scaled_x = int(text_layer_config.x)
-                logger.info(f"🎨 X: absolute pixel value = {scaled_x}px")
+            # Use ABSOLUTE pixel coordinates (no percentage scaling)
+            # Coordinates are already based on the ORIGINAL image size
+            scaled_x = int(text_layer_config.x)
+            scaled_y = int(text_layer_config.y)
+            scaled_font_size = int(text_layer_config.font_size)
 
-            if text_layer_config.y_percent is not None:
-                scaled_y = int(image.height * text_layer_config.y_percent / 100)
-                logger.info(f"🎨 Y: {text_layer_config.y_percent}% of {image.height} = {scaled_y}px")
-            else:
-                scaled_y = int(text_layer_config.y)
-                logger.info(f"🎨 Y: absolute pixel value = {scaled_y}px")
-
-            if text_layer_config.font_size_percent is not None:
-                scaled_font_size = int(image.width * text_layer_config.font_size_percent / 100)
-                logger.info(f"🎨 Font size: {text_layer_config.font_size_percent}% of {image.width} = {scaled_font_size}px")
-                logger.info(f"🎨 Frontend sent font_size_percent: {text_layer_config.font_size_percent}%")
-            else:
-                scaled_font_size = int(text_layer_config.font_size)
-                logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px (no percentage)")
+            logger.info(f"🎨 X: absolute pixel value = {scaled_x}px")
+            logger.info(f"🎨 Y: absolute pixel value = {scaled_y}px")
+            logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px")
 
             logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
 
