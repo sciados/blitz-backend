@@ -1216,7 +1216,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y + dy),
+                                (x + dx, (y + 16) + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1229,9 +1229,9 @@ async def add_text_overlay(
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
             # Position the text so the TEXTBOX TOP aligns with Y (green marker)
-            # Set anchor directly at Y
+            # Textbox at Y=139 (16px too high), so add 16px to y_adjusted
             draw.text(
-                (x, y),
+                (x, y + 16),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
