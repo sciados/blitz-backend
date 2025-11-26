@@ -1,5 +1,4 @@
 # app/api/content/images.py
-# add, commit & push to  git
 
 """Image generation API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -1216,7 +1215,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, (y + 24) + dy),
+                                (x + dx, (y + text_bbox[1]) + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1229,9 +1228,11 @@ async def add_text_overlay(
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
             # Position the text so the TEXTBOX TOP aligns with Y (green marker)
-            # Textbox at Y=147 (8px too high), so add 24px to y_adjusted
+            # Use dynamic text_bbox[1] for all fonts/sizes
+            # For Arial 70px: text_bbox[1] = 24, so use y + 24
+            # For Arial 100px: text_bbox[1] = 35, so use y + 35
             draw.text(
-                (x, y + 24),
+                (x, y + text_bbox[1]),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
