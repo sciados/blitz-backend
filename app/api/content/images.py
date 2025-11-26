@@ -1208,14 +1208,16 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at y_adjusted={y_adjusted}")
                 # Draw stroke by drawing text multiple times with offset
-                # Use same positioning as main text (y_adjusted)
+                # Calculate text top position (where visual text actually starts)
+                text_top_y = y_adjusted - text_bbox[1]
+                logger.info(f"🎨 Stroke position: text_top_y={text_top_y} (y_adjusted={y_adjusted} - bbox[1]={text_bbox[1]})")
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                ((x + 3) + dx, y_adjusted + dy),
+                                ((x + 3) + dx, text_top_y + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1242,34 +1244,17 @@ async def add_text_overlay(
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
 
-            # Draw debug info on the saved image (use readable font)
-            debug_font_size = max(32, font_size // 3)  # Larger for readable coordinates
-            debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
-            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y}"
-            draw.text(
-                (x, image.height - 50),
-                debug_text,
-                font=debug_font,
-                fill=(255, 0, 0)  # Red text
-            )
-            # Show bbox and ascender values
-            debug_text2 = f"bbox[1]={text_top_offset}, ascent={ascent}, text_top_offset={text_top_offset}"
-            draw.text(
-                (x, image.height - 30),
-                debug_text2,
-                font=debug_font,
-                fill=(255, 0, 0)  # Red text
-            )
-            # Also draw a small marker at the text position
+            # Draw a small marker at the text position (for alignment reference)
             # Green marker shows where the textbox top is positioned
             draw.rectangle([x-2, y-2, x+2, y+2], fill=(0, 255, 0))  # Green marker at desired position
+            # Use a readable font for the TEXTBOX label
+            debug_font = ImageFont.truetype(font_path, 24) if font_path else ImageFont.load_default()
             draw.text(
                 (x + 10, y - 10),
                 f"TEXTBOX",
                 font=debug_font,
                 fill=(0, 255, 0)
             )
-            logger.info(f"🏷️ Debug label drawn at bottom: ({x}, {image.height - 30})")
             logger.info(f"📍 Green marker drawn at textbox top: ({x}, {y})")
 
         logger.info(f"✅ Text overlay complete")
