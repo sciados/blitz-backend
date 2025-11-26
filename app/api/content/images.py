@@ -1215,7 +1215,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, (y + text_bbox[1]) + dy),
+                                ((x + 3) + dx, (y + text_bbox[1] + 3) + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1228,11 +1228,13 @@ async def add_text_overlay(
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
             # Position the text so the TEXTBOX TOP aligns with Y (green marker)
-            # Use dynamic text_bbox[1] for all fonts/sizes
-            # For Arial 70px: text_bbox[1] = 24, so use y + 24
-            # For Arial 100px: text_bbox[1] = 35, so use y + 35
+            # Use standard 80% ascender for ALL fonts for consistent positioning
+            # This ensures the same offset regardless of font type or size
+            y_adjusted = y + int(font_size * 0.80) + 3
+            logger.info(f"📏 Using standard ascender: {int(font_size * 0.80)}px (80% of {font_size}px) + 3px offset = {y_adjusted}px")
+
             draw.text(
-                (x, y + text_bbox[1]),
+                (x + 3, y_adjusted),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
