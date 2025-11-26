@@ -1186,13 +1186,11 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Dynamic font metrics approach for all fonts/sizes
-            # Calculate compensation based on font's ascender and bbox top offset
-            # The gap between textbox top and anchor is: ascent - bbox[1]
-            # To position textbox at Y, anchor at Y + (ascent - bbox[1])
-            y_adjusted = y + (ascent - text_top_offset)
-            logger.info(f"📏 Dynamic positioning: Y={y} + (ascent {ascent} - bbox[1] {text_top_offset}) = {y_adjusted}")
-            logger.info(f"📏 Textbox should align at Y={y}")
+            # Using anchor='lt' (left-top) to position textbox TOP at (x, y)
+            # Match green marker position exactly
+            y_adjusted = y
+            logger.info(f"📏 Using anchor='lt' (left-top): setting y_adjusted = {y}")
+            logger.info(f"📏 Textbox TOP should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
@@ -1219,9 +1217,10 @@ async def add_text_overlay(
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
+            logger.info(f"📏 Using anchor='lt' (left-top) for proper positioning")
 
-            # Draw main text with 'lt' anchor (top-left of textbox)
-            # This positions the top-left corner of the textbox at (x, y)
+            # Draw main text with 'lt' anchor (left-top)
+            # This positions the top-left of text at (x, y_adjusted), matching green marker
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
@@ -1230,7 +1229,7 @@ async def add_text_overlay(
                 anchor="lt"
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) - pushed down by ascender")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
 
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
