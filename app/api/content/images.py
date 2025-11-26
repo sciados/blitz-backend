@@ -1146,6 +1146,8 @@ async def add_text_overlay(
 
         logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using PIL")
         logger.info(f"🖼️ Original image size: {image.width}x{image.height}")
+        logger.info(f"🔍 Source URL: {request.image_url[:100]}...")
+        logger.info(f"📐 Image mode: {image.mode}")
 
         # Create draw object
         draw = ImageDraw.Draw(image)
@@ -1157,7 +1159,7 @@ async def add_text_overlay(
             y = int(text_layer_config.y)
             font_size = int(text_layer_config.font_size)
 
-            logger.info(f"📥 Received coords: x={x}, y={y}, font_size={font_size}")
+            logger.info(f"📥 Received from frontend: x={x}, y={y}, font_size={font_size}")
             logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
 
             # Find and load font
@@ -1185,11 +1187,12 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Calculate textbox positioning
-            # Using anchor='lt' but need +42px compensation for Y
-            # Textbox appears 13px too high (was 30px, now only 13px), so add 42px
-            y_adjusted = y + 42
-            logger.info(f"📏 Using anchor='lt' (left-top): y_adjusted = {y} + 42 = {y_adjusted}")
+            # Calculate textbox positioning using anchor='la' (left-ascender)
+            # With 'la' anchor, PIL positions the ascender line at (x, y_adjusted)
+            # The textbox TOP is below the ascender by bbox[1] pixels
+            # To position textbox TOP at Y, set ascender at Y + bbox[1]
+            y_adjusted = y + text_top_offset
+            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y} + bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📏 Textbox TOP should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
@@ -1202,7 +1205,7 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
                 # Draw stroke by drawing text multiple times with offset
-                # Use anchor="lt" for consistent positioning with main text
+                # Use anchor="la" (left-ascender) for consistent positioning with main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
@@ -1211,22 +1214,22 @@ async def add_text_overlay(
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb,
-                                anchor="lt"
+                                anchor="la"
                             )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
-            logger.info(f"📏 Using anchor='lt' (left-top) for proper positioning")
+            logger.info(f"📏 Using anchor='la' (left-ascender) for horizontal text per PIL docs")
 
-            # Draw main text with 'lt' anchor (left-top)
-            # This positions the top-left of text at (x, y_adjusted), matching green marker
+            # Draw main text with 'la' anchor (left-ascender)
+            # This is the PIL-recommended anchor for horizontal text
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb,
-                anchor="lt"
+                anchor="la"
             )
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
@@ -1270,6 +1273,8 @@ async def add_text_overlay(
             final_image = background
         else:
             final_image = image
+
+        logger.info(f"💾 Final image size: {final_image.width}x{final_image.height} (mode={final_image.mode})")
 
         # Save to bytes buffer
         buffer = BytesIO()
