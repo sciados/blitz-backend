@@ -1194,11 +1194,12 @@ async def add_text_overlay(
             text_height = text_bbox[3] - text_bbox[1]
             logger.info(f"📐 Text bbox: {text_bbox}, width={text_width}, height={text_height}")
 
-            # With 'la' anchor, PIL positions text text_bbox[1] pixels BELOW the anchor
-            # To position textbox TOP at Y, set anchor at Y - text_bbox[1]
-            y_adjusted = y - text_bbox[1]
-            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y} - text_bbox[1]({text_bbox[1]}) = {y_adjusted}")
-            logger.info(f"📏 Textbox TOP should align at Y={y}")
+            # With 'la' anchor, ascender aligns with green marker
+            # If ascender is at Y=155, textbox top is at Y=155
+            # So: y_adjusted = y (direct alignment)
+            y_adjusted = y
+            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y}")
+            logger.info(f"📏 Ascender should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
@@ -1210,16 +1211,15 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
                 # Draw stroke by drawing text multiple times with offset
-                # Use anchor="la" (left-ascender) for consistent positioning with main text
+                # Use same positioning as main text (no anchor)
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y_adjusted + dy),
+                                (x + dx, (y - text_bbox[1]) + dy),
                                 text_layer_config.text,
                                 font=font,
-                                fill=stroke_rgb,
-                                anchor="la"
+                                fill=stroke_rgb
                             )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
@@ -1227,14 +1227,15 @@ async def add_text_overlay(
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
             logger.info(f"📏 Using anchor='la' (left-ascender) for horizontal text per PIL docs")
 
-            # Draw main text with 'la' anchor (left-ascender)
-            # This is the PIL-recommended anchor for horizontal text
+            # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
+            # Position the text so the textbox top aligns with Y
+            # PIL will render text text_bbox[1] pixels below anchor
+            # So anchor = Y - text_bbox[1]
             draw.text(
-                (x, y_adjusted),
+                (x, y - text_bbox[1]),
                 text_layer_config.text,
                 font=font,
-                fill=color_rgb,
-                anchor="la"
+                fill=color_rgb
             )
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
