@@ -1186,9 +1186,10 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Empirical compensation based on observed positioning
-            y_adjusted = y + 28
-            logger.info(f"📏 Empirical compensation: Y={y} + 28 = {y_adjusted}")
+            # Shadow aligns at Y=155 (correct), text at Y=143 (12px too HIGH)
+            # Push text down 12px: y_adjusted = 183 + 12 = 195
+            y_adjusted = y + 40
+            logger.info(f"📏 Empirical compensation: Y={y} + 40 = {y_adjusted} (text should align at Y={y})")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
