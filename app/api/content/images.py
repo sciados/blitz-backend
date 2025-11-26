@@ -1186,10 +1186,13 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Shadow & text now align at Y=155, textbox top at Y=147 (8px too HIGH)
-            # Move down 8px: y_adjusted = 195 + 8 = 203
-            y_adjusted = y + 48
-            logger.info(f"📏 Final positioning: Y={y} + 48 = {y_adjusted} (textbox should align at Y={y})")
+            # Dynamic font metrics approach for all fonts/sizes
+            # Calculate compensation based on font's ascender and bbox top offset
+            # The gap between textbox top and anchor is: ascent - bbox[1]
+            # To position textbox at Y, anchor at Y + (ascent - bbox[1])
+            y_adjusted = y + (ascent - text_top_offset)
+            logger.info(f"📏 Dynamic positioning: Y={y} + (ascent {ascent} - bbox[1] {text_top_offset}) = {y_adjusted}")
+            logger.info(f"📏 Textbox should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
