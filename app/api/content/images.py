@@ -1185,13 +1185,11 @@ async def add_text_overlay(
             text_top_offset = bbox[1]
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
-            # Calculate tight textbox positioning
-            # PIL's bbox includes typographical padding (ascender + descender)
-            # For tight positioning, use the actual visible text top, not the bbox top
-            # The visible text top is approximately at ascent from the baseline
-            # We want textbox top at Y, so position anchor at Y - (ascent - bbox[1])
-            y_adjusted = y - (ascent - text_top_offset)
-            logger.info(f"📏 Positioning textbox at Y={y} - (ascent {ascent} - bbox[1] {text_top_offset}) = {y_adjusted}")
+            # Calculate textbox positioning
+            # Shadow text should align with green marker at (x, y)
+            # Main text will be offset by bbox[1] below the shadow
+            y_adjusted = y
+            logger.info(f"📏 Positioning shadow at Y={y}, main text will be at Y={y + text_top_offset} (offset by bbox[1])")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
