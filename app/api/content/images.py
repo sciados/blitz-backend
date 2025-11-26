@@ -1189,9 +1189,9 @@ async def add_text_overlay(
             # Calculate textbox positioning
             # With 'lt' anchor: textbox at y_adjusted, text at y_adjusted + bbox[1]
             # Want textbox at Y, text at Y + bbox[1]
-            # So: use Y - bbox[1] to compensate for positive bbox[1] offset
-            y_adjusted = y - text_top_offset
-            logger.info(f"📏 Positioning textbox at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
+            # So: use Y + bbox[1] to position anchor above the desired textbox top
+            y_adjusted = y + text_top_offset
+            logger.info(f"📏 Positioning textbox at Y={y} + bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
