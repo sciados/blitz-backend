@@ -1186,10 +1186,10 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Using anchor='lt' (left-top) to position textbox TOP at (x, y)
-            # Match green marker position exactly
-            y_adjusted = y
-            logger.info(f"📏 Using anchor='lt' (left-top): setting y_adjusted = {y}")
+            # Using anchor='lt' (left-top) but need +30px compensation for Y
+            # Textbox appears 30px too high, so add 30px to y_adjusted
+            y_adjusted = y + 30
+            logger.info(f"📏 Using anchor='lt' (left-top): y_adjusted = {y} + 30 = {y_adjusted}")
             logger.info(f"📏 Textbox TOP should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
