@@ -1181,14 +1181,12 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at y_adjusted={y_adjusted}")
                 # Draw stroke by drawing text multiple times with offset
-                # Calculate text top position (where visual text actually starts)
-                text_top_y = y_adjusted - text_bbox[1]
-                logger.info(f"🎨 Stroke position: text_top_y={text_top_y} (y_adjusted={y_adjusted} - bbox[1]={text_bbox[1]})")
+                # Stroke should be at EXACTLY the same position as main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                ((x + 3) + dx, text_top_y + dy),
+                                ((x + 3) + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1200,11 +1198,11 @@ async def add_text_overlay(
             logger.info(f"📏 Using anchor='la' (left-ascender) for horizontal text per PIL docs")
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
-            # Position the text so the TEXTBOX TOP aligns with Y (green marker)
-            # Use standard 80% ascender for ALL fonts for consistent positioning
-            # This ensures the same offset regardless of font type or size
-            y_adjusted = y + int(font_size * 0.80) + 3
-            logger.info(f"📏 Using standard ascender: {int(font_size * 0.80)}px (80% of {font_size}px) + 3px offset = {y_adjusted}px")
+            # Position the text so the TEXTBOX TOP aligns with the "TEXTBOX" label
+            # The TEXTBOX label is drawn at (x + 10, y - 10), which is above the green marker
+            # So textbox top should be at Y: y - 10 + 3 = y - 7
+            y_adjusted = y - 7
+            logger.info(f"📏 Text positioned at y_adjusted={y_adjusted} (aligns with TEXTBOX label at Y={y - 10})")
 
             draw.text(
                 (x + 3, y_adjusted),
