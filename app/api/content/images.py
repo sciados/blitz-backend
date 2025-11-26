@@ -846,35 +846,6 @@ async def list_available_fonts():
             logger.info(f"⚠️ Fonts directory not found: {font_dir}")
     
     # Sort alphabetically by label
-
-    logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
-    fonts = []
-
-    # Search in /fonts (repo root) and subdirectories
-    font_dir = "/app/app/fonts"
-
-    if os.path.exists(font_dir):
-        # Find all .ttf files recursively
-        for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
-            # Get relative path from fonts directory
-            rel_path = os.path.relpath(ttf_file, font_dir)
-            # Get just the filename without extension
-            filename = os.path.basename(ttf_file)
-            name_without_ext = os.path.splitext(filename)[0]
-
-            # Create a friendly display name
-            # Replace underscores and dashes with spaces, title case
-            display_name = name_without_ext.replace("_", " ").replace("-", " ").title()
-
-            fonts.append({
-                "value": display_name,  # Used in frontend
-                "label": display_name,  # Display label
-                "filename": filename,   # Actual filename
-                "path": rel_path,       # Relative path
-                "full_path": ttf_file   # Full filesystem path
-            })
-
-    # Sort alphabetically by label
     fonts.sort(key=lambda x: x["label"])
 
     logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
