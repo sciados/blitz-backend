@@ -1231,10 +1231,18 @@ async def add_text_overlay(
             # Draw debug info on the saved image (use small font)
             debug_font_size = max(16, font_size // 6)  # Much smaller than main text
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
-            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y} → {y_adjusted} (anchor='lt')"
+            debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y}"
+            draw.text(
+                (x, image.height - 50),
+                debug_text,
+                font=debug_font,
+                fill=(255, 0, 0)  # Red text
+            )
+            # Show bbox and ascender values
+            debug_text2 = f"bbox[1]={text_top_offset}, ascent={ascent}, text_top_offset={text_top_offset}"
             draw.text(
                 (x, image.height - 30),
-                debug_text,
+                debug_text2,
                 font=debug_font,
                 fill=(255, 0, 0)  # Red text
             )
