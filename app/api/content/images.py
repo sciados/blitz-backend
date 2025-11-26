@@ -1216,7 +1216,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, (y + 16) + dy),
+                                (x + dx, (y + 24) + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1229,9 +1229,9 @@ async def add_text_overlay(
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
             # Position the text so the TEXTBOX TOP aligns with Y (green marker)
-            # Textbox at Y=139 (16px too high), so add 16px to y_adjusted
+            # Textbox at Y=147 (8px too high), so add 24px to y_adjusted
             draw.text(
-                (x, y + 16),
+                (x, y + 24),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
@@ -1240,7 +1240,7 @@ async def add_text_overlay(
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
 
             # Draw debug info on the saved image (use small font)
-            debug_font_size = max(16, font_size // 6)  # Much smaller than main text
+            debug_font_size = max(20, font_size // 6)  # Much smaller than main text
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
             debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y}"
             draw.text(
