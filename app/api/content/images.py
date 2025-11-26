@@ -1216,7 +1216,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, (y - text_bbox[1]) + dy),
+                                (x + dx, y + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1228,11 +1228,10 @@ async def add_text_overlay(
             logger.info(f"📏 Using anchor='la' (left-ascender) for horizontal text per PIL docs")
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
-            # Position the text so the textbox top aligns with Y
-            # PIL will render text text_bbox[1] pixels below anchor
-            # So anchor = Y - text_bbox[1]
+            # Position the text so the TEXTBOX TOP aligns with Y (green marker)
+            # Set anchor directly at Y
             draw.text(
-                (x, y - text_bbox[1]),
+                (x, y),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
