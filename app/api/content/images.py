@@ -1201,6 +1201,7 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
                 # Draw stroke by drawing text multiple times with offset
+                # Use anchor="lt" for consistent positioning with main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
@@ -1208,7 +1209,8 @@ async def add_text_overlay(
                                 (x + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
-                                fill=stroke_rgb
+                                fill=stroke_rgb,
+                                anchor="lt"
                             )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
