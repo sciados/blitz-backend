@@ -1187,10 +1187,11 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Textbox is 30 pixels too high - bbox[1] is typically -30
-            # To push down by 30: y - (-30) = y + 30
+            # With 'lt' anchor: textbox at y_adjusted, text at y_adjusted + bbox[1]
+            # Want textbox at Y, text at Y + bbox[1]
+            # So: use Y - bbox[1] to compensate for positive bbox[1] offset
             y_adjusted = y - text_top_offset
-            logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
+            logger.info(f"📏 Positioning textbox at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
             # Convert colors
