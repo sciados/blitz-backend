@@ -1187,8 +1187,8 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # To put textbox TOP at Y, position baseline at Y + ascender
-            y_adjusted = y + ascent
+            # Use Y directly with 'lt' anchor to position top-left of textbox
+            y_adjusted = y
             logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
@@ -1215,14 +1215,14 @@ async def add_text_overlay(
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
 
-            # Draw main text at baseline position
-            # Baseline is positioned at y_adjusted = y + ascent
-            # This pushes the text down so the top aligns with green marker
+            # Draw main text with 'lt' anchor (top-left of textbox)
+            # This positions the top-left corner of the textbox at (x, y)
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
-                fill=color_rgb
+                fill=color_rgb,
+                anchor="lt"
             )
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted}) - pushed down by ascender")
