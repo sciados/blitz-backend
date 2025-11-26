@@ -1179,6 +1179,7 @@ async def add_text_overlay(
             ascender_percent = ascent / font_size  # Calculate as percentage of font size
             logger.info(f"📏 Font metrics: ascent={ascent}, descent={descent}, font_size={font_size}")
             logger.info(f"📏 Ascender percentage: {ascender_percent:.3f} of font size")
+            logger.info(f"📏 Baseline should be at Y={y} - {ascent} = {y - ascent} to put textbox top at {y}")
 
             # Get the top offset of text within its bounding box
             # bbox[1] is the top of the text within the box
@@ -1186,9 +1187,8 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Textbox should align with green marker (Y) - currently too low by ascender
-            # To move textbox UP, position baseline at Y - ascender
-            y_adjusted = y - ascent
+            # To put textbox TOP at Y, position baseline at Y + ascender
+            y_adjusted = y + ascent
             logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
