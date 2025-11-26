@@ -1210,12 +1210,12 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px at ({x}, {y_adjusted}) (baseline positioned for textbox top at Y={y})")
                 # Draw stroke by drawing text multiple times with offset
-                # Use same positioning as main text (no anchor)
+                # Use same positioning as main text (y_adjusted)
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                ((x + 3) + dx, (y + text_bbox[1] + 3) + dy),
+                                ((x + 3) + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1242,8 +1242,8 @@ async def add_text_overlay(
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
 
-            # Draw debug info on the saved image (use small font)
-            debug_font_size = max(20, font_size // 6)  # Much smaller than main text
+            # Draw debug info on the saved image (use readable font)
+            debug_font_size = max(32, font_size // 3)  # Larger for readable coordinates
             debug_font = ImageFont.truetype(font_path, debug_font_size) if font_path else ImageFont.load_default()
             debug_text = f"Font: {text_layer_config.font_family}, Size: {font_size}px, X: {x}, Y: {y}"
             draw.text(
