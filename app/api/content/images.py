@@ -1186,10 +1186,9 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning
-            # Text TOP aligns with green marker (Y) in preview
-            # To move text DOWN when saving, position baseline at Y + ascender
-            # Text extends UP from baseline, so baseline at Y+ascender = text top at Y
-            y_adjusted = y + ascent
+            # Textbox should align with green marker (Y) - currently too low by ascender
+            # To move textbox UP, position baseline at Y - ascender
+            y_adjusted = y - ascent
             logger.info(f"📏 Positioning baseline at Y={y} - bbox[1]({text_top_offset}) = {y_adjusted}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
