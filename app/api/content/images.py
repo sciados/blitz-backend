@@ -1188,11 +1188,16 @@ async def add_text_overlay(
             logger.info(f"📏 Text top offset within box: {text_top_offset}px")
 
             # Calculate textbox positioning using anchor='la' (left-ascender)
-            # With 'la' anchor, PIL positions the ascender line at (x, y_adjusted)
-            # The textbox TOP is below the ascender by bbox[1] pixels
-            # To position textbox TOP at Y, set ascender at Y + bbox[1]
-            y_adjusted = y + text_top_offset
-            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y} + bbox[1]({text_top_offset}) = {y_adjusted}")
+            # Get actual text bounding box using draw.textbbox()
+            text_bbox = draw.textbbox((0, 0), text_layer_config.text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            logger.info(f"📐 Text bbox: {text_bbox}, width={text_width}, height={text_height}")
+
+            # With 'la' anchor, PIL positions text text_bbox[1] pixels BELOW the anchor
+            # To position textbox TOP at Y, set anchor at Y - text_bbox[1]
+            y_adjusted = y - text_bbox[1]
+            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y} - text_bbox[1]({text_bbox[1]}) = {y_adjusted}")
             logger.info(f"📏 Textbox TOP should align at Y={y}")
             logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
 
