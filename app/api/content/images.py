@@ -1201,8 +1201,8 @@ async def add_text_overlay(
             # Position the text so the TEXTBOX TOP aligns with the VERTICAL MIDDLE of green marker
             # anchor='la' means the anchor point is at the LEFT and ASCENDER
             # Visual text top is ABOVE the anchor, so we need to SUBTRACT ascender offset
-            # Text at Y:242 vs marker at Y:275 = gap of 33px
-            ascender_pixels = int(font_size * 0.69)  # Using observed 33px offset for Arial
+            # Text at Y:227 vs marker at Y:275 = gap of 48px (exact font size!)
+            ascender_pixels = font_size  # Full font size for precise alignment
             y_adjusted = y - ascender_pixels
             logger.info(f"📏 Text positioned: y_adjusted={y_adjusted} (marker at Y={y}, ascender={ascender_pixels}px)")
 
