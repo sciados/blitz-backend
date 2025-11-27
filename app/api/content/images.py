@@ -1167,14 +1167,14 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x_adjusted}, {y})")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x_adjusted}, {y_adjusted})")
                 # Draw stroke by drawing text multiple times with offset
                 # Stroke should be at EXACTLY the same position as main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x_adjusted + dx, y + dy),
+                                (x_adjusted + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
