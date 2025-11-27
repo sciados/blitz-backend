@@ -1200,9 +1200,9 @@ async def add_text_overlay(
             # Draw alignment reference markers
             # Bold black line marks the target position (where you dragged)
             draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at target Y
-            # Red marker shows where PIL actually draws the reference point
-            draw.rectangle([x-2, y_adjusted-2, x+2, y_adjusted+2], fill=(255, 0, 0))  # Red marker at PIL reference point
-            logger.info(f"📍 Alignment markers drawn: black line at y={y} (target), red (PIL reference) at y={y_adjusted}")
+            # Red marker shows where PIL actually draws the reference point (at x_adjusted, y)
+            draw.rectangle([x-2, y-2, x+2, y+2], fill=(255, 0, 0))  # Red marker at text position
+            logger.info(f"📍 Alignment markers drawn: black line at y={y} (target), red (text position) at y={y}")
 
         logger.info(f"✅ Text overlay complete")
 
