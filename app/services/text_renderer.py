@@ -48,7 +48,7 @@ class TkinterTextRenderer:
         font_name = font_family.lower().strip()
 
         # Common font directories - prioritize /app/app/fonts first (Railway path)
-        font_dirs = ["/app/app/fonts", "/tmp/fonts", "/usr/share/fonts", "/System/Library/Fonts", "/Windows/Fonts"]
+        font_dirs = ["/app/app/fonts"]
 
         # Normalize font name: remove spaces, replace with common variations
         font_name_normalized = font_name.replace(" ", "").replace("-", "")

@@ -814,7 +814,7 @@ async def list_available_fonts():
     from pathlib import Path
 
     # Search in multiple possible locations
-    font_dirs = ["/app/fonts", "/fonts", "/app/app/fonts", "/app/home/app/fonts"]
+    font_dirs = ["/app/app/fonts"]
     fonts = []
     
     for font_dir in font_dirs:
@@ -1041,7 +1041,7 @@ async def add_text_overlay(
         if _FONT_CACHE:
             return  # Already built
 
-        font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts"]
+        font_dirs = ["/app/app/fonts", "/tmp/fonts"]
         logger.info("🔍 Building font cache...")
 
         for font_dir in font_dirs:
