@@ -1132,7 +1132,6 @@ async def add_text_overlay(
             logger.info(f"📥 RECEIVED FROM FRONTEND: x={x}, y={y}, font_size={font_size}")
             logger.info(f"📥 Text content: '{text_layer_config.text}'")
             logger.info(f"📥 Image size: {image.width}x{image.height}")
-            logger.info(f"📏 CHECKING ALIGNMENT: green marker at ({x}, {y}), text visual top should be at ({x}, {y + text_bbox[1]})")
 
             logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
 
