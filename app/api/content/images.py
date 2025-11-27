@@ -1147,15 +1147,15 @@ async def add_text_overlay(
             # Get bounding box for diagnostics
             text_bbox = font.getbbox(text_layer_config.text)
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
+            logger.info(f"📏 bbox[0]={text_bbox[0]} (left offset), bbox[1]={text_bbox[1]} (top offset)")
 
-            # Calculate adjusted X position for text alignment (keep Y as-is for font padding)
-            # PIL positions reference at (x, y), but text bbox may have X offset
-            # We DON'T adjust Y because we want font padding between black line and letters
-            x_adjusted = x - text_bbox[0]
-            logger.info(f"📏 PIL bbox=({text_bbox[0]}, {text_bbox[1]}, {text_bbox[2]}, {text_bbox[3]})")
-            logger.info(f"📏 Adjusting X: {x} - bbox[0]={text_bbox[0]} = {x_adjusted}")
-            logger.info(f"📏 Y={y} (NO adjustment - want font padding between black line and letters)")
-            logger.info(f"📏 Textbox top at y={y}, letters at y={y + text_bbox[1]}")
+            # Draw at EXACT received coordinates - do NOT adjust for bbox
+            # This ensures textbox aligns with where user dragged
+            x_adjusted = x
+            y_adjusted = y
+
+            logger.info(f"📏 Drawing at EXACT coords: X={x}, Y={y} (NO adjustment for bbox)")
+            logger.info(f"📏 Textbox at ({x}, {y}), letters extend from y={y + text_bbox[1]} to y={y + text_bbox[3]}")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
@@ -1181,28 +1181,28 @@ async def add_text_overlay(
                                 fill=stroke_rgb
                             )
 
-            logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
+            logger.info(f"🎨 Drawing text at PIL coords: ({x_adjusted}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
-            logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
+            logger.info(f"📏 Using adjusted draw.text((x_adjusted, y_adjusted), text) approach")
 
-            # Draw main text - SIMPLE approach: draw.text((x_adjusted, y), text)
+            # Draw main text - use y_adjusted to account for ascender
             draw.text(
-                (x_adjusted, y),
+                (x_adjusted, y_adjusted),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x_adjusted}, {y})")
-            logger.info(f"📍 Textbox top at y={y} (black line), letters at y={y + text_bbox[1]}")
+            logger.info(f"✅ Text drawn successfully at ({x_adjusted}, {y_adjusted})")
+            logger.info(f"📍 Textbox top at y={y_adjusted}, letters at y={y_adjusted + text_bbox[1]}")
 
             # Draw alignment reference markers
-            # Bold black line marks the target position (where you dragged)
-            draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at target Y
-            # Red marker shows where PIL actually draws the reference point (at x_adjusted, y)
-            draw.rectangle([x-2, y-2, x+2, y+2], fill=(255, 0, 0))  # Red marker at text position
-            logger.info(f"📍 Alignment markers drawn: black line at y={y} (target), red (text position) at y={y}")
+            # Bold black line marks the target position (where user dragged - original Y)
+            draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)
+            # Red marker shows adjusted text position
+            draw.rectangle([x_adjusted-2, y_adjusted-2, x_adjusted+2, y_adjusted+2], fill=(255, 0, 0))
+            logger.info(f"📍 Alignment markers drawn: black line at y={y} (target), red at y={y_adjusted} (adjusted)")
 
         logger.info(f"✅ Text overlay complete")
 
