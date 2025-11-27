@@ -1196,13 +1196,6 @@ async def add_text_overlay(
             logger.info(f"✅ Text drawn successfully at ({x_adjusted}, {y_adjusted})")
             logger.info(f"📍 Textbox top at y={y_adjusted}, letters at y={y_adjusted + text_bbox[1]}")
 
-            # Draw alignment reference markers
-            # Bold black line marks the target position (where user dragged - original Y)
-            draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)
-            # Red marker shows adjusted text position
-            draw.rectangle([x_adjusted-2, y_adjusted-2, x_adjusted+2, y_adjusted+2], fill=(255, 0, 0))
-            logger.info(f"📍 Alignment markers drawn: black line at y={y} (target), red at y={y_adjusted} (adjusted)")
-
         logger.info(f"✅ Text overlay complete")
 
         # Convert back to RGB
