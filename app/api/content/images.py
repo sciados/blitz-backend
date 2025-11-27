@@ -1186,7 +1186,7 @@ async def add_text_overlay(
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x - 4 + dx, y_adjusted - 4 + dy),  # Apply same -4 offset as main text
+                                (x + dx, y_adjusted - 7 + dy),  # Apply same -7 Y offset as main text
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1206,7 +1206,7 @@ async def add_text_overlay(
             logger.info(f"📏 Text positioned: y_adjusted={y_adjusted} (green marker at Y={y}, bbox[1]={text_bbox[1]}, visual top will be at {y})")
 
             draw.text(
-                (x - 4, y_adjusted - 4),  # Subtract 4 pixels to align with green marker position
+                (x, y_adjusted - 7),  # Subtract 7 pixels to align with green marker Y position
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
@@ -1219,10 +1219,10 @@ async def add_text_overlay(
             draw.rectangle([x-2, y-2, x+2, y+2], fill=(0, 255, 0))  # Green marker at desired position
             # Bold black line marks the EXACT position of the green marker (not 10px above)
             draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at green marker Y
-            # Adjust debug indicator position to match the text position
-            line_y = y + 8  # Match the text position offset
-            draw.rectangle([x-2, line_y-2, x+2, line_y+2], fill=(255, 0, 0))  # Red marker at text position
-            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text) at y={line_y}")
+            # Red marker shows where the text visual top is positioned
+            text_visual_top_y = y_adjusted - 7  # Match the text position offset
+            draw.rectangle([x-2, text_visual_top_y-2, x+2, text_visual_top_y+2], fill=(255, 0, 0))  # Red marker at text position
+            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text) at y={text_visual_top_y}")
 
         logger.info(f"✅ Text overlay complete")
 
