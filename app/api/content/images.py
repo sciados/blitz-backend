@@ -1149,12 +1149,11 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
             logger.info(f"📏 bbox[0]={text_bbox[0]} (left offset), bbox[1]={text_bbox[1]} (top offset)")
 
-            # Textbox is 10px too low - align with black line
-            # 10px × 1.882542 (avg scale) = 18.83 ≈ 19px
+            # Fine-tune: try +4px for closer alignment
             x_adjusted = x
-            y_adjusted = y - 19  # Subtract 19px to move textbox UP
+            y_adjusted = y + 4  # Add 4px
 
-            logger.info(f"📏 Subtracting 19px for alignment: {y} - 19 = {y_adjusted}")
+            logger.info(f"📏 Adding 4px for alignment: {y} + 4 = {y_adjusted}")
             logger.info(f"📏 Textbox top at ({x_adjusted}, {y_adjusted})")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
