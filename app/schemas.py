@@ -362,8 +362,8 @@ class ImageSaveDraftRequest(BaseModel):
 class TextLayer(BaseModel):
     """A single text layer to overlay on an image."""
     text: str
-    x: int = 0  # X position in pixels
-    y: int = 0  # Y position in pixels
+    x: float = 0.0  # X position in pixels (supports sub-pixel precision)
+    y: float = 0.0  # Y position in pixels (supports sub-pixel precision)
     font_size: int = 48
     font_family: str = "Arial"
     color: str = "#FFFFFF"
