@@ -1149,13 +1149,13 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
             logger.info(f"📏 bbox[0]={text_bbox[0]} (left offset), bbox[1]={text_bbox[1]} (top offset)")
 
-            # Draw at EXACT received coordinates - do NOT adjust for bbox
-            # This ensures textbox aligns with where user dragged
+            # Textbox is 10px too low - align with black line
+            # 10px × 1.882542 (avg scale) = 18.83 ≈ 19px
             x_adjusted = x
-            y_adjusted = y
+            y_adjusted = y - 19  # Subtract 19px to move textbox UP
 
-            logger.info(f"📏 Drawing at EXACT coords: X={x}, Y={y} (NO adjustment for bbox)")
-            logger.info(f"📏 Textbox at ({x}, {y}), letters extend from y={y + text_bbox[1]} to y={y + text_bbox[3]}")
+            logger.info(f"📏 Subtracting 19px for alignment: {y} - 19 = {y_adjusted}")
+            logger.info(f"📏 Textbox top at ({x_adjusted}, {y_adjusted})")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
