@@ -1198,13 +1198,13 @@ async def add_text_overlay(
             logger.info(f"📏 Using anchor='la' (left-ascender) for horizontal text per PIL docs")
 
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
-            # Position the text so the TEXTBOX TOP aligns with the VERTICAL MIDDLE of green marker
-            # anchor='la' means the anchor point is at the LEFT and ASCENDER
-            # Visual text top is ABOVE the anchor, so we need to SUBTRACT ascender offset
-            # Text at Y:215 vs marker at Y:273 = gap of 58px (font size + 10px)
-            ascender_pixels = font_size + 10  # Font size + offset for perfect alignment
-            y_adjusted = y - ascender_pixels
-            logger.info(f"📏 Text positioned: y_adjusted={y_adjusted} (marker at Y={y}, ascender={ascender_pixels}px)")
+            # Position the text so the TEXTBOX TOP aligns with the TEXTBOX label
+            # The TEXTBOX label is drawn at (x + 10, y - 10), which is above the green marker
+            # Text's visual top should align with this label position
+            # Visual text top = anchor - abs(bbox[1])
+            # To position visual top at (y - 10): y_adjusted = (y - 10) + abs(bbox[1])
+            y_adjusted = (y - 10) + abs(text_bbox[1]) + 3  # Align with TEXTBOX label at y-10
+            logger.info(f"📏 Text positioned: y_adjusted={y_adjusted} (TEXTBOX label at Y={y - 10}, bbox[1]={text_bbox[1]}, visual top will be at {(y - 10) + 3})")
 
             draw.text(
                 (x + 3, y_adjusted),
