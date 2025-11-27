@@ -1200,10 +1200,10 @@ async def add_text_overlay(
             # Draw main text WITHOUT explicit anchor (uses PIL's default 'la')
             # Position the text so the TEXTBOX TOP aligns with the VERTICAL MIDDLE of green marker
             # anchor='la' means the anchor point is at the LEFT and ASCENDER
-            # So to position text TOP at marker, we need to subtract ascender
-            # For Arial, ascender = font_size * 0.80
-            ascender_pixels = int(font_size * 0.80)
-            y_adjusted = y + ascender_pixels
+            # Visual text top is ABOVE the anchor, so we need to SUBTRACT ascender offset
+            # Text at Y:259 should align with marker at Y:275 = need to go UP by 16px
+            ascender_pixels = int(font_size * 0.42)  # Using observed offset
+            y_adjusted = y - ascender_pixels
             logger.info(f"📏 Text positioned: y_adjusted={y_adjusted} (marker at Y={y}, ascender={ascender_pixels}px)")
 
             draw.text(
