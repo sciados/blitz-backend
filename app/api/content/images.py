@@ -1148,11 +1148,14 @@ async def add_text_overlay(
             text_bbox = font.getbbox(text_layer_config.text)
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
 
-            # Calculate adjusted Y position for text alignment
-            y_adjusted = y - text_bbox[1]
-            logger.info(f"📏 PIL bbox[1]={text_bbox[1]} (text visual top offset from reference)")
-            logger.info(f"📏 Adjusting Y: {y} - bbox[1]={text_bbox[1]} = {y_adjusted}")
-            logger.info(f"📏 This positions text visual top at y={y} (target position)")
+            # Calculate adjusted X position for text alignment (keep Y as-is for font padding)
+            # PIL positions reference at (x, y), but text bbox may have X offset
+            # We DON'T adjust Y because we want font padding between black line and letters
+            x_adjusted = x - text_bbox[0]
+            logger.info(f"📏 PIL bbox=({text_bbox[0]}, {text_bbox[1]}, {text_bbox[2]}, {text_bbox[3]})")
+            logger.info(f"📏 Adjusting X: {x} - bbox[0]={text_bbox[0]} = {x_adjusted}")
+            logger.info(f"📏 Y={y} (NO adjustment - want font padding between black line and letters)")
+            logger.info(f"📏 Textbox top at y={y}, letters at y={y + text_bbox[1]}")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
@@ -1165,14 +1168,14 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x}, {y_adjusted})")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x_adjusted}, {y_adjusted})")
                 # Draw stroke by drawing text multiple times with offset
                 # Stroke should be at EXACTLY the same position as main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y_adjusted + dy),
+                                (x_adjusted + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1183,16 +1186,16 @@ async def add_text_overlay(
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
             logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
 
-            # Draw main text - SIMPLE approach: draw.text((x, y), text)
+            # Draw main text - SIMPLE approach: draw.text((x_adjusted, y), text)
             draw.text(
-                (x, y_adjusted),
+                (x_adjusted, y),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
-            logger.info(f"📍 Text visual top should align with target at y={y}")
+            logger.info(f"✅ Text drawn successfully at ({x_adjusted}, {y})")
+            logger.info(f"📍 Textbox top at y={y} (black line), letters at y={y + text_bbox[1]}")
 
             # Draw alignment reference markers
             # Bold black line marks the target position (where you dragged)
