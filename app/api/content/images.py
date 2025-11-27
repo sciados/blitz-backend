@@ -1145,36 +1145,13 @@ async def add_text_overlay(
                 font = ImageFont.load_default()
                 logger.warning(f"⚠️ Font not found, using default: {text_layer_config.font_family}")
 
-            # Get bounding box to understand positioning
-            bbox = font.getbbox(text_layer_config.text)
-            logger.info(f"📐 Text bbox: {bbox} (top-left: ({bbox[0]}, {bbox[1]}), bottom-right: ({bbox[2]}, {bbox[3]}))")
-            logger.info(f"📐 Text dimensions: width={bbox[2]-bbox[0]}px, height={bbox[3]-bbox[1]}px")
+            # Get bounding box for diagnostics
+            text_bbox = font.getbbox(text_layer_config.text)
+            logger.info(f"📐 Text bbox from PIL: {text_bbox}")
 
-            # Calculate ascender dynamically for this font and size
-            ascent, descent = font.getmetrics()
-            ascender_percent = ascent / font_size  # Calculate as percentage of font size
-            logger.info(f"📏 Font metrics: ascent={ascent}, descent={descent}, font_size={font_size}")
-            logger.info(f"📏 Ascender percentage: {ascender_percent:.3f} of font size")
-
-            # Get the top offset of text within its bounding box
-            # bbox[1] is the top of the text within the box
-            text_top_offset = bbox[1]
-            logger.info(f"📏 Text top offset within box: {text_top_offset}px")
-
-            # Calculate textbox positioning using anchor='la' (left-ascender)
-            # Get actual text bounding box using draw.textbbox()
-            text_bbox = draw.textbbox((0, 0), text_layer_config.text, font=font)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_height = text_bbox[3] - text_bbox[1]
-            logger.info(f"📐 Text bbox: {text_bbox}, width={text_width}, height={text_height}")
-
-            # With 'la' anchor, ascender aligns with green marker
-            # If ascender is at Y=155, textbox top is at Y=155
-            # So: y_adjusted = y (direct alignment)
-            y_adjusted = y
-            logger.info(f"📏 Using anchor='la' (left-ascender): y_adjusted = {y}")
-            logger.info(f"📏 Ascender should align at Y={y}")
-            logger.info(f"📊 Expected text position: {y} on {image.height}x{image.height} image ({round((y/image.height)*100)}% from top)")
+            logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
+            logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
+            logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
