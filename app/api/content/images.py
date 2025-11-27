@@ -1129,7 +1129,9 @@ async def add_text_overlay(
             y = int(text_layer_config.y)
             font_size = int(text_layer_config.font_size)
 
-            logger.info(f"📥 Received from frontend: x={x}, y={y}, font_size={font_size}")
+            logger.info(f"📥 RECEIVED FROM FRONTEND: x={x}, y={y}, font_size={font_size}")
+            logger.info(f"📥 Text content: '{text_layer_config.text}'")
+
             logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
 
             # Find and load font
@@ -1212,7 +1214,11 @@ async def add_text_overlay(
             draw.rectangle([x-2, y-2, x+2, y+2], fill=(0, 255, 0))  # Green marker at desired position
             # Bold black line marks the EXACT position of the green marker
             draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at green marker Y
-            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}")
+            # Add yellow marker at center of black line for clarity
+            draw.rectangle([x-2, y-2, x+2, y+2], fill=(255, 255, 0))  # Yellow marker at line center
+            # Red marker at text position
+            draw.rectangle([x-2, y+10-2, x+2, y+10+2], fill=(255, 0, 0))  # Red marker 10px below black line
+            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text) at y={y+10}")
 
         logger.info(f"✅ Text overlay complete")
 
