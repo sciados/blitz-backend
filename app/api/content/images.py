@@ -1183,12 +1183,12 @@ async def add_text_overlay(
                 stroke_width = int(text_layer_config.stroke_width)
                 logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at y_adjusted={y_adjusted}")
                 # Draw stroke by drawing text multiple times with offset
-                # Stroke should be at EXACTLY the same position as main text (NO x + 3 offset)
+                # Stroke should be at EXACTLY the same position as main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y + dy),
+                                (x + dx, y_adjusted + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1200,14 +1200,21 @@ async def add_text_overlay(
             logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
 
             # Draw main text - SIMPLE approach: draw.text((x, y), text)
+            # PIL positions the reference point at (x, y), but actual text visual top is at y + text_bbox[1]
+            # To align visual top with green marker at y, we subtract text_bbox[1]
+            y_adjusted = y - text_bbox[1]
+
+            logger.info(f"📏 PIL text bbox: text_bbox[1]={text_bbox[1]} (visual top offset)")
+            logger.info(f"📏 Adjusted Y: y={y} - bbox[1]={text_bbox[1]} = {y_adjusted}")
+
             draw.text(
-                (x, y),
+                (x, y_adjusted),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y})")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
 
             # Draw alignment reference markers
             # Green marker shows where the textbox top is positioned
@@ -1216,9 +1223,9 @@ async def add_text_overlay(
             draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at green marker Y
             # Add yellow marker at center of black line for clarity
             draw.rectangle([x-2, y-2, x+2, y+2], fill=(255, 255, 0))  # Yellow marker at line center
-            # Red marker at text position
-            draw.rectangle([x-2, y+10-2, x+2, y+10+2], fill=(255, 0, 0))  # Red marker 10px below black line
-            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text) at y={y+10}")
+            # Red marker at text visual top position
+            draw.rectangle([x-2, y_adjusted-2, x+2, y_adjusted+2], fill=(255, 0, 0))  # Red marker at text visual top
+            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text visual top) at y={y_adjusted}")
 
         logger.info(f"✅ Text overlay complete")
 
