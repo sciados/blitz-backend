@@ -813,7 +813,7 @@ async def list_available_fonts():
     from pathlib import Path
 
     # Search in multiple possible locations
-    font_dirs = ["/app/fonts", "/fonts", "/app/app/fonts", "/app/home/app/fonts"]
+    font_dirs = ["/app/app/fonts"]
     fonts = []
     
     for font_dir in font_dirs:

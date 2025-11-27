@@ -45,7 +45,7 @@ def _hex_to_rgb(hex_color: str):
 def _find_font_file(font_family: str):
     """Find TTF font file for given font family."""
     font_name = font_family.lower().strip()
-    font_dirs = ["/app/app/fonts", "/app/fonts", "/fonts", "/tmp/fonts"]
+    font_dirs = ["/app/app/fonts", "/tmp/fonts"]
 
     # Search in directories
     for font_dir in font_dirs:

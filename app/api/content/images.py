@@ -1148,6 +1148,12 @@ async def add_text_overlay(
             text_bbox = font.getbbox(text_layer_config.text)
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
 
+            # Calculate adjusted Y position for text alignment
+            y_adjusted = y - text_bbox[1]
+            logger.info(f"📏 PIL bbox[1]={text_bbox[1]} (text visual top offset from reference)")
+            logger.info(f"📏 Adjusting Y: {y} - bbox[1]={text_bbox[1]} = {y_adjusted}")
+            logger.info(f"📏 This positions text visual top at y={y} (target position)")
+
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
@@ -1178,13 +1184,6 @@ async def add_text_overlay(
             logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
 
             # Draw main text - SIMPLE approach: draw.text((x, y), text)
-            # PIL positions reference at (x, y), but text visual top is at y + text_bbox[1]
-            # To align text visual top with green marker at y, subtract text_bbox[1]
-            y_adjusted = y - text_bbox[1]
-            logger.info(f"📏 PIL bbox[1]={text_bbox[1]} (text visual top offset from reference)")
-            logger.info(f"📏 Adjusting Y: {y} - bbox[1]={text_bbox[1]} = {y_adjusted}")
-            logger.info(f"📏 This positions text visual top at y={y} (green marker)")
-
             draw.text(
                 (x, y_adjusted),
                 text_layer_config.text,
@@ -1193,7 +1192,7 @@ async def add_text_overlay(
             )
 
             logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
-            logger.info(f"📍 Text visual top should align with green marker at y={y}")
+            logger.info(f"📍 Text visual top should align with target at y={y}")
 
             # Draw alignment reference markers
             # Bold black line marks the target position (where you dragged)
