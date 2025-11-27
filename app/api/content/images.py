@@ -1131,6 +1131,8 @@ async def add_text_overlay(
 
             logger.info(f"📥 RECEIVED FROM FRONTEND: x={x}, y={y}, font_size={font_size}")
             logger.info(f"📥 Text content: '{text_layer_config.text}'")
+            logger.info(f"📥 Image size: {image.width}x{image.height}")
+            logger.info(f"📏 CHECKING ALIGNMENT: green marker at ({x}, {y}), text visual top should be at ({x}, {y + text_bbox[1]})")
 
             logger.info(f"🎨 Drawing text: '{text_layer_config.text}' at ({x}, {y}), size={font_size}, font={text_layer_config.font_family}")
 
@@ -1181,14 +1183,14 @@ async def add_text_overlay(
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at y_adjusted={y_adjusted}")
+                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x}, {y})")
                 # Draw stroke by drawing text multiple times with offset
                 # Stroke should be at EXACTLY the same position as main text
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width * stroke_width:
                             draw.text(
-                                (x + dx, y_adjusted + dy),
+                                (x + dx, y + dy),
                                 text_layer_config.text,
                                 font=font,
                                 fill=stroke_rgb
@@ -1200,32 +1202,25 @@ async def add_text_overlay(
             logger.info(f"📏 Using simple draw.text((x, y), text) approach - no anchors or offsets")
 
             # Draw main text - SIMPLE approach: draw.text((x, y), text)
-            # PIL positions the reference point at (x, y), but actual text visual top is at y + text_bbox[1]
-            # To align visual top with green marker at y, we subtract text_bbox[1]
-            y_adjusted = y - text_bbox[1]
-
-            logger.info(f"📏 PIL text bbox: text_bbox[1]={text_bbox[1]} (visual top offset)")
-            logger.info(f"📏 Adjusted Y: y={y} - bbox[1]={text_bbox[1]} = {y_adjusted}")
-
+            # Just use the coordinates directly - no adjustments
             draw.text(
-                (x, y_adjusted),
+                (x, y),
                 text_layer_config.text,
                 font=font,
                 fill=color_rgb
             )
 
-            logger.info(f"✅ Text drawn successfully at ({x}, {y_adjusted})")
+            logger.info(f"✅ Text drawn successfully at ({x}, {y})")
+            logger.info(f"📍 Text visual top expected at: y={y} (green marker position)")
 
             # Draw alignment reference markers
             # Green marker shows where the textbox top is positioned
             draw.rectangle([x-2, y-2, x+2, y+2], fill=(0, 255, 0))  # Green marker at desired position
             # Bold black line marks the EXACT position of the green marker
             draw.line([(x - 30, y), (x + 30, y)], fill=(0, 0, 0), width=3)  # Bold black horizontal line at green marker Y
-            # Add yellow marker at center of black line for clarity
-            draw.rectangle([x-2, y-2, x+2, y+2], fill=(255, 255, 0))  # Yellow marker at line center
-            # Red marker at text visual top position
-            draw.rectangle([x-2, y_adjusted-2, x+2, y_adjusted+2], fill=(255, 0, 0))  # Red marker at text visual top
-            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text visual top) at y={y_adjusted}")
+            # Red marker 10px below to show where we're drawing the text
+            draw.rectangle([x-2, y+10-2, x+2, y+10+2], fill=(255, 0, 0))  # Red marker below black line
+            logger.info(f"📍 Alignment markers drawn: green at ({x}, {y}), black line at y={y}, red (text draw position) at y={y+10}")
 
         logger.info(f"✅ Text overlay complete")
 
