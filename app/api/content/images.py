@@ -1149,11 +1149,11 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
             logger.info(f"📏 bbox[0]={text_bbox[0]} (left offset), bbox[1]={text_bbox[1]} (top offset)")
 
-            # Adjust: compensate for font's left offset and ascender
-            x_adjusted = x - text_bbox[0]  # Subtract left offset so textbox left edge aligns
+            # Adjust: use simple constant offset for X, dynamic adjustment for Y
+            x_adjusted = x - 2  # Small constant offset for PIL padding
             y_adjusted = y + text_bbox[1]  # Add ascender so letters appear below textbox top
 
-            logger.info(f"📏 Adjusted by left offset ({text_bbox[0]}px) and ascender (+{text_bbox[1]}px): x={x_adjusted}, y={y_adjusted}")
+            logger.info(f"📏 Adjusted by constant (-2px) and ascender (+{text_bbox[1]}px): x={x_adjusted}, y={y_adjusted}")
             logger.info(f"📏 Textbox top at ({x_adjusted}, {y_adjusted})")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
