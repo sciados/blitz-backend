@@ -56,7 +56,6 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     role: str
-    user_type: str  # Creator | Affiliate | Business
     created_at: datetime
 
     class Config:

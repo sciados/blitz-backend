@@ -23,7 +23,9 @@ class User(Base):
 
     # User type for two-sided marketplace
     # "Creator" (Product Developer) | "Affiliate" (Marketer) | "Business" | "Admin"
-    user_type = Column(String(50), server_default="Affiliate", nullable=False, index=True)
+    # Role hierarchy: user -> business -> affiliate -> creator -> admin
+    # All higher roles inherit permissions from lower roles
+    role = Column(String(20), server_default="user", nullable=False, index=True)
 
     # Developer tier (for product developers)
     developer_tier = Column(String(20), nullable=True, index=True)  # new, verified, premium
