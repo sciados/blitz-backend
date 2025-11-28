@@ -568,7 +568,7 @@ async def upgrade_image(
         result = await image_generator.enhance_image(
             base_image_url=draft_url,
             prompt=prompt,
-            image_type="hero",  # Default type for enhancement
+            image_type=request.image_type,  # Preserve the original image type
             style=request.style,
             aspect_ratio=request.aspect_ratio,
             quality_boost=True,  # Enhancement always uses premium providers
@@ -585,7 +585,7 @@ async def upgrade_image(
     # Save enhanced image to database
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
-        image_type="hero",
+        image_type=request.image_type,  # Preserve the original image type
         image_url=result.image_url,
         thumbnail_url=result.thumbnail_url,
         provider=result.provider,

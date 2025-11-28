@@ -340,6 +340,7 @@ class ImageUpgradeRequest(BaseModel):
     """Request to upgrade a draft image to premium quality."""
     campaign_id: int
     draft_image_url: str  # URL of the draft image to enhance
+    image_type: str  # Type of image (hero, product, social, ad, etc.)
     custom_prompt: Optional[str] = None  # Optional enhancement prompt
     style: str = "photorealistic"
     aspect_ratio: str = "1:1"
