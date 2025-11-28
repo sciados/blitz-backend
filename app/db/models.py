@@ -466,6 +466,44 @@ class UserPlatformCredential(Base):
 # User.platform_credentials = relationship("UserPlatformCredential", back_populates="user")
 
 # ============================================================================
+# PRODUCT IMAGE OVERLAY MODEL
+# ============================================================================
+
+class ProductImageOverlay(Base):
+    """
+    Product image overlays for campaign images.
+    Supports positioning transparent product images on top of seed images.
+    """
+    __tablename__ = "product_image_overlays"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Image source
+    image_url = Column(Text, nullable=False)
+    image_source = Column(String(50), nullable=False)  # 'intelligence' | 'uploaded'
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Positioning (percentage-based for responsive scaling)
+    position_x = Column(Float, nullable=False, default=0.5)  # 0.0 to 1.0 (left to right)
+    position_y = Column(Float, nullable=False, default=0.5)  # 0.0 to 1.0 (top to bottom)
+    scale = Column(Float, nullable=False, default=1.0)  # 0.1 to 3.0 (size multiplier)
+    rotation = Column(Float, nullable=False, default=0.0)  # degrees
+    opacity = Column(Float, nullable=False, default=1.0)  # 0.0 to 1.0
+
+    # Layer management
+    z_index = Column(Integer, nullable=False, default=1)
+
+    # Metadata
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    campaign = relationship("Campaign")
+
+
+# ============================================================================
 # AI CREDITS TRACKING MODELS
 # ============================================================================
 # Import AI credits models to register them with SQLAlchemy
