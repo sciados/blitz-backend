@@ -36,7 +36,8 @@ def upgrade() -> None:
     op.alter_column('users', 'role', 
                    type_=sa.Enum('user', 'business', 'affiliate', 'creator', 'admin', name='role_enum'),
                    existing_type=sa.String(50),
-                   nullable=False)
+                   nullable=False,
+                   postgresql_using="role::role_enum")
 
 def downgrade() -> None:
     # Drop enum
