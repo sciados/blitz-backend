@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 from typing import List, Optional
 import logging
 
-from app.db.database import get_db
+from app.db.session import get_db
 from app.db.models import GeneratedImage, User
 from app.core.security import get_current_user
 from app.schemas import ImageTypeUpdateRequest

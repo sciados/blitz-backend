@@ -199,7 +199,7 @@ async def list_products(
 
     # Determine user role for compliance filtering
     is_admin = current_user.role == "admin"
-    is_product_developer = current_user.user_type == "product_creator"
+    is_product_developer = current_user.user_type == "Creator"
 
     # Build response with extracted description and recurring status
     product_items = []
@@ -511,7 +511,7 @@ async def search_products(
 
     # Determine user role for compliance filtering
     is_admin = current_user.role == "admin"
-    is_product_developer = current_user.user_type == "product_creator"
+    is_product_developer = current_user.user_type == "Creator"
 
     # Build response with extracted description and recurring status
     product_items = []
@@ -1272,7 +1272,7 @@ async def get_developer_analytics(
     """
     
     # Only Product Developers can access this endpoint
-    if current_user.user_type != "product_creator":
+    if current_user.user_type != "Creator":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This endpoint is only available for Product Developers"

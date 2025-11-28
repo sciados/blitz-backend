@@ -22,8 +22,8 @@ class User(Base):
     role = Column(String(50), server_default="user", nullable=False, index=True)
 
     # User type for two-sided marketplace
-    # "product_creator" (free, adds products) | "affiliate_marketer" (paid, uses products)
-    user_type = Column(String(50), server_default="affiliate_marketer", nullable=False, index=True)
+    # "Creator" (Product Developer) | "Affiliate" (Marketer) | "Business" | "Admin"
+    user_type = Column(String(50), server_default="Affiliate", nullable=False, index=True)
 
     # Developer tier (for product developers)
     developer_tier = Column(String(20), nullable=True, index=True)  # new, verified, premium
