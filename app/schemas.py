@@ -407,3 +407,13 @@ class ImageTextOverlayResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     ai_generation_cost: Optional[float] = 0.0  # Text overlay is free
     created_at: Optional[datetime] = None
+
+
+# ============================================================================
+# ADMIN SCHEMAS
+# ============================================================================
+
+class ImageTypeUpdateRequest(BaseModel):
+    """Request to update an image's type."""
+    image_type: str  # The new image_type (hero, product, social, ad, etc.)
+
