@@ -19,11 +19,11 @@ def upgrade() -> None:
     # Create the role hierarchy enum
     role_enum = postgresql.ENUM('user', 'business', 'affiliate', 'creator', 'admin', name='role_enum')
     role_enum.create(op.get_bind())
-    
+
     # Update role values based on user_type
     op.execute("""
-        UPDATE users 
-        SET role = CASE 
+        UPDATE users
+        SET role = CASE
             WHEN user_type = 'Admin' THEN 'admin'
             WHEN user_type = 'Creator' THEN 'creator'
             WHEN user_type = 'Affiliate' THEN 'affiliate'
@@ -31,19 +31,25 @@ def upgrade() -> None:
             ELSE 'user'
         END
     """)
-    
+
+    # Remove the existing default first
+    op.execute('ALTER TABLE users ALTER COLUMN role DROP DEFAULT')
+
     # Alter column to use enum type
-    op.alter_column('users', 'role', 
+    op.alter_column('users', 'role',
                    type_=sa.Enum('user', 'business', 'affiliate', 'creator', 'admin', name='role_enum'),
                    existing_type=sa.String(50),
                    nullable=False,
                    postgresql_using="role::role_enum")
 
+    # Add the new default for the enum type
+    op.execute('ALTER TABLE users ALTER COLUMN role SET DEFAULT \'user\'::role_enum')
+
 def downgrade() -> None:
     # Drop enum
     op.execute('DROP TYPE IF EXISTS role_enum')
-    
+
     # Revert to string type (you'll need to restore old values if downgrading)
-    op.alter_column('users', 'role', 
+    op.alter_column('users', 'role',
                    type_=sa.String(50),
                    nullable=False)
