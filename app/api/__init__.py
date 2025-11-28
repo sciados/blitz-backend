@@ -6,13 +6,15 @@ from . import products
 from . import links
 from . import product_analytics
 from . import platform_credentials
+from . import overlays
 
 __all__ = [
     "auth",
-    "campaigns", 
+    "campaigns",
     "compliance",
     "products",
     "links",
     "product_analytics",
-    "platform_credentials"
+    "platform_credentials",
+    "overlays"
 ]
