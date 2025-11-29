@@ -534,6 +534,42 @@ class EmailSignup(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
+
+# ============================================================================
+# EMAIL TEMPLATE MODEL (For Email Campaigns)
+# ============================================================================
+
+class EmailTemplate(Base):
+    """
+    Email templates for campaigns to different audience types.
+    Supports variables like {{first_name}}, {{signup_date}}, etc.
+    """
+    __tablename__ = "email_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Template metadata
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    audience_type = Column(String(50), nullable=True, index=True)  # 'product-dev', 'affiliate', 'business', or null for all
+
+    # Template content
+    subject = Column(String(500), nullable=False)
+    html_content = Column(Text, nullable=False)
+    text_content = Column(Text, nullable=True)  # Plain text version
+
+    # Template settings
+    is_active = Column(Boolean, server_default="true", nullable=False)
+    is_default = Column(Boolean, server_default="false", nullable=False)  # Default template for audience type
+
+    # Version tracking
+    version = Column(Integer, nullable=False, default=1)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 # ============================================================================
 # AI CREDITS TRACKING MODELS
 # ============================================================================

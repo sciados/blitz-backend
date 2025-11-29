@@ -18,7 +18,7 @@ except ImportError:
 
 
 class ResendService:
-    def __init__(self):
+    def __init__(self, db: Optional[AsyncSession] = None):
         if not RESEND_AVAILABLE:
             raise ImportError(
                 "Resend package not installed. Run: pip install resend"
@@ -30,6 +30,7 @@ class ResendService:
 
         self.resend = Resend(api_key=self.api_key)
         self.from_email = os.getenv("FROM_EMAIL", "Blitz <hello@blitz.com>")
+        self.db = db
 
     async def send_email(
         self,
@@ -97,9 +98,49 @@ class ResendService:
             "errors": errors[:10]  # First 10 errors
         }
 
+    async def get_template_by_audience(self, audience_type: str) -> Optional[Any]:
+        """Fetch template from database"""
+        if not self.db:
+            return None
+
+        from app.db.models import EmailTemplate
+
+        result = await self.db.execute(
+            select(EmailTemplate)
+            .where(EmailTemplate.audience_type == audience_type)
+            .where(EmailTemplate.is_active == True)
+            .where(EmailTemplate.is_default == True)
+        )
+        return result.scalar_one_or_none()
+
+    def render_template(self, html_content: str, variables: Dict[str, Any]) -> str:
+        """Render template variables"""
+        rendered = html_content
+        for key, value in variables.items():
+            placeholder = f"{{{{{key}}}}}"
+            rendered = rendered.replace(placeholder, str(value))
+        return rendered
+
     def get_launch_template(self, audience_type: str, variables: Dict[str, Any] = None) -> str:
         """Get email template based on audience type"""
 
+        # Default variables
+        default_vars = {
+            "first_name": "",
+            "signup_date": "today",
+            "unsubscribe_url": "https://blitz-frontend-three.vercel.app/unsubscribe"
+        }
+        if variables:
+            default_vars.update(variables)
+
+        # Try to get template from database
+        if self.db:
+            import asyncio
+            template = asyncio.run(self.get_template_by_audience(audience_type))
+            if template:
+                return self.render_template(template.html_content, default_vars)
+
+        # Fallback to hardcoded templates
         templates = {
             "product-dev": {
                 "preheader": "Get your products promoted by our affiliate network",
@@ -146,9 +187,7 @@ class ResendService:
         }
 
         template_data = templates.get(audience_type, templates["affiliate"])
-
-        if variables:
-            template_data.update(variables)
+        template_data.update(default_vars)
 
         html = f"""
         <!DOCTYPE html>

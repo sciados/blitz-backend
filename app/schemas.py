@@ -1,7 +1,7 @@
 # /app/schemas.py
 
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, validator
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Literal
 from datetime import datetime
 from enum import Enum
 
@@ -442,6 +442,44 @@ class EmailSignupResponse(EmailSignupBase):
     is_active: bool
     notified: bool
     notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+# ============================================================================
+# EMAIL TEMPLATE SCHEMAS
+# ============================================================================
+
+class EmailTemplateBase(BaseModel):
+    """Base schema for email templates."""
+    name: str
+    description: Optional[str] = None
+    audience_type: Optional[Literal["product-dev", "affiliate", "business"]] = None
+    subject: str
+    html_content: str
+    text_content: Optional[str] = None
+    is_active: bool = True
+
+class EmailTemplateCreate(EmailTemplateBase):
+    """Schema for creating a new email template."""
+    is_default: bool = False
+
+class EmailTemplateUpdate(BaseModel):
+    """Schema for updating an email template."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    audience_type: Optional[Literal["product-dev", "affiliate", "business"]] = None
+    subject: Optional[str] = None
+    html_content: Optional[str] = None
+    text_content: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_default: Optional[bool] = None
+
+class EmailTemplateResponse(EmailTemplateBase):
+    """Schema for email template response."""
+    id: int
+    is_default: bool
+    version: int
     created_at: datetime
     updated_at: datetime
 
