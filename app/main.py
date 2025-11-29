@@ -16,6 +16,7 @@ from app.api.content import text_router, images_router
 from app.api.admin import ai_router as admin_ai_router
 from app.api.admin import products as admin_products
 from app.api.admin import campaigns as admin_campaigns
+from app.api.admin import email_campaigns as admin_email_campaigns
 from app.api.admin import config as admin_config
 from app.api.admin import users as admin_users
 from app.api.admin import dashboard as admin_dashboard
@@ -188,6 +189,7 @@ app.include_router(admin_credits.router)
 app.include_router(admin_images.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
+app.include_router(admin_email_campaigns.router)
 
 # ====
 # STARTUP MESSAGE
