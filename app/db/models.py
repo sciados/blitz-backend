@@ -575,3 +575,130 @@ class EmailTemplate(Base):
 # ============================================================================
 # Import AI credits models to register them with SQLAlchemy
 from app.models.ai_credits import AICreditDeposit, AIUsageTracking, AIBalanceAlert
+
+
+# ============================================================================
+# INTERNAL MESSAGING SYSTEM MODELS
+# ============================================================================
+
+class Message(Base):
+    """
+    Internal messages between users.
+    Supports threading via parent_message_id.
+    """
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    subject = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)
+    message_type = Column(String(50), nullable=False, index=True)  # ADMIN_BROADCAST, DEV_TO_AFFILIATES, etc.
+    parent_message_id = Column(Integer, ForeignKey("messages.id"), nullable=True)  # For threading/replies
+    is_broadcast = Column(Boolean, server_default="false", nullable=False)
+    status = Column(String(20), server_default="sent", nullable=False)  # draft, sent, read, archived
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    sender = relationship("User", foreign_keys=[sender_id])
+    recipients = relationship("MessageRecipient", back_populates="message", cascade="all, delete-orphan")
+    parent_message = relationship("Message", remote_side=[id])
+
+
+class MessageRecipient(Base):
+    """
+    Recipients for messages.
+    Tracks read status per recipient.
+    """
+    __tablename__ = "message_recipients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), server_default="sent", nullable=False)  # sent, read, archived
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    message = relationship("Message", back_populates="recipients")
+    recipient = relationship("User")
+
+    # Unique constraint to prevent duplicate recipients
+    __table_args__ = (UniqueConstraint('message_id', 'recipient_id'),)
+
+
+class MessageRequest(Base):
+    """
+    Message requests when approval is required.
+    Used for affiliate-to-developer and affiliate-to-affiliate messaging.
+    """
+    __tablename__ = "message_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    message_type = Column(String(50), nullable=False)  # AFFILIATE_TO_DEV, AFFILIATE_TO_AFFILIATE
+    subject = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)
+    status = Column(String(20), server_default="pending", nullable=False, index=True)  # pending, approved, rejected, blocked
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    sender = relationship("User", foreign_keys=[sender_id])
+    recipient = relationship("User", foreign_keys=[recipient_id])
+
+
+class AffiliateProfile(Base):
+    """
+    Extended profile information for affiliates.
+    Used for the affiliate directory and networking features.
+    """
+    __tablename__ = "affiliate_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    bio = Column(Text, nullable=True)
+    specialty = Column(String(255), nullable=True)  # e.g., "Tech Reviews", "Fitness"
+    years_experience = Column(Integer, nullable=True)
+    website_url = Column(String(500), nullable=True)
+    social_links = Column(JSONB, nullable=True)  # Store Twitter, LinkedIn, etc.
+    stats = Column(JSONB, nullable=True)  # Campaigns, sales, conversion rate
+    reputation_score = Column(Integer, server_default="0", nullable=False)  # 0-100
+    verified = Column(Boolean, server_default="false", nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+
+class AffiliateConnection(Base):
+    """
+    Connections between affiliates.
+    Tracks mutual connections and approved relationships.
+    """
+    __tablename__ = "affiliate_connections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user1_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user2_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    connection_type = Column(String(50), nullable=False)  # mutual_product, approved_request, mutual_connection
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user1 = relationship("User", foreign_keys=[user1_id])
+    user2 = relationship("User", foreign_keys=[user2_id])
+
+    # Unique constraint to prevent duplicate connections
+    __table_args__ = (UniqueConstraint('user1_id', 'user2_id'),)

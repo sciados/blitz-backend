@@ -494,3 +494,225 @@ class StatsResponse(BaseModel):
     business: int
     last_24h: int
 
+
+# ============================================================================
+# INTERNAL MESSAGING SYSTEM SCHEMAS
+# ============================================================================
+
+class MessageType(str, Enum):
+    """Message types for internal messaging."""
+    ADMIN_BROADCAST = "ADMIN_BROADCAST"
+    ADMIN_GROUP = "ADMIN_GROUP"
+    DEV_TO_AFFILIATES = "DEV_TO_AFFILIATES"
+    AFFILIATE_REQUEST_DEV = "AFFILIATE_REQUEST_DEV"
+    AFFILIATE_RESPONSE = "AFFILIATE_RESPONSE"
+    AFFILIATE_REQUEST_AFFILIATE = "AFFILIATE_REQUEST_AFFILIATE"
+    AFFILIATE_AFFILIATE_RESPONSE = "AFFILIATE_AFFILIATE_RESPONSE"
+    USER_TO_USER = "USER_TO_USER"
+    SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION"
+
+
+class MessageBase(BaseModel):
+    """Base message schema."""
+    subject: str
+    content: str
+    message_type: MessageType
+    parent_message_id: Optional[int] = None
+
+
+class MessageCreate(MessageBase):
+    """Schema for creating a new message."""
+    recipient_ids: List[int]  # List of recipient user IDs
+    is_broadcast: bool = False
+
+
+class MessageResponse(MessageBase):
+    """Schema for message response."""
+    id: int
+    sender_id: int
+    is_broadcast: bool
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MessageDetailResponse(MessageResponse):
+    """Detailed message response with recipients."""
+    recipients: List[Dict[str, Any]] = []
+    read_receipts: List[Dict[str, Any]] = []
+    parent_message: Optional[MessageResponse] = None
+
+
+class MessageRecipientUpdate(BaseModel):
+    """Schema for updating message recipient status."""
+    status: Optional[str] = None  # read, archived
+
+
+class MessageRequestType(str, Enum):
+    """Message request types."""
+    AFFILIATE_TO_DEV = "AFFILIATE_TO_DEV"
+    AFFILIATE_TO_AFFILIATE = "AFFILIATE_TO_AFFILIATE"
+
+
+class MessageRequestStatus(str, Enum):
+    """Message request statuses."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    BLOCKED = "blocked"
+
+
+class MessageRequestBase(BaseModel):
+    """Base message request schema."""
+    recipient_id: int
+    message_type: MessageRequestType
+    subject: str
+    content: str
+
+
+class MessageRequestCreate(MessageRequestBase):
+    """Schema for creating a new message request."""
+    pass
+
+
+class MessageRequestResponse(MessageRequestBase):
+    """Schema for message request response."""
+    id: int
+    sender_id: int
+    status: MessageRequestStatus
+    created_at: datetime
+    responded_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MessageRequestUpdate(BaseModel):
+    """Schema for updating a message request."""
+    status: MessageRequestStatus
+
+
+class AffiliateProfileBase(BaseModel):
+    """Base affiliate profile schema."""
+    bio: Optional[str] = None
+    specialty: Optional[str] = None
+    years_experience: Optional[int] = None
+    website_url: Optional[str] = None
+    social_links: Optional[Dict[str, str]] = None
+    stats: Optional[Dict[str, Any]] = None
+
+
+class AffiliateProfileCreate(AffiliateProfileBase):
+    """Schema for creating an affiliate profile."""
+    pass
+
+
+class AffiliateProfileUpdate(BaseModel):
+    """Schema for updating an affiliate profile."""
+    bio: Optional[str] = None
+    specialty: Optional[str] = None
+    years_experience: Optional[int] = None
+    website_url: Optional[str] = None
+    social_links: Optional[Dict[str, str]] = None
+    stats: Optional[Dict[str, Any]] = None
+
+
+class AffiliateProfileResponse(AffiliateProfileBase):
+    """Schema for affiliate profile response."""
+    id: int
+    user_id: int
+    reputation_score: int
+    verified: bool
+    created_at: datetime
+    updated_at: datetime
+
+    # User information
+    email: str
+    full_name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AffiliateSearchResponse(BaseModel):
+    """Schema for affiliate search results."""
+    id: int
+    user_id: int
+    email: str
+    full_name: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    specialty: Optional[str] = None
+    years_experience: Optional[int] = None
+    reputation_score: int
+    verified: bool
+    is_connected: bool = False
+    mutual_products: List[str] = []
+
+
+class ConnectionType(str, Enum):
+    """Connection types."""
+    MUTUAL_PRODUCT = "mutual_product"
+    APPROVED_REQUEST = "approved_request"
+    MUTUAL_CONNECTION = "mutual_connection"
+
+
+class AffiliateConnectionBase(BaseModel):
+    """Base affiliate connection schema."""
+    user2_id: int  # The other user ID
+    connection_type: ConnectionType
+
+
+class AffiliateConnectionResponse(AffiliateConnectionBase):
+    """Schema for affiliate connection response."""
+    id: int
+    user1_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InboxResponse(BaseModel):
+    """Schema for inbox messages."""
+    messages: List[MessageDetailResponse]
+    total: int
+    unread_count: int
+
+
+class SentMessagesResponse(BaseModel):
+    """Schema for sent messages."""
+    messages: List[MessageResponse]
+    total: int
+
+
+class ComposeMessageRequest(BaseModel):
+    """Schema for composing a message."""
+    recipient_type: Literal["user", "affiliates", "all"]
+    recipient_ids: Optional[List[int]] = None
+    subject: str
+    content: str
+    message_type: MessageType = MessageType.USER_TO_USER
+
+
+class MessageThreadResponse(BaseModel):
+    """Schema for a message thread."""
+    thread_id: int
+    subject: str
+    participants: List[Dict[str, Any]]
+    messages: List[MessageDetailResponse]
+    created_at: datetime
+    updated_at: datetime
+
+
+class MessageStatistics(BaseModel):
+    """Schema for message statistics."""
+    total_messages: int
+    unread_messages: int
+    sent_messages: int
+    pending_requests: int
+    approved_requests: int
+
