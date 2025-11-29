@@ -17,7 +17,7 @@ from app.schemas import (
     SentMessagesResponse,
     MessageRecipientUpdate
 )
-from app.api.deps import get_current_user
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
