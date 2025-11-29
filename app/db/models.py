@@ -504,6 +504,37 @@ class ProductImageOverlay(Base):
 
 
 # ============================================================================
+# EMAIL SIGNUP MODEL (Pre-launch Signups)
+# ============================================================================
+
+class EmailSignup(Base):
+    """
+    Pre-launch email signups for Blitz SaaS platform.
+    Tracks signups from three audience types: Product Developers, Affiliates, and Businesses.
+    """
+    __tablename__ = "email_signups"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Email and metadata
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    audience_type = Column(String(50), nullable=False, index=True)  # 'product-dev', 'affiliate', 'business'
+    source = Column(String(100), server_default="coming-soon", nullable=False)  # 'coming-soon', 'website', etc.
+    ip_address = Column(String(45), nullable=True)  # Supports IPv6
+    user_agent = Column(Text, nullable=True)
+
+    # Status tracking
+    is_active = Column(Boolean, server_default="true", nullable=False)  # Soft delete support
+    notified = Column(Boolean, server_default="false", nullable=False)  # Has been notified of launch
+
+    # Notes field for admin use
+    notes = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+# ============================================================================
 # AI CREDITS TRACKING MODELS
 # ============================================================================
 # Import AI credits models to register them with SQLAlchemy

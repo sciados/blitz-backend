@@ -416,3 +416,43 @@ class ImageTypeUpdateRequest(BaseModel):
     """Request to update an image's type."""
     image_type: str  # The new image_type (hero, product, social, ad, etc.)
 
+# ============================================================================
+# EMAIL SIGNUP SCHEMAS (Pre-launch Signups)
+# ============================================================================
+
+class AudienceType(str, Enum):
+    PRODUCT_DEV = "product-dev"
+    AFFILIATE = "affiliate"
+    BUSINESS = "business"
+
+class EmailSignupBase(BaseModel):
+    email: EmailStr
+    audience_type: AudienceType
+    source: Optional[str] = "coming-soon"
+
+class EmailSignupCreate(EmailSignupBase):
+    """Schema for creating a new email signup."""
+    pass
+
+class EmailSignupResponse(EmailSignupBase):
+    """Schema for email signup response."""
+    id: int
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    is_active: bool
+    notified: bool
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class StatsResponse(BaseModel):
+    """Schema for signup statistics."""
+    total_signups: int
+    product_dev: int
+    affiliate: int
+    business: int
+    last_24h: int
+
