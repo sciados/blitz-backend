@@ -88,6 +88,7 @@ class ProductDetails(BaseModel):
     commission_rate: Optional[str]
     affiliate_link_url: Optional[str]
     is_recurring: bool
+    is_public: Optional[str] = None  # String "true" or "false"
     intelligence_data: Optional[Dict[str, Any]]
     times_used: int
     compiled_at: str
@@ -326,6 +327,7 @@ async def get_product(
         commission_rate=product.commission_rate,
         affiliate_link_url=product.affiliate_link_url,
         is_recurring=is_recurring,
+        is_public=product.is_public,
         intelligence_data=product.intelligence_data,
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
@@ -886,6 +888,7 @@ async def submit_product(
         commission_rate=new_product.commission_rate,
         affiliate_link_url=new_product.affiliate_link_url,
         is_recurring=is_recurring,
+        is_public=new_product.is_public,
         intelligence_data=new_product.intelligence_data,
         times_used=new_product.times_used,
         compiled_at=new_product.compiled_at.isoformat() if new_product.compiled_at else "",
@@ -911,6 +914,7 @@ class ProductUpdate(BaseModel):
     affiliate_link_url: Optional[str] = None
     product_description: Optional[str] = None
     is_recurring: Optional[bool] = None
+    is_public: Optional[bool] = None  # Admin can toggle public visibility
 
     class Config:
         json_schema_extra = {
@@ -921,7 +925,8 @@ class ProductUpdate(BaseModel):
                 "commission_rate": "60%",
                 "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
                 "product_description": "Updated description...",
-                "is_recurring": True
+                "is_recurring": True,
+                "is_public": True
             }
         }
 
@@ -1002,6 +1007,17 @@ async def update_product(
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(product, "intelligence_data")
 
+    # Update is_public if provided (admin only)
+    if update.is_public is not None:
+        # Only admins can change is_public
+        if current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can change product visibility"
+            )
+        # Store as string "true" or "false" to match database schema
+        product.is_public = "true" if update.is_public else "false"
+
     await db.commit()
     await db.refresh(product)
 
@@ -1028,6 +1044,7 @@ async def update_product(
         commission_rate=product.commission_rate,
         affiliate_link_url=product.affiliate_link_url,
         is_recurring=is_recurring,
+        is_public=product.is_public,
         intelligence_data=product.intelligence_data,
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
