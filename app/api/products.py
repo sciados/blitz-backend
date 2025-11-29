@@ -164,15 +164,22 @@ async def list_products(
     - **category**: Filter by product category (health, wealth, relationships, etc.)
     - **sort_by**: Sort order - recent (newest first), popular (most used), alphabetical
     - **recurring_only**: If True, show only products with recurring commissions
+
+    Admins can see all products (including inactive) for management.
+    Regular users see only public products.
     """
 
     # Build query with eager loading of creator relationship
     from sqlalchemy.orm import selectinload
     query = select(ProductIntelligence).options(
         selectinload(ProductIntelligence.created_by)
-    ).where(
-        ProductIntelligence.is_public == "true"
     )
+
+    # Filter by is_public - admins and product creators see all, affiliates see only public
+    is_admin = current_user.role == "admin"
+    is_product_creator = current_user.role == "creator"
+    if not (is_admin or is_product_creator):
+        query = query.where(ProductIntelligence.is_public == "true")
 
     # Filter by category if specified
     if category:
@@ -284,14 +291,21 @@ async def get_product(
     """
 
     from sqlalchemy.orm import selectinload
-    result = await db.execute(
-        select(ProductIntelligence).options(
-            selectinload(ProductIntelligence.created_by)
-        ).where(
-            ProductIntelligence.id == product_id,
-            ProductIntelligence.is_public == "true"
-        )
+
+    # Build query - admins and product creators can see all products, regular users only public
+    query = select(ProductIntelligence).options(
+        selectinload(ProductIntelligence.created_by)
+    ).where(
+        ProductIntelligence.id == product_id
     )
+
+    # Non-admin, non-creator users can only see public products
+    is_admin = current_user.role == "admin"
+    is_product_creator = current_user.role == "creator"
+    if not (is_admin or is_product_creator):
+        query = query.where(ProductIntelligence.is_public == "true")
+
+    result = await db.execute(query)
 
     product = result.scalar_one_or_none()
 
@@ -807,7 +821,7 @@ async def submit_product(
         created_by_user_id=current_user.id,  # Link to Product Developer
         developer_tier=current_user.developer_tier,  # Copy developer tier
         compilation_version="pending",  # Mark as pending compilation
-        is_public="true",  # Make immediately public
+        is_public="false",  # Creator or Admin must publish manually
         times_used=0,
         compiled_at=datetime.utcnow(),  # Set to now, will update when actually compiled
         # Store submission metadata in intelligence_data for now
@@ -944,13 +958,18 @@ async def update_product(
     Admins can edit any product.
     Product Developers can edit only their own products.
     """
-    # Get the product
-    result = await db.execute(
-        select(ProductIntelligence).where(
-            ProductIntelligence.id == product_id,
-            ProductIntelligence.is_public == "true"
-        )
+    # Get the product - admins and creators can see all products
+    query = select(ProductIntelligence).where(
+        ProductIntelligence.id == product_id
     )
+
+    # Non-admin, non-creator users can only see public products
+    is_admin = current_user.role == "admin"
+    is_product_creator = current_user.role == "creator"
+    if not (is_admin or is_product_creator):
+        query = query.where(ProductIntelligence.is_public == "true")
+
+    result = await db.execute(query)
     product = result.scalar_one_or_none()
 
     if not product:
@@ -1007,16 +1026,24 @@ async def update_product(
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(product, "intelligence_data")
 
-    # Update is_public if provided (admin only)
+    # Update is_public if provided (admin or product owner)
     if update.is_public is not None:
-        # Only admins can change is_public
-        if current_user.role != "admin":
+        # Check permissions: Admin can change any, Creator can change their own
+        is_admin = current_user.role == "admin"
+        is_owner = product.created_by_user_id == current_user.id
+
+        if not is_admin and not is_owner:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can change product visibility"
+                detail="Only administrators or product owners can change product visibility"
             )
+
         # Store as string "true" or "false" to match database schema
         product.is_public = "true" if update.is_public else "false"
+
+        # If publishing for the first time, mark as approved
+        if update.is_public and product.status == "pending":
+            product.status = "approved"
 
     await db.commit()
     await db.refresh(product)
