@@ -62,6 +62,7 @@ async def list_affiliates(
 async def search_affiliates(
     search: Optional[str] = Query(None, description="Search term"),
     specialty: Optional[str] = Query(None, description="Filter by specialty"),
+    user_type: Optional[str] = Query(None, description="Filter by user type (Affiliate, Creator, Business)"),
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -70,7 +71,8 @@ async def search_affiliates(
     results = await service.search_affiliates(
         current_user_id=current_user.id,
         search_term=search,
-        specialty=specialty
+        specialty=specialty,
+        user_type=user_type
     )
 
     return [

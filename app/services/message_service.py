@@ -335,7 +335,8 @@ class MessageService:
         self,
         current_user_id: int,
         search_term: Optional[str] = None,
-        specialty: Optional[str] = None
+        specialty: Optional[str] = None,
+        user_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Search affiliates with connection status."""
         # Get current user to check their type
@@ -390,6 +391,9 @@ class MessageService:
 
         if specialty:
             query = query.where(AffiliateProfile.specialty == specialty)
+
+        if user_type:
+            query = query.where(User.user_type == user_type)
 
         # Apply sorting for all cases
         query = query.order_by(
