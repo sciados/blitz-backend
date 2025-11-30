@@ -350,7 +350,9 @@ class MessageService:
             User, User.id == AffiliateProfile.user_id
         ).where(AffiliateProfile.user_id != current_user_id)
 
-        # If current user is a Creator, only show Affiliates who have campaigns for their products
+        # If current user is a Creator, show:
+        # 1. Affiliates who have campaigns for their products
+        # 2. Other Creators (for networking)
         if current_user.user_type == 'Creator':
             # Get product intelligence IDs created by this user
             creator_products_result = await self.db.execute(
@@ -360,16 +362,29 @@ class MessageService:
             )
             creator_product_ids = creator_products_result.scalars().all()
 
+            # Build conditions for what to show
+            show_conditions = []
+
+            # Condition 1: Other Creators (for networking)
+            show_conditions.append(AffiliateProfile.user.has(User.user_type == 'Creator'))
+
+            # Condition 2: Affiliates with campaigns for this Creator's products
             if creator_product_ids:
-                # Only show affiliates who have campaigns for these products
-                query = query.join(
-                    Campaign,
-                    Campaign.user_id == AffiliateProfile.user_id
-                ).where(
-                    Campaign.product_intelligence_id.in_(creator_product_ids)
+                # Create a subquery for affiliates with campaigns
+                affiliate_campaigns_subquery = select(Campaign.user_id).where(
+                    Campaign.product_intelligence_id.in_(creator_product_ids),
+                    Campaign.user_id.isnot(None)
                 ).distinct()
+
+                show_conditions.append(AffiliateProfile.user_id.in_(affiliate_campaigns_subquery))
+
+            # Combine conditions with OR
+            if len(show_conditions) > 1:
+                query = query.where(or_(*show_conditions))
+            elif len(show_conditions) == 1:
+                query = query.where(show_conditions[0])
             else:
-                # Creator has no products, return empty list
+                # No products and no creators to show
                 return []
         else:
             # For Affiliates and others, show only Affiliate and Creator profiles (not Business)
