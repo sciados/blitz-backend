@@ -344,9 +344,9 @@ class MessageService:
         )
         current_user = current_user_result.scalar_one()
 
-        # Start building the query
-        query = select(AffiliateProfile).options(
-            selectinload(AffiliateProfile.user)
+        # Start building the query - need to join User for proper ORDER BY
+        query = select(AffiliateProfile, User).join(
+            User, User.id == AffiliateProfile.user_id
         ).where(AffiliateProfile.user_id != current_user_id)
 
         # If current user is a Creator, only show Affiliates who have campaigns for their products
@@ -395,16 +395,18 @@ class MessageService:
         query = query.order_by(
             # Sort: Affiliates first (1), then Creators (2), then Business (3)
             case(
-                (AffiliateProfile.user.has(User.user_type == 'Affiliate'), 1),
-                (AffiliateProfile.user.has(User.user_type == 'Creator'), 2),
-                (AffiliateProfile.user.has(User.user_type == 'Business'), 3),
+                (User.user_type == 'Affiliate', 1),
+                (User.user_type == 'Creator', 2),
+                (User.user_type == 'Business', 3),
                 else_=4
             ),
             User.full_name.asc()
         )
 
         result = await self.db.execute(query)
-        profiles = result.scalars().all()
+        # Since we joined, result returns tuples (AffiliateProfile, User)
+        rows = result.all()
+        profiles = [row[0] for row in rows]
 
         enriched = []
         for profile in profiles:
