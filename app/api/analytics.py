@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 async def get_developer_analytics(
     user_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = get_db
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get analytics for a specific developer's products.
