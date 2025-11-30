@@ -661,6 +661,7 @@ class ConnectionType(str, Enum):
     MUTUAL_PRODUCT = "mutual_product"
     APPROVED_REQUEST = "approved_request"
     MUTUAL_CONNECTION = "mutual_connection"
+    BLOCKED = "blocked"
 
 
 class AffiliateConnectionBase(BaseModel):

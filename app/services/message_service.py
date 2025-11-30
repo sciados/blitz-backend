@@ -469,6 +469,83 @@ class MessageService:
 
         return enriched
 
+    async def get_my_connections(self, user_id: int) -> List[AffiliateConnection]:
+        """Get all connections for a user."""
+        connections = await self.db.execute(
+            select(AffiliateConnection).where(
+                or_(
+                    AffiliateConnection.user1_id == user_id,
+                    AffiliateConnection.user2_id == user_id
+                )
+            ).order_by(AffiliateConnection.created_at.desc())
+        )
+        return list(connections.scalars().all())
+
+    async def delete_connection(self, connection_id: int, user_id: int) -> bool:
+        """Delete/remove a connection. User must be part of the connection."""
+        connection = await self.db.get(AffiliateConnection, connection_id)
+
+        if not connection:
+            return False
+
+        # Check if user is part of this connection
+        if connection.user1_id != user_id and connection.user2_id != user_id:
+            return False
+
+        await self.db.delete(connection)
+        await self.db.commit()
+        return True
+
+    async def block_user(self, blocker_id: int, blocked_id: int) -> bool:
+        """Block a user and remove any existing connection."""
+        # First, remove any existing connection
+        existing_connection = await self.db.scalar(
+            select(AffiliateConnection).where(
+                or_(
+                    and_(
+                        AffiliateConnection.user1_id == blocker_id,
+                        AffiliateConnection.user2_id == blocked_id
+                    ),
+                    and_(
+                        AffiliateConnection.user1_id == blocked_id,
+                        AffiliateConnection.user2_id == blocker_id
+                    )
+                )
+            )
+        )
+
+        if existing_connection:
+            await self.db.delete(existing_connection)
+
+        # Create a blocked connection record
+        blocked_connection = AffiliateConnection(
+            user1_id=blocker_id,
+            user2_id=blocked_id,
+            connection_type=ConnectionType.BLOCKED
+        )
+        self.db.add(blocked_connection)
+        await self.db.commit()
+        return True
+
+    async def unblock_user(self, unblocker_id: int, blocked_id: int) -> bool:
+        """Unblock a user by removing blocked connection record."""
+        connection = await self.db.scalar(
+            select(AffiliateConnection).where(
+                and_(
+                    AffiliateConnection.user1_id == unblocker_id,
+                    AffiliateConnection.user2_id == blocked_id,
+                    AffiliateConnection.connection_type == ConnectionType.BLOCKED
+                )
+            )
+        )
+
+        if not connection:
+            return False
+
+        await self.db.delete(connection)
+        await self.db.commit()
+        return True
+
     async def get_message_statistics(self, user_id: int) -> Dict[str, int]:
         """Get message statistics for user."""
         total_messages = await self.db.scalar(
