@@ -3,7 +3,7 @@ Demo Password Fix Endpoint
 Simple endpoint to reset demo user passwords to "password123"
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.db.session import get_db
