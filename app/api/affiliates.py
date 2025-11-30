@@ -58,6 +58,39 @@ async def list_affiliates(
     ]
 
 
+@router.get("/search", response_model=List[AffiliateSearchResponse])
+async def search_affiliates(
+    search: Optional[str] = Query(None, description="Search term"),
+    specialty: Optional[str] = Query(None, description="Filter by specialty"),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Search affiliates with connection status."""
+    service = MessageService(db)
+    results = await service.search_affiliates(
+        current_user_id=current_user.id,
+        search_term=search,
+        specialty=specialty
+    )
+
+    return [
+        AffiliateSearchResponse(
+            id=result["id"],
+            user_id=result["user_id"],
+            email=result["email"],
+            full_name=result["full_name"],
+            profile_image_url=result["profile_image_url"],
+            specialty=result["specialty"],
+            years_experience=result["years_experience"],
+            reputation_score=result["reputation_score"],
+            verified=result["verified"],
+            is_connected=result["is_connected"],
+            mutual_products=result["mutual_products"]
+        )
+        for result in results
+    ]
+
+
 @router.get("/{user_id}", response_model=AffiliateProfileResponse)
 async def get_affiliate_profile(
     user_id: int,
@@ -161,39 +194,6 @@ async def update_affiliate_profile(
         created_at=profile.created_at,
         updated_at=profile.updated_at
     )
-
-
-@router.get("/search", response_model=List[AffiliateSearchResponse])
-async def search_affiliates(
-    search: Optional[str] = Query(None, description="Search term"),
-    specialty: Optional[str] = Query(None, description="Filter by specialty"),
-    current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Search affiliates with connection status."""
-    service = MessageService(db)
-    results = await service.search_affiliates(
-        current_user_id=current_user.id,
-        search_term=search,
-        specialty=specialty
-    )
-
-    return [
-        AffiliateSearchResponse(
-            id=result["id"],
-            user_id=result["user_id"],
-            email=result["email"],
-            full_name=result["full_name"],
-            profile_image_url=result["profile_image_url"],
-            specialty=result["specialty"],
-            years_experience=result["years_experience"],
-            reputation_score=result["reputation_score"],
-            verified=result["verified"],
-            is_connected=result["is_connected"],
-            mutual_products=result["mutual_products"]
-        )
-        for result in results
-    ]
 
 
 @router.get("/my-network", response_model=List[Dict[str, Any]])
