@@ -6,7 +6,7 @@ reputation checking, and notification sending.
 
 from typing import List, Optional, Tuple, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, case
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
@@ -338,9 +338,46 @@ class MessageService:
         specialty: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Search affiliates with connection status."""
+        # Get current user to check their type
+        current_user_result = await self.db.execute(
+            select(User).where(User.id == current_user_id)
+        )
+        current_user = current_user_result.scalar_one()
+
+        # Start building the query
         query = select(AffiliateProfile).options(
             selectinload(AffiliateProfile.user)
         ).where(AffiliateProfile.user_id != current_user_id)
+
+        # If current user is a Creator, only show Affiliates who have campaigns for their products
+        if current_user.user_type == 'Creator':
+            # Get product intelligence IDs created by this user
+            creator_products_result = await self.db.execute(
+                select(ProductIntelligence.id).where(
+                    ProductIntelligence.created_by_user_id == current_user_id
+                )
+            )
+            creator_product_ids = creator_products_result.scalars().all()
+
+            if creator_product_ids:
+                # Only show affiliates who have campaigns for these products
+                query = query.join(
+                    Campaign,
+                    Campaign.user_id == AffiliateProfile.user_id
+                ).where(
+                    Campaign.product_intelligence_id.in_(creator_product_ids)
+                ).distinct()
+            else:
+                # Creator has no products, return empty list
+                return []
+        else:
+            # For Affiliates and others, show all Affiliate and Creator profiles
+            query = query.where(
+                or_(
+                    AffiliateProfile.user.has(User.user_type == 'Affiliate'),
+                    AffiliateProfile.user.has(User.user_type == 'Creator')
+                )
+            )
 
         if search_term:
             query = query.where(
@@ -352,6 +389,13 @@ class MessageService:
 
         if specialty:
             query = query.where(AffiliateProfile.specialty == specialty)
+
+        # Apply sorting for all cases
+        query = query.order_by(
+            # Sort: Affiliates first (1), then Creators (2)
+            case((AffiliateProfile.user.has(User.user_type == 'Affiliate'), 1), else_=2),
+            User.full_name.asc()
+        )
 
         result = await self.db.execute(query)
         profiles = result.scalars().all()
@@ -398,6 +442,7 @@ class MessageService:
                 "user_id": profile.user_id,
                 "email": profile.user.email,
                 "full_name": profile.user.full_name,
+                "user_type": profile.user.user_type,
                 "profile_image_url": profile.user.profile_image_url,
                 "specialty": profile.specialty,
                 "years_experience": profile.years_experience,
