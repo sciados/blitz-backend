@@ -375,7 +375,6 @@ class MessageService:
 
                 if product_intel_ids:
                     # Get product intelligence with creators
-                    from sqlalchemy.orm import selectinload
                     product_intel_result = await self.db.execute(
                         select(ProductIntelligence)
                         .options(selectinload(ProductIntelligence.created_by))
