@@ -372,12 +372,11 @@ class MessageService:
                 # Creator has no products, return empty list
                 return []
         else:
-            # For Affiliates and others, show all Affiliate, Creator, and Business profiles
+            # For Affiliates and others, show only Affiliate and Creator profiles (not Business)
             query = query.where(
                 or_(
                     AffiliateProfile.user.has(User.user_type == 'Affiliate'),
-                    AffiliateProfile.user.has(User.user_type == 'Creator'),
-                    AffiliateProfile.user.has(User.user_type == 'Business')
+                    AffiliateProfile.user.has(User.user_type == 'Creator')
                 )
             )
 

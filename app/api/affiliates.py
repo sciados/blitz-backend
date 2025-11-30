@@ -81,6 +81,7 @@ async def search_affiliates(
             user_id=result["user_id"],
             email=result["email"],
             full_name=result["full_name"],
+            user_type=result["user_type"],
             profile_image_url=result["profile_image_url"],
             specialty=result["specialty"],
             years_experience=result["years_experience"],

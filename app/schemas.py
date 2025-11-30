@@ -644,6 +644,7 @@ class AffiliateSearchResponse(BaseModel):
     user_id: int
     email: str
     full_name: Optional[str] = None
+    user_type: Optional[str] = None
     profile_image_url: Optional[str] = None
     specialty: Optional[str] = None
     years_experience: Optional[int] = None
