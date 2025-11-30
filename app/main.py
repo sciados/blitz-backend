@@ -27,6 +27,7 @@ from app.api.admin import api_keys as admin_api_keys
 from app.api.admin import compliance as admin_compliance
 from app.api.admin import credits as admin_credits
 from app.api.admin import images as admin_images
+from app.api.admin import messages as admin_messages
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -196,6 +197,7 @@ app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 app.include_router(admin_email_campaigns.router)
 app.include_router(admin_email_templates.router)
+app.include_router(admin_messages.router)  # Admin broadcast messaging
 
 # ====
 # STARTUP MESSAGE

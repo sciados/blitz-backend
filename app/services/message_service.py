@@ -358,6 +358,42 @@ class MessageService:
 
         enriched = []
         for profile in profiles:
+            # Get campaigns for this affiliate to find product developers
+            campaigns_result = await self.db.execute(
+                select(Campaign).where(
+                    Campaign.user_id == profile.user_id,
+                    Campaign.product_intelligence_id.isnot(None)
+                )
+            )
+            campaigns = campaigns_result.scalars().all()
+
+            # Extract product developers from campaigns
+            product_developers = []
+            if campaigns:
+                # Get unique product intelligence IDs
+                product_intel_ids = list(set(c.product_intelligence_id for c in campaigns if c.product_intelligence_id))
+
+                if product_intel_ids:
+                    # Get product intelligence with creators
+                    from sqlalchemy.orm import selectinload
+                    product_intel_result = await self.db.execute(
+                        select(ProductIntelligence)
+                        .options(selectinload(ProductIntelligence.created_by))
+                        .where(ProductIntelligence.id.in_(product_intel_ids))
+                    )
+                    product_intelligences = product_intel_result.scalars().all()
+
+                    # Build list of product developers
+                    for pi in product_intelligences:
+                        if pi.created_by and pi.created_by.id not in [pd['user_id'] for pd in product_developers]:
+                            product_developers.append({
+                                "user_id": pi.created_by.id,
+                                "full_name": pi.created_by.full_name,
+                                "email": pi.created_by.email,
+                                "product_name": pi.product_name,
+                                "product_url": pi.product_url
+                            })
+
             data = {
                 "id": profile.id,
                 "user_id": profile.user_id,
@@ -369,7 +405,7 @@ class MessageService:
                 "reputation_score": profile.reputation_score,
                 "verified": profile.verified,
                 "is_connected": False,
-                "mutual_products": []
+                "mutual_products": product_developers
             }
 
             connection = await self._check_connection(current_user_id, profile.user_id)
