@@ -70,6 +70,72 @@ def calculate_affiliate_score(clicks: int, unique_clicks: int, content: int, cam
     return round(score, 2)
 
 
+@router.get("/my-campaigns")
+async def get_my_product_campaigns(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all campaigns that use the current user's products.
+    Used by Product Developers to view analytics on their products.
+    Non-admin endpoint - only returns campaigns for products created by the current user.
+    """
+    # Get all products created by current user
+    products_result = await db.execute(
+        select(ProductIntelligence.id, ProductIntelligence.product_name).where(
+            ProductIntelligence.created_by_user_id == current_user.id
+        )
+    )
+    products = products_result.all()
+
+    if not products:
+        return {
+            "campaigns": [],
+            "total": 0
+        }
+
+    product_ids = [p[0] for p in products]
+
+    # Get all campaigns using these products
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.product_intelligence_id.in_(product_ids)
+        ).order_by(Campaign.created_at.desc())
+    )
+    campaigns = result.scalars().all()
+
+    # Get user info for each campaign
+    campaign_list = []
+    for campaign in campaigns:
+        # Get user
+        user_result = await db.execute(
+            select(User).where(User.id == campaign.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+
+        campaign_list.append({
+            "id": campaign.id,
+            "name": campaign.name,
+            "product_url": campaign.product_url,
+            "affiliate_network": campaign.affiliate_network,
+            "commission_rate": campaign.commission_rate,
+            "status": campaign.status,
+            "product_intelligence_id": campaign.product_intelligence_id,
+            "has_intelligence": campaign.intelligence_data is not None and len(campaign.intelligence_data) > 0,
+            "created_at": campaign.created_at.isoformat() if campaign.created_at else None,
+            "user": {
+                "id": user.id if user else None,
+                "email": user.email if user else "Unknown",
+                "role": user.role if user else "unknown"
+            }
+        })
+
+    return {
+        "campaigns": campaign_list,
+        "total": len(campaign_list)
+    }
+
+
 @router.get("/leaderboard/{product_id}", response_model=ProductLeaderboard)
 async def get_product_leaderboard(
     product_id: int,
