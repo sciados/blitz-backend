@@ -396,12 +396,11 @@ class MessageService:
 
         # Apply sorting for all cases
         query = query.order_by(
-            # Sort: Affiliates first (1), then Creators (2), then Business (3)
+            # Sort: Affiliates first (1), then Creators (2)
             case(
                 (User.user_type == 'Affiliate', 1),
                 (User.user_type == 'Creator', 2),
-                (User.user_type == 'Business', 3),
-                else_=4
+                else_=3
             ),
             User.full_name.asc()
         )

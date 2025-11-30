@@ -555,6 +555,8 @@ class MessageRequestType(str, Enum):
     """Message request types."""
     AFFILIATE_TO_DEV = "AFFILIATE_TO_DEV"
     AFFILIATE_TO_AFFILIATE = "AFFILIATE_TO_AFFILIATE"
+    DEV_TO_AFFILIATE = "DEV_TO_AFFILIATE"
+    CREATOR_TO_CREATOR = "CREATOR_TO_CREATOR"
 
 
 class MessageRequestStatus(str, Enum):
