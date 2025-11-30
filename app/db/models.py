@@ -25,7 +25,7 @@ class User(Base):
     # "Creator" (Product Developer) | "Affiliate" (Marketer) | "Business" | "Admin"
     # Role hierarchy: user -> business -> affiliate -> creator -> admin
     # All higher roles inherit permissions from lower roles
-    role = Column(String(20), server_default="user", nullable=False, index=True)
+    user_type = Column(String(20), nullable=True, index=True)
 
     # Developer tier (for product developers)
     developer_tier = Column(String(20), nullable=True, index=True)  # new, verified, premium
@@ -41,6 +41,7 @@ class User(Base):
     created_products = relationship("ProductIntelligence", back_populates="created_by", foreign_keys="ProductIntelligence.created_by_user_id")
     shortened_links = relationship("ShortenedLink", back_populates="user", cascade="all, delete-orphan")
     platform_credentials = relationship("UserPlatformCredential", back_populates="user", cascade="all, delete-orphan")
+    affiliate_profile = relationship("AffiliateProfile", back_populates="user", uselist=False)
 
 # ============================================================================
 # PRODUCT INTELLIGENCE MODEL (Global Shared Intelligence)
@@ -678,7 +679,7 @@ class AffiliateProfile(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
-    user = relationship("User")
+    user = relationship("User", back_populates="affiliate_profile")
 
 
 class AffiliateConnection(Base):

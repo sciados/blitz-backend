@@ -371,11 +371,12 @@ class MessageService:
                 # Creator has no products, return empty list
                 return []
         else:
-            # For Affiliates and others, show all Affiliate and Creator profiles
+            # For Affiliates and others, show all Affiliate, Creator, and Business profiles
             query = query.where(
                 or_(
                     AffiliateProfile.user.has(User.user_type == 'Affiliate'),
-                    AffiliateProfile.user.has(User.user_type == 'Creator')
+                    AffiliateProfile.user.has(User.user_type == 'Creator'),
+                    AffiliateProfile.user.has(User.user_type == 'Business')
                 )
             )
 
@@ -392,8 +393,13 @@ class MessageService:
 
         # Apply sorting for all cases
         query = query.order_by(
-            # Sort: Affiliates first (1), then Creators (2)
-            case((AffiliateProfile.user.has(User.user_type == 'Affiliate'), 1), else_=2),
+            # Sort: Affiliates first (1), then Creators (2), then Business (3)
+            case(
+                (AffiliateProfile.user.has(User.user_type == 'Affiliate'), 1),
+                (AffiliateProfile.user.has(User.user_type == 'Creator'), 2),
+                (AffiliateProfile.user.has(User.user_type == 'Business'), 3),
+                else_=4
+            ),
             User.full_name.asc()
         )
 
