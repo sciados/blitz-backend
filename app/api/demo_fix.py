@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/demo", tags=["demo"])
 PASSWORD_HASH = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj5Lk5yT6i8G"
 
 
-@router.post("/fix-passwords")
+@router.get("/fix-passwords")
 async def fix_demo_passwords(db: AsyncSession = Depends(get_db)):
     """
     Fix demo user passwords to use "password123"
