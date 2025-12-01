@@ -244,6 +244,97 @@ async def reply_to_message(
     )
 
 
+@router.delete("/{message_id}")
+async def delete_message(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a message (soft delete)."""
+    result = await db.execute(
+        select(Message).where(
+            Message.id == message_id,
+            Message.sender_id == current_user.id
+        )
+    )
+    message = result.scalar_one_or_none()
+
+    if not message:
+        raise HTTPException(
+            status_code=404,
+            detail="Message not found or you don't have permission to delete it"
+        )
+
+    # Soft delete - mark as deleted instead of actually deleting
+    message.deleted_at = datetime.utcnow()
+    message.status = "deleted"
+    await db.commit()
+
+    return {"message": "Message deleted successfully"}
+
+
+@router.post("/cleanup-deleted", response_model=dict)
+async def cleanup_deleted_messages(
+    days_old: int = Query(30, ge=1, description="Delete messages older than this many days"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Permanently delete messages that have been soft-deleted for more than X days.
+    This endpoint should be called by a cron job daily.
+    NOTE: Only accessible by admin users.
+    """
+    from app.core.config.settings import settings
+
+    # Check if current user is admin
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only admin users can perform cleanup operations"
+        )
+
+    # Calculate cutoff date
+    cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+
+    # Find messages to delete (soft deleted more than X days ago)
+    result = await db.execute(
+        select(Message).where(
+            Message.deleted_at.isnot(None),
+            Message.deleted_at < cutoff_date
+        )
+    )
+    messages_to_delete = result.scalars().all()
+
+    if not messages_to_delete:
+        return {
+            "message": f"No messages found older than {days_old} days",
+            "deleted_count": 0
+        }
+
+    # Delete messages and their recipients
+    deleted_count = 0
+    for message in messages_to_delete:
+        # Delete message recipients first (due to foreign key constraints)
+        await db.execute(
+            delete(MessageRecipient).where(
+                MessageRecipient.message_id == message.id
+            )
+        )
+        # Delete the message
+        await db.execute(
+            delete(Message).where(Message.id == message.id)
+        )
+        deleted_count += 1
+
+    await db.commit()
+
+    return {
+        "message": f"Successfully deleted {deleted_count} messages older than {days_old} days",
+        "deleted_count": deleted_count,
+        "cutoff_date": cutoff_date.isoformat()
+    }
+
+
 @router.get("/statistics", response_model=dict)
 async def get_message_statistics(
     current_user=Depends(get_current_user),

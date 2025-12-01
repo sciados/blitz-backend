@@ -165,7 +165,8 @@ class MessageService:
         message_ids = [r.message_id for r in recipients]
 
         messages_query = select(Message).where(
-            Message.id.in_(message_ids)
+            Message.id.in_(message_ids),
+            Message.deleted_at.is_(None)  # Exclude deleted messages
         ).order_by(Message.created_at.desc())
 
         offset = (page - 1) * per_page
@@ -194,7 +195,8 @@ class MessageService:
     async def get_sent_messages(self, user_id: int, page: int = 1, per_page: int = 20) -> Tuple[List[Message], int]:
         """Get messages sent by user."""
         query = select(Message).where(
-            Message.sender_id == user_id
+            Message.sender_id == user_id,
+            Message.deleted_at.is_(None)  # Exclude deleted messages
         ).order_by(Message.created_at.desc())
 
         offset = (page - 1) * per_page
@@ -205,7 +207,8 @@ class MessageService:
 
         total = await self.db.scalar(
             select(func.count()).select_from(Message).where(
-                Message.sender_id == user_id
+                Message.sender_id == user_id,
+                Message.deleted_at.is_(None)  # Exclude deleted messages
             )
         )
 
@@ -216,7 +219,10 @@ class MessageService:
         message = await self.db.scalar(
             select(Message).options(
                 selectinload(Message.recipients).selectinload(MessageRecipient.recipient)
-            ).where(Message.id == message_id)
+            ).where(
+                Message.id == message_id,
+                Message.deleted_at.is_(None)  # Exclude deleted messages
+            )
         )
 
         if not message:

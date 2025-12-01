@@ -596,11 +596,12 @@ class Message(Base):
     message_type = Column(String(50), nullable=False, index=True)  # ADMIN_BROADCAST, DEV_TO_AFFILIATES, etc.
     parent_message_id = Column(Integer, ForeignKey("messages.id"), nullable=True)  # For threading/replies
     is_broadcast = Column(Boolean, server_default="false", nullable=False)
-    status = Column(String(20), server_default="sent", nullable=False)  # draft, sent, read, archived
+    status = Column(String(20), server_default="sent", nullable=False)  # draft, sent, read, archived, deleted
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # For soft deletes
 
     # Relationships
     sender = relationship("User", foreign_keys=[sender_id])
