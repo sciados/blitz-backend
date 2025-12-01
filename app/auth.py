@@ -175,18 +175,36 @@ async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """Get current user from JWT token"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"========== AUTHENTICATION LAYER ==========")
+    logger.info(f"Token received (first 50 chars): {token[:50]}...")
+    logger.info(f"Token length: {len(token)}")
+
     payload = decode_access_token(token)
     user_email = payload.sub
-    
+    logger.info(f"Token payload 'sub' (email): {user_email}")
+
     # Get user by email (since we store email in the token)
+    logger.info(f"Fetching user from database with email: {user_email}")
     user = await get_user_by_email(db, user_email)
-    
+
     if not user:
+        logger.error(f"✗ AUTH FAILED: User not found in database for email: {user_email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    logger.info(f"✓ AUTH SUCCESS: User authenticated")
+    logger.info(f"  - ID: {user.id}")
+    logger.info(f"  - Email: {user.email}")
+    logger.info(f"  - Full Name: {user.full_name}")
+    logger.info(f"  - User Type: {user.user_type}")
+    logger.info(f"===========================================")
+
     return user
 
 

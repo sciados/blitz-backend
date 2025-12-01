@@ -120,12 +120,44 @@ class MessageService:
         broadcast_group: Optional[str] = None
     ) -> Message:
         """Create a new message."""
+        import logging
+        import uuid
+        logger = logging.getLogger(__name__)
+
+        # Generate unique ID to trace this request
+        request_id = str(uuid.uuid4())[:8]
+        logger.info(f"=== CREATE MESSAGE [{request_id}] ===")
+        logger.info(f"sender_id: {sender_id} (type: {type(sender_id)})")
+        logger.info(f"subject: {subject[:100]}")
+        logger.info(f"recipient_ids: {recipient_ids}")
+        logger.info(f"is_broadcast: {is_broadcast}")
+
+        # CRITICAL: Ensure sender_id is an integer (defend against type issues)
+        try:
+            sender_id_int = int(sender_id)
+            logger.info(f"✓ Converted sender_id to int: {sender_id_int}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"✗ Failed to convert sender_id to int: {e}")
+            raise
+
+        # CRITICAL: Verify the sender exists and log their details
+        sender_result = await self.db.execute(
+            select(User).where(User.id == sender_id_int)
+        )
+        sender = sender_result.scalar_one_or_none()
+        if sender:
+            logger.info(f"✓ Sender verified: ID={sender.id}, Email={sender.email}")
+        else:
+            logger.error(f"✗ SENDER NOT FOUND with ID: {sender_id_int}")
+
         # If broadcast with group, expand to actual recipients
         if is_broadcast and broadcast_group and not recipient_ids:
-            recipient_ids = await self.get_broadcast_recipients(sender_id, broadcast_group)
+            recipient_ids = await self.get_broadcast_recipients(sender_id_int, broadcast_group)
+            logger.info(f"Expanded broadcast recipients: {recipient_ids}")
 
+        logger.info(f"Creating Message object in memory...")
         message = Message(
-            sender_id=sender_id,
+            sender_id=sender_id_int,  # Use the int version
             subject=subject,
             content=content,
             message_type=message_type,
@@ -134,19 +166,44 @@ class MessageService:
             status="sent"
         )
 
-        self.db.add(message)
-        await self.db.flush()
+        logger.info(f"Message object created: sender_id={message.sender_id}")
 
+        self.db.add(message)
+        logger.info(f"Message added to session")
+
+        await self.db.flush()
+        logger.info(f"Message ID after flush: {message.id}")
+        logger.info(f"Message sender_id after flush: {message.sender_id}")
+
+        logger.info(f"Adding {len(recipient_ids)} recipients...")
         for recipient_id in recipient_ids:
+            try:
+                recipient_id_int = int(recipient_id)
+            except (ValueError, TypeError):
+                logger.error(f"✗ Invalid recipient_id: {recipient_id}")
+                continue
+
             recipient = MessageRecipient(
                 message_id=message.id,
-                recipient_id=recipient_id,
+                recipient_id=recipient_id_int,
                 status="sent"
             )
             self.db.add(recipient)
 
+        logger.info(f"Committing to database...")
         await self.db.commit()
+        logger.info(f"✓ Database committed successfully")
+
         await self.db.refresh(message)
+
+        logger.info(f"=== MESSAGE STORED IN DB [{request_id}] ===")
+        logger.info(f"Message ID: {message.id}")
+        logger.info(f"sender_id (DB): {message.sender_id}")
+        logger.info(f"Expected sender_id: {sender_id_int}")
+        logger.info(f"Match? {message.sender_id == sender_id_int}")
+        logger.info(f"Recipients: {recipient_ids}")
+        logger.info(f"Subject: {message.subject[:100]}")
+        logger.info(f"====================================\n")
 
         return message
 
@@ -195,23 +252,77 @@ class MessageService:
 
     async def get_sent_messages(self, user_id: int, page: int = 1, per_page: int = 20) -> Tuple[List[Message], int]:
         """Get messages sent by user."""
-        query = select(Message).where(
-            Message.sender_id == user_id,
-            Message.deleted_at.is_(None)  # Exclude deleted messages
-        ).order_by(Message.created_at.desc())
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"=== GET SENT MESSAGES SERVICE ===")
+        logger.info(f"Request received for user_id: {user_id}")
+        logger.info(f"Type of user_id: {type(user_id)}")
+
+        # CRITICAL: Ensure user_id is an integer (defend against type issues)
+        try:
+            user_id_int = int(user_id)
+            logger.info(f"✓ Converted user_id to int: {user_id_int}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"✗ Failed to convert user_id to int: {e}")
+            return [], 0
+
+        # CRITICAL: Get the actual User object to verify
+        user_result = await self.db.execute(
+            select(User).where(User.id == user_id_int)
+        )
+        user = user_result.scalar_one_or_none()
+        if user:
+            logger.info(f"✓ User found: ID={user.id}, Email={user.email}, FullName={user.full_name}")
+        else:
+            logger.error(f"✗ USER NOT FOUND with ID: {user_id_int}")
+
+        # Add a filter to ONLY get messages where sender_id EXACTLY matches user_id
+        where_clause = and_(
+            Message.sender_id == user_id_int,
+            Message.deleted_at.is_(None)
+        )
+
+        logger.info(f"WHERE clause: sender_id={user_id_int} AND deleted_at IS NULL")
+        logger.info(f"Comparison: Message.sender_id == {user_id_int}")
+
+        query = select(Message).where(where_clause).order_by(Message.created_at.desc())
 
         offset = (page - 1) * per_page
         query = query.offset(offset).limit(per_page)
 
+        # Log the actual SQL query
+        compiled = query.compile(self.db.bind, compile_kwargs={"literal_binds": True})
+        logger.info(f"Compiled SQL Query: {compiled}")
+
+        # Execute the query
         result = await self.db.execute(query)
         messages = result.scalars().all()
 
-        total = await self.db.scalar(
-            select(func.count()).select_from(Message).where(
-                Message.sender_id == user_id,
-                Message.deleted_at.is_(None)  # Exclude deleted messages
-            )
-        )
+        logger.info(f"=== QUERY RESULTS ===")
+        logger.info(f"Raw result count: {len(messages)}")
+        logger.info(f"Type of result: {type(messages)}")
+
+        for i, msg in enumerate(messages):
+            msg_sender_id = int(msg.sender_id) if msg.sender_id is not None else None
+            logger.info(f"[{i+1}] Message ID: {msg.id}")
+            logger.info(f"    - sender_id (from DB): {msg.sender_id} (type: {type(msg.sender_id)})")
+            logger.info(f"    - sender_id (as int):  {msg_sender_id} (type: {type(msg_sender_id)})")
+            logger.info(f"    - Expected user_id:    {user_id_int} (type: {type(user_id_int)})")
+            logger.info(f"    - Match (str)? {msg.sender_id == user_id_int}")
+            logger.info(f"    - Match (int)? {msg_sender_id == user_id_int}")
+            logger.info(f"    - Subject: {msg.subject[:80]}")
+            logger.info(f"    - Message Type: {msg.message_type}")
+            logger.info(f"    - Created: {msg.created_at}")
+            logger.info(f"    ---")
+
+        # Also check total count
+        total_query = select(func.count()).select_from(Message).where(where_clause)
+        total_result = await self.db.execute(total_query)
+        total = total_result.scalar()
+
+        logger.info(f"Total count (with filter): {total}")
+        logger.info(f"=== END GET SENT MESSAGES ===\n")
 
         return list(messages), total or 0
 
