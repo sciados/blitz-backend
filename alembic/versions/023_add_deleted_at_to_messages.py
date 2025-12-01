@@ -1,6 +1,6 @@
 """Add deleted_at column to messages table
 
-Revision ID: 005
+Revision ID: 023
 Revises:
 Create Date: 2025-12-01 14:30:00
 
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '005'
-down_revision = '004'
+revision = '023'
+down_revision = '022'
 branch_labels = None
 depends_on = None
 
