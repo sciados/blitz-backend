@@ -25,14 +25,14 @@ async def get_allowed_recipients(
     Returns accepted connections grouped by user type.
     """
 
-    # Get all accepted connections where current_user is either sender or recipient
+    # Get all accepted connections where current_user is either user1 or user2
+    # Note: We need to check both connection types for actual connections
     connections_result = await db.execute(
         select(AffiliateConnection).where(
             or_(
-                AffiliateConnection.requester_id == current_user.id,
-                AffiliateConnection.recipient_id == current_user.id
-            ),
-            AffiliateConnection.status == "accepted"
+                AffiliateConnection.user1_id == current_user.id,
+                AffiliateConnection.user2_id == current_user.id
+            )
         )
     )
     connections = connections_result.scalars().all()
@@ -40,16 +40,25 @@ async def get_allowed_recipients(
     # Extract user IDs of connected users
     connected_user_ids = set()
     for conn in connections:
-        if conn.requester_id == current_user.id:
-            connected_user_ids.add(conn.recipient_id)
+        if conn.user1_id == current_user.id:
+            connected_user_ids.add(conn.user2_id)
         else:
-            connected_user_ids.add(conn.requester_id)
+            connected_user_ids.add(conn.user1_id)
 
     if not connected_user_ids:
         return {
-            "connections": [],
+            "connections": {
+                "Creator": [],
+                "Affiliate": [],
+                "Business": [],
+                "Other": []
+            },
             "total": 0,
-            "message": "No allowed recipients - connect with users first"
+            "current_user": {
+                "id": current_user.id,
+                "user_type": current_user.user_type,
+                "full_name": current_user.full_name
+            }
         }
 
     # Get user details for connected users
