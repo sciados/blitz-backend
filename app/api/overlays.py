@@ -3,23 +3,27 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func
 from typing import Optional, List
+from pydantic import BaseModel
 from app.db.session import get_db
 from app.db.models import User, Campaign, ProductImageOverlay
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/api", tags=["overlays"])
 
+class CreateOverlayRequest(BaseModel):
+    image_url: str
+    image_source: str
+    position_x: float = 0.5
+    position_y: float = 0.5
+    scale: float = 1.0
+    rotation: float = 0.0
+    opacity: float = 1.0
+    z_index: int = 1
+
 @router.post("/campaigns/{campaign_id}/overlays")
 async def create_overlay(
     campaign_id: int,
-    image_url: str,
-    image_source: str,
-    position_x: float = 0.5,
-    position_y: float = 0.5,
-    scale: float = 1.0,
-    rotation: float = 0.0,
-    opacity: float = 1.0,
-    z_index: int = 1,
+    request: CreateOverlayRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -35,14 +39,14 @@ async def create_overlay(
 
     overlay = ProductImageOverlay(
         campaign_id=campaign_id,
-        image_url=image_url,
-        image_source=image_source,
-        position_x=position_x,
-        position_y=position_y,
-        scale=scale,
-        rotation=rotation,
-        opacity=opacity,
-        z_index=z_index,
+        image_url=request.image_url,
+        image_source=request.image_source,
+        position_x=request.position_x,
+        position_y=request.position_y,
+        scale=request.scale,
+        rotation=request.rotation,
+        opacity=request.opacity,
+        z_index=request.z_index,
         created_by=current_user.id
     )
     db.add(overlay)
