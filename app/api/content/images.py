@@ -24,7 +24,9 @@ from app.schemas import (
     ImageUpgradeRequest,
     ImageSaveDraftRequest,
     ImageTextOverlayRequest,
-    ImageTextOverlayResponse
+    ImageTextOverlayResponse,
+    ImageImageOverlayRequest,
+    ImageImageOverlayResponse
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
@@ -1276,6 +1278,196 @@ async def add_text_overlay(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Text overlay failed: {str(e)}"
+        )
+
+
+@router.post("/image-overlay", response_model=ImageImageOverlayResponse, status_code=status.HTTP_201_CREATED)
+async def add_image_overlay(
+    request: ImageImageOverlayRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add image overlay to a base image using PIL."""
+    from PIL import Image, ImageEnhance
+    import httpx
+    from io import BytesIO
+    import hashlib
+    import math
+
+    # Verify campaign ownership if campaign_id is provided
+    campaign = None
+    if request.campaign_id:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == request.campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+
+    try:
+        # Download base image from URL
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            image_response = await client.get(request.image_url)
+            image_response.raise_for_status()
+            image_data = image_response.content
+
+        # Open base image from bytes
+        base_image = Image.open(BytesIO(image_data)).convert("RGBA")
+
+        logger.info(f"🎨 Processing {len(request.image_overlays)} image overlay(s) using PIL")
+        logger.info(f"🖼️ Base image size: {base_image.width}x{base_image.height}")
+        logger.info(f"🔍 Base image URL: {request.image_url[:100]}...")
+        logger.info(f"📐 Base image mode: {base_image.mode}")
+
+        # Process each image overlay
+        for overlay_config in request.image_overlays:
+            logger.info(f"📥 RECEIVED FROM FRONTEND: x={overlay_config.x}, y={overlay_config.y}, scale={overlay_config.scale}, rotation={overlay_config.rotation}, opacity={overlay_config.opacity}")
+            logger.info(f"📥 Overlay image URL: {overlay_config.image_url[:100]}...")
+
+            # Download overlay image
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                overlay_response = await client.get(overlay_config.image_url)
+                overlay_response.raise_for_status()
+                overlay_data = overlay_response.content
+
+            # Open overlay image
+            overlay_image = Image.open(BytesIO(overlay_data)).convert("RGBA")
+
+            # Apply scale
+            if overlay_config.scale != 1.0:
+                new_width = int(overlay_image.width * overlay_config.scale)
+                new_height = int(overlay_image.height * overlay_config.scale)
+                overlay_image = overlay_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.info(f"🔍 Scaled overlay from {overlay_image.width}x{overlay_image.height} to {new_width}x{new_height}")
+
+            # Apply rotation
+            if overlay_config.rotation != 0.0:
+                # Calculate new bounding box after rotation
+                angle_rad = math.radians(overlay_config.rotation)
+                cos_val = abs(math.cos(angle_rad))
+                sin_val = abs(math.sin(angle_rad))
+                new_width = int(overlay_image.width * cos_val + overlay_image.height * sin_val)
+                new_height = int(overlay_image.width * sin_val + overlay_image.height * cos_val)
+
+                # Rotate the image
+                overlay_image = overlay_image.rotate(overlay_config.rotation, expand=True, fillcolor=(0, 0, 0, 0))
+                logger.info(f"🔄 Rotated overlay by {overlay_config.rotation}°, new size: {overlay_image.width}x{overlay_image.height}")
+
+            # Apply opacity
+            if overlay_config.opacity < 1.0:
+                # Create a new image with reduced opacity
+                alpha = overlay_image.split()[3]
+                alpha = ImageEnhance.Brightness(alpha).enhance(overlay_config.opacity)
+                overlay_image.putalpha(alpha)
+                logger.info(f"👁️ Applied opacity {overlay_config.opacity}")
+
+            # Calculate position (center the rotated/scaled image at the given coordinates)
+            x = int(overlay_config.x - overlay_image.width / 2)
+            y = int(overlay_config.y - overlay_image.height / 2)
+
+            logger.info(f"🎨 Positioning overlay at ({x}, {y}) - centered on ({overlay_config.x}, {overlay_config.y})")
+            logger.info(f"📐 Overlay size: {overlay_image.width}x{overlay_image.height}")
+
+            # Ensure overlay fits within base image bounds
+            if x + overlay_image.width > base_image.width:
+                x = base_image.width - overlay_image.width
+            if y + overlay_image.height > base_image.height:
+                y = base_image.height - overlay_image.height
+            if x < 0:
+                x = 0
+            if y < 0:
+                y = 0
+
+            # Paste overlay onto base image
+            base_image.paste(overlay_image, (x, y), overlay_image)
+            logger.info(f"✅ Overlay pasted at ({x}, {y})")
+
+        logger.info(f"✅ Image overlay complete")
+
+        # Convert back to RGB if needed
+        if base_image.mode == "RGBA":
+            background = Image.new("RGB", base_image.size, (255, 255, 255))
+            background.paste(base_image, mask=base_image.split()[3])
+            final_image = background
+        else:
+            final_image = base_image
+
+        logger.info(f"💾 Final image size: {final_image.width}x{final_image.height} (mode={final_image.mode})")
+
+        # Save to bytes buffer
+        buffer = BytesIO()
+        final_image.save(buffer, format="PNG", quality=95)
+        composed_image_data = buffer.getvalue()
+
+        logger.info(f"💾 Saved composed image: {len(composed_image_data)} bytes, format={final_image.format if hasattr(final_image, 'format') else 'N/A'}, mode={final_image.mode}, size={final_image.size}")
+
+        # Upload to R2
+        r2_key, image_url = await r2_storage.upload_file(
+            file_bytes=composed_image_data,
+            key=f"campaigns/{request.campaign_id or 0}/generated_images/image_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            content_type="image/png"
+        )
+
+        # Generate thumbnail
+        thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
+
+        # Save to database
+        image_record = GeneratedImage(
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            meta_data={
+                "image_overlay": True,
+                "original_image_url": request.image_url,
+                "image_overlays": [overlay.dict() for overlay in request.image_overlays]
+            },
+            ai_generation_cost=0.0,
+            content_id=None
+        )
+
+        db.add(image_record)
+        await db.commit()
+        await db.refresh(image_record)
+
+        return ImageImageOverlayResponse(
+            id=image_record.id,
+            campaign_id=image_record.campaign_id,
+            image_type=image_record.image_type,
+            image_url=image_record.image_url,
+            thumbnail_url=image_record.thumbnail_url,
+            provider=image_record.provider,
+            model=image_record.model,
+            prompt=image_record.prompt,
+            style=image_record.style,
+            aspect_ratio=image_record.aspect_ratio,
+            metadata=image_record.meta_data or {},
+            ai_generation_cost=0.0,
+            created_at=image_record.created_at
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download image: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Image overlay failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image overlay failed: {str(e)}"
         )
 
 

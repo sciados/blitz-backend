@@ -408,6 +408,49 @@ class ImageTextOverlayResponse(BaseModel):
     created_at: Optional[datetime] = None
 
 
+class ImageOverlayLayer(BaseModel):
+    """A single image layer to overlay on a base image."""
+    image_url: str
+    x: float = 0.0  # X position in pixels
+    y: float = 0.0  # Y position in pixels
+    scale: float = 1.0  # Scale factor (1.0 = original size)
+    rotation: float = 0.0  # Rotation in degrees
+    opacity: float = 1.0  # 0.0 to 1.0
+    z_index: int = 1  # Layer order (higher = on top)
+
+
+class ImageImageOverlayRequest(BaseModel):
+    """Request to add image overlay to a base image."""
+    image_url: str  # Base image URL
+    image_overlays: List[ImageOverlayLayer]
+    campaign_id: Optional[int] = None
+    image_type: str = "social"
+    style: str = "photorealistic"
+    aspect_ratio: str = "1:1"
+    provider: str = "manual"
+    model: str = "image_overlay"
+    prompt: str = "Image with image overlay"
+    display_width: Optional[int] = None  # Optional: resize final image to this width
+    display_height: Optional[int] = None  # Optional: resize final image to this height
+
+
+class ImageImageOverlayResponse(BaseModel):
+    """Response from image overlay operation."""
+    id: int
+    campaign_id: Optional[int]
+    image_type: str
+    image_url: str
+    thumbnail_url: Optional[str]
+    provider: str
+    model: str
+    prompt: str
+    style: str
+    aspect_ratio: str
+    metadata: Optional[Dict[str, Any]] = None
+    ai_generation_cost: Optional[float] = 0.0  # Image overlay is free
+    created_at: Optional[datetime] = None
+
+
 # ============================================================================
 # ADMIN SCHEMAS
 # ============================================================================
