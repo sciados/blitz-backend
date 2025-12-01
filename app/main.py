@@ -187,6 +187,7 @@ app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(product_analytics.router)  # Product analytics and leaderboards
 app.include_router(platform_credentials.router)  # Platform API credentials management
 app.include_router(email_signups.router)  # Email signup service for pre-launch
+app.include_router(message_recipients.router)  # Get allowed message recipients - MUST be before messages.router
 app.include_router(messages.router)  # Internal messaging system
 app.include_router(message_requests.router)  # Message requests workflow
 app.include_router(affiliates.router)  # Affiliate directory and networking
@@ -211,7 +212,6 @@ app.include_router(demo_fix.router)  # Demo password fix endpoint
 app.include_router(list_users.router)  # List all users endpoint
 app.include_router(fix_single_user.router)  # Reset single user password
 app.include_router(test_login.router)  # Test login credentials
-app.include_router(message_recipients.router)  # Get allowed message recipients
 
 # ====
 # STARTUP MESSAGE
