@@ -153,7 +153,8 @@ class MessageService:
     async def get_inbox(self, user_id: int, page: int = 1, per_page: int = 20) -> Tuple[List[Message], int, int]:
         """Get user's inbox messages."""
         recipient_query = select(MessageRecipient).where(
-            MessageRecipient.recipient_id == user_id
+            MessageRecipient.recipient_id == user_id,
+            MessageRecipient.status != "archived"  # Exclude archived messages
         )
 
         result = await self.db.execute(recipient_query)

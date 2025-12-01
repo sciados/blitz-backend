@@ -254,6 +254,7 @@ async def delete_message(
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a message (soft delete)."""
+    # First check if user is the sender
     result = await db.execute(
         select(Message).where(
             Message.id == message_id,
@@ -262,18 +263,34 @@ async def delete_message(
     )
     message = result.scalar_one_or_none()
 
-    if not message:
+    if message:
+        # User is the sender - delete the entire message for everyone
+        message.deleted_at = datetime.utcnow()
+        message.status = "deleted"
+        await db.commit()
+        return {"message": "Message deleted successfully"}
+
+    # Check if user is a recipient
+    recipient_result = await db.execute(
+        select(MessageRecipient).where(
+            MessageRecipient.message_id == message_id,
+            MessageRecipient.recipient_id == current_user.id
+        )
+    )
+    recipient = recipient_result.scalar_one_or_none()
+
+    if not recipient:
+        # User is neither sender nor recipient
         raise HTTPException(
             status_code=404,
             detail="Message not found or you don't have permission to delete it"
         )
 
-    # Soft delete - mark as deleted instead of actually deleting
-    message.deleted_at = datetime.utcnow()
-    message.status = "deleted"
+    # User is a recipient - mark their copy as archived (recipient-level deletion)
+    recipient.status = "archived"
     await db.commit()
 
-    return {"message": "Message deleted successfully"}
+    return {"message": "Message deleted from your inbox"}
 
 
 @router.post("/cleanup-deleted", response_model=dict)
