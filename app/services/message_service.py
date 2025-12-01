@@ -55,6 +55,59 @@ class MessageService:
         )
         return connection is not None
 
+    async def get_broadcast_recipients(
+        self,
+        sender_id: int,
+        broadcast_group: str
+    ) -> List[int]:
+        """Get recipient IDs for a broadcast group."""
+        # Get all connections for the sender
+        connections = await self.db.execute(
+            select(AffiliateConnection).where(
+                or_(
+                    and_(
+                        AffiliateConnection.user1_id == sender_id,
+                        AffiliateConnection.status == "accepted"
+                    ),
+                    and_(
+                        AffiliateConnection.user2_id == sender_id,
+                        AffiliateConnection.status == "accepted"
+                    )
+                )
+            )
+        )
+        connections = connections.scalars().all()
+
+        if not connections:
+            return []
+
+        # Get connected user IDs
+        connected_user_ids = set()
+        for conn in connections:
+            if conn.user1_id == sender_id:
+                connected_user_ids.add(conn.user2_id)
+            else:
+                connected_user_ids.add(conn.user1_id)
+
+        if not connected_user_ids:
+            return []
+
+        # Get user details for filtering
+        users_result = await self.db.execute(
+            select(User).where(User.id.in_(list(connected_user_ids)))
+        )
+        users = users_result.scalars().all()
+
+        # Filter by broadcast group
+        if broadcast_group == "all_affiliates":
+            return [u.id for u in users if u.user_type == "Affiliate"]
+        elif broadcast_group == "all_creators":
+            return [u.id for u in users if u.user_type == "Creator"]
+        elif broadcast_group == "all_connections":
+            return [u.id for u in users]
+        else:
+            return []
+
     async def create_message(
         self,
         sender_id: int,
@@ -63,9 +116,14 @@ class MessageService:
         message_type: MessageType,
         recipient_ids: List[int],
         parent_message_id: Optional[int] = None,
-        is_broadcast: bool = False
+        is_broadcast: bool = False,
+        broadcast_group: Optional[str] = None
     ) -> Message:
         """Create a new message."""
+        # If broadcast with group, expand to actual recipients
+        if is_broadcast and broadcast_group and not recipient_ids:
+            recipient_ids = await self.get_broadcast_recipients(sender_id, broadcast_group)
+
         message = Message(
             sender_id=sender_id,
             subject=subject,

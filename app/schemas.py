@@ -524,6 +524,7 @@ class MessageCreate(MessageBase):
     """Schema for creating a new message."""
     recipient_ids: List[int]  # List of recipient user IDs
     is_broadcast: bool = False
+    broadcast_group: Optional[str] = None  # For group broadcasts (all_connections, all_affiliates, all_creators)
 
 
 class MessageResponse(MessageBase):

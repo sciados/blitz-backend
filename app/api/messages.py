@@ -147,15 +147,16 @@ async def send_message(
     """Send a new message."""
     service = MessageService(db)
 
-    # Check permissions for each recipient
-    for recipient_id in message_data.recipient_ids:
-        can_send, reason = await service.can_send_message(
-            sender_id=current_user.id,
-            recipient_id=recipient_id,
-            message_type=message_data.message_type
-        )
-        if not can_send:
-            raise HTTPException(status_code=403, detail=f"Cannot send to user {recipient_id}: {reason}")
+    # Check permissions for each recipient (skip for broadcasts)
+    if not message_data.is_broadcast:
+        for recipient_id in message_data.recipient_ids:
+            can_send, reason = await service.can_send_message(
+                sender_id=current_user.id,
+                recipient_id=recipient_id,
+                message_type=message_data.message_type
+            )
+            if not can_send:
+                raise HTTPException(status_code=403, detail=f"Cannot send to user {recipient_id}: {reason}")
 
     message = await service.create_message(
         sender_id=current_user.id,
@@ -163,7 +164,8 @@ async def send_message(
         content=message_data.content,
         message_type=message_data.message_type,
         recipient_ids=message_data.recipient_ids,
-        is_broadcast=message_data.is_broadcast
+        is_broadcast=message_data.is_broadcast,
+        broadcast_group=message_data.broadcast_group
     )
 
     return MessageResponse(

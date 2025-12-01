@@ -32,6 +32,9 @@ from app.api.admin import messages as admin_messages
 from app.api import analytics
 from app.api import demo_fix
 from app.api import list_users
+from app.api import fix_single_user
+from app.api import test_login
+from app.api import message_recipients
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -206,6 +209,9 @@ app.include_router(admin_messages.router)  # Admin broadcast messaging
 app.include_router(analytics.router)  # Developer analytics API
 app.include_router(demo_fix.router)  # Demo password fix endpoint
 app.include_router(list_users.router)  # List all users endpoint
+app.include_router(fix_single_user.router)  # Reset single user password
+app.include_router(test_login.router)  # Test login credentials
+app.include_router(message_recipients.router)  # Get allowed message recipients
 
 # ====
 # STARTUP MESSAGE
