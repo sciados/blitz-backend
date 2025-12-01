@@ -63,7 +63,12 @@ async def get_allowed_recipients(
 
     # Get user details for connected users
     users_result = await db.execute(
-        select(User).where(User.id.in_(list(connected_user_ids)))
+        select(User).where(
+            and_(
+                User.id.in_(list(connected_user_ids)),
+                User.id != current_user.id  # EXCLUDE the current user
+            )
+        )
     )
     users = users_result.scalars().all()
 
