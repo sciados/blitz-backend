@@ -1288,7 +1288,7 @@ async def add_image_overlay(
     db: AsyncSession = Depends(get_db)
 ):
     """Add image overlay to a base image using PIL."""
-    from PIL import Image, ImageEnhance
+    from PIL import Image, ImageEnhance, ImageDraw
     import httpx
     from io import BytesIO
     import hashlib
