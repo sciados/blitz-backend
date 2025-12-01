@@ -1151,11 +1151,14 @@ async def add_text_overlay(
             logger.info(f"📐 Text bbox from PIL: {text_bbox}")
             logger.info(f"📏 bbox[0]={text_bbox[0]} (left offset), bbox[1]={text_bbox[1]} (top offset)")
 
-            # Adjust: use simple constant offset for X, dynamic adjustment for Y
-            x_adjusted = x - 2  # Small constant offset for PIL padding
+            # For coordinates from ImageEditorModal (overlay positioning):
+            # x, y represents the top-left position where text should appear
+            # We need to adjust for the ascender so letters draw correctly
+            # No constant offset needed - use the position directly
+            x_adjusted = x
             y_adjusted = y + text_bbox[1]  # Add ascender so letters appear below textbox top
 
-            logger.info(f"📏 Adjusted by constant (-2px) and ascender (+{text_bbox[1]}px): x={x_adjusted}, y={y_adjusted}")
+            logger.info(f"📏 Using overlay position directly: x={x_adjusted}, y={y_adjusted} (adjusted for ascender +{text_bbox[1]}px)")
             logger.info(f"📏 Textbox top at ({x_adjusted}, {y_adjusted})")
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x}, {y}) - font_size={font_size}, font_path={font_path}")
