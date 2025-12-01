@@ -78,35 +78,12 @@ async def get_sent_messages(
     db: AsyncSession = Depends(get_db)
 ):
     """Get messages sent by user."""
-    # CRITICAL DEBUG: Log current user authentication details
-    logger.info(f"========== GET SENT MESSAGES API ==========")
-    logger.info(f"Current user authenticated:")
-    logger.info(f"  - ID: {current_user.id}")
-    logger.info(f"  - Email: {current_user.email}")
-    logger.info(f"  - Full Name: {current_user.full_name}")
-    logger.info(f"  - User Type: {current_user.user_type}")
-    logger.info(f"==========================================")
-
     service = MessageService(db)
     messages, total = await service.get_sent_messages(
         user_id=current_user.id,
         page=page,
         per_page=per_page
     )
-
-    logger.info(f"========== API RESPONSE ==========")
-    logger.info(f"Returning {len(messages)} messages to user {current_user.id} ({current_user.email})")
-    logger.info(f"Total: {total}")
-
-    # Log each message in detail
-    for msg in messages:
-        logger.info(f"  Message ID: {msg.id}")
-        logger.info(f"    - Sender ID: {msg.sender_id} (should be {current_user.id})")
-        logger.info(f"    - Subject: {msg.subject[:50]}...")
-        logger.info(f"    - Recipients: {[r.recipient_id for r in msg.recipients]}")
-        logger.info(f"  ---")
-
-    logger.info(f"================================")
 
     message_responses = [
         MessageResponse(
@@ -177,22 +154,6 @@ async def send_message(
     db: AsyncSession = Depends(get_db)
 ):
     """Send a new message."""
-    # CRITICAL DEBUG: Log all incoming data
-    logger.info(f"========== SEND MESSAGE API ==========")
-    logger.info(f"Current authenticated user:")
-    logger.info(f"  - ID: {current_user.id}")
-    logger.info(f"  - Email: {current_user.email}")
-    logger.info(f"  - Full Name: {current_user.full_name}")
-    logger.info(f"  - User Type: {current_user.user_type}")
-    logger.info(f"")
-    logger.info(f"Incoming message data:")
-    logger.info(f"  - Recipients: {message_data.recipient_ids}")
-    logger.info(f"  - Subject: {message_data.subject}")
-    logger.info(f"  - Message Type: {message_data.message_type}")
-    logger.info(f"  - Is Broadcast: {message_data.is_broadcast}")
-    logger.info(f"  - Broadcast Group: {message_data.broadcast_group}")
-    logger.info(f"=======================================")
-
     service = MessageService(db)
 
     # Check permissions for each recipient (skip for broadcasts)
@@ -215,14 +176,6 @@ async def send_message(
         is_broadcast=message_data.is_broadcast,
         broadcast_group=message_data.broadcast_group
     )
-
-    logger.info(f"========== MESSAGE CREATED ==========")
-    logger.info(f"Message ID: {message.id}")
-    logger.info(f"Stored sender_id: {message.sender_id}")
-    logger.info(f"Should be sender_id: {current_user.id}")
-    logger.info(f"Recipients: {message_data.recipient_ids}")
-    logger.info(f"Subject: {message.subject[:50]}...")
-    logger.info(f"=====================================")
 
     return MessageResponse(
         id=message.id,
