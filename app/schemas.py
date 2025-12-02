@@ -451,6 +451,22 @@ class ImageImageOverlayResponse(BaseModel):
     created_at: Optional[datetime] = None
 
 
+class ImageTrimRequest(BaseModel):
+    """Request to trim transparent pixels from an image."""
+    image_url: str
+    padding: int = 5  # Transparent border to keep around content
+    campaign_id: Optional[int] = None  # For R2 storage path
+
+
+class ImageTrimResponse(BaseModel):
+    """Response from trim operation."""
+    image_url: str
+    original_width: int
+    original_height: int
+    trimmed_width: int
+    trimmed_height: int
+
+
 # ============================================================================
 # ADMIN SCHEMAS
 # ============================================================================

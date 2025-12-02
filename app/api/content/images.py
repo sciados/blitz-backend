@@ -26,7 +26,9 @@ from app.schemas import (
     ImageTextOverlayRequest,
     ImageTextOverlayResponse,
     ImageImageOverlayRequest,
-    ImageImageOverlayResponse
+    ImageImageOverlayResponse,
+    ImageTrimRequest,
+    ImageTrimResponse
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
@@ -1506,3 +1508,105 @@ async def generate_thumbnail(image_url: str, campaign_id: int, size: tuple = (25
     except Exception as e:
         logger.error(f"Failed to generate thumbnail: {e}")
         return None
+
+
+@router.post("/trim-transparency", response_model=ImageTrimResponse)
+async def trim_transparency(
+    request: ImageTrimRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Trim transparent pixels from an image, leaving a specified padding border.
+
+    This is useful for removing excess transparent space around product images
+    or other assets that have been extracted from backgrounds.
+    """
+    from PIL import Image
+    from io import BytesIO
+    import httpx
+    import time
+    import hashlib
+
+    try:
+        # Download the image
+        async with httpx.AsyncClient() as client:
+            response = await client.get(request.image_url)
+            response.raise_for_status()
+
+        # Open image with PIL
+        image = Image.open(BytesIO(response.content))
+        original_width, original_height = image.size
+
+        # Ensure image has alpha channel
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+
+        # Get the alpha channel
+        alpha = image.split()[3]
+
+        # Get bounding box of non-transparent pixels
+        bbox = alpha.getbbox()
+
+        if bbox is None:
+            # Image is fully transparent, return original
+            return ImageTrimResponse(
+                image_url=request.image_url,
+                original_width=original_width,
+                original_height=original_height,
+                trimmed_width=original_width,
+                trimmed_height=original_height
+            )
+
+        # Expand bbox by padding amount
+        left = max(0, bbox[0] - request.padding)
+        top = max(0, bbox[1] - request.padding)
+        right = min(original_width, bbox[2] + request.padding)
+        bottom = min(original_height, bbox[3] + request.padding)
+
+        # Crop the image
+        trimmed_image = image.crop((left, top, right, bottom))
+        trimmed_width, trimmed_height = trimmed_image.size
+
+        # Save to bytes
+        buffer = BytesIO()
+        trimmed_image.save(buffer, format="PNG")
+        trimmed_data = buffer.getvalue()
+
+        # Generate unique filename
+        timestamp = int(time.time())
+        hash_suffix = hashlib.md5(request.image_url.encode()).hexdigest()[:8]
+
+        # Determine storage path
+        if request.campaign_id:
+            key = f"campaigns/{request.campaign_id}/generated_images/trimmed_{timestamp}_{hash_suffix}.png"
+        else:
+            key = f"temp/trimmed_{timestamp}_{hash_suffix}.png"
+
+        # Upload to R2
+        _, trimmed_url = await r2_storage.upload_file(
+            file_bytes=trimmed_data,
+            key=key,
+            content_type="image/png"
+        )
+
+        logger.info(f"✂️ Trimmed image from {original_width}x{original_height} to {trimmed_width}x{trimmed_height}")
+
+        return ImageTrimResponse(
+            image_url=trimmed_url,
+            original_width=original_width,
+            original_height=original_height,
+            trimmed_width=trimmed_width,
+            trimmed_height=trimmed_height
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download image: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Trim transparency failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Trim transparency failed: {str(e)}"
+        )
