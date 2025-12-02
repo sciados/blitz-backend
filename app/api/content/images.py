@@ -1373,11 +1373,11 @@ async def add_image_overlay(
                 overlay_image.putalpha(alpha)
                 logger.info(f"👁️ Applied opacity {overlay_config.opacity}")
 
-            # Calculate position (center the rotated/scaled image at the given coordinates)
-            x = int(overlay_config.x - overlay_image.width / 2)
-            y = int(overlay_config.y - overlay_image.height / 2)
+            # Position is TOP-LEFT (frontend sends TOP-LEFT coordinates directly)
+            x = int(overlay_config.x)
+            y = int(overlay_config.y)
 
-            logger.info(f"🎨 Positioning overlay at ({x}, {y}) - centered on ({overlay_config.x}, {overlay_config.y})")
+            logger.info(f"🎨 Positioning overlay at TOP-LEFT ({x}, {y})")
             logger.info(f"📐 Overlay size: {overlay_image.width}x{overlay_image.height}")
 
             # Ensure overlay fits within base image bounds
