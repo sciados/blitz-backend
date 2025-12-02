@@ -370,6 +370,7 @@ class TextLayer(BaseModel):
     stroke_color: Optional[str] = None
     stroke_width: int = 0
     opacity: float = 1.0  # 0.0 to 1.0
+    z_index: int = 1  # Layer order (higher = on top)
     # Percentage-based positioning for consistent placement across image sizes
     x_percent: Optional[float] = None
     y_percent: Optional[float] = None
@@ -465,6 +466,37 @@ class ImageTrimResponse(BaseModel):
     original_height: int
     trimmed_width: int
     trimmed_height: int
+
+
+class ImageCompositeRequest(BaseModel):
+    """Request to composite multiple text and image layers onto a base image."""
+    image_url: str  # Base image URL
+    text_layers: List[TextLayer] = []  # Text layers to overlay
+    image_layers: List[ImageOverlayLayer] = []  # Image layers to overlay
+    campaign_id: Optional[int] = None
+    image_type: str = "social"
+    style: str = "photorealistic"
+    aspect_ratio: str = "1:1"
+    provider: str = "manual"
+    model: str = "composite"
+    prompt: str = "Composite image with text and image layers"
+
+
+class ImageCompositeResponse(BaseModel):
+    """Response from composite operation."""
+    id: int
+    campaign_id: Optional[int]
+    image_type: str
+    image_url: str
+    thumbnail_url: Optional[str]
+    provider: str
+    model: str
+    prompt: str
+    style: str
+    aspect_ratio: str
+    metadata: Optional[Dict[str, Any]] = None
+    ai_generation_cost: Optional[float] = 0.0
+    created_at: Optional[datetime] = None
 
 
 # ============================================================================

@@ -28,7 +28,9 @@ from app.schemas import (
     ImageImageOverlayRequest,
     ImageImageOverlayResponse,
     ImageTrimRequest,
-    ImageTrimResponse
+    ImageTrimResponse,
+    ImageCompositeRequest,
+    ImageCompositeResponse
 )
 from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
@@ -1610,3 +1612,252 @@ async def trim_transparency(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trim transparency failed: {str(e)}"
         )
+
+
+@router.post("/composite", response_model=ImageCompositeResponse, status_code=status.HTTP_201_CREATED)
+async def composite_image(
+    request: ImageCompositeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Composite multiple text and image layers onto a base image, respecting z-order."""
+    from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+    import httpx
+    from io import BytesIO
+    import hashlib
+    import math
+    import os
+    import glob
+
+    # Font cache for text layers
+    _FONT_CACHE = {}
+
+    def _build_font_cache():
+        if _FONT_CACHE:
+            return
+        font_dirs = ["/app/app/fonts", "/tmp/fonts"]
+        for font_dir in font_dirs:
+            if os.path.exists(font_dir):
+                for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+                    font_basename = os.path.basename(ttf_file).lower()
+                    font_name_only = os.path.splitext(font_basename)[0]
+                    font_name_normalized = font_name_only.replace("-", "").replace("_", "")
+                    _FONT_CACHE[font_name_normalized] = ttf_file
+
+    def _find_font_file(font_family: str):
+        _build_font_cache()
+        font_name = font_family.lower().strip()
+        font_name_normalized = font_name.replace(" ", "").replace("-", "").replace("_", "")
+        if font_name_normalized in _FONT_CACHE:
+            return _FONT_CACHE[font_name_normalized]
+        for cached_font_name, cached_path in _FONT_CACHE.items():
+            if font_name_normalized in cached_font_name or cached_font_name in font_name_normalized:
+                return cached_path
+        return None
+
+    def _hex_to_rgb(hex_color: str):
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+    # Verify campaign ownership
+    campaign = None
+    if request.campaign_id:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == request.campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+        if not campaign:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    try:
+        # Download base image
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            image_response = await client.get(request.image_url)
+            image_response.raise_for_status()
+            image_data = image_response.content
+
+        base_image = Image.open(BytesIO(image_data)).convert("RGBA")
+        logger.info(f"🎨 Composite: Processing {len(request.text_layers)} text + {len(request.image_layers)} image layers")
+        logger.info(f"🖼️ Base image size: {base_image.width}x{base_image.height}")
+
+        # Combine all layers with type info and sort by z_index
+        all_layers = []
+        for layer in request.text_layers:
+            all_layers.append({"type": "text", "layer": layer, "z_index": layer.z_index})
+        for layer in request.image_layers:
+            all_layers.append({"type": "image", "layer": layer, "z_index": layer.z_index})
+
+        all_layers.sort(key=lambda x: x["z_index"])
+        logger.info(f"📋 Processing {len(all_layers)} layers in z-order")
+
+        # Pre-download all image overlays
+        image_cache = {}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for item in all_layers:
+                if item["type"] == "image":
+                    layer = item["layer"]
+                    if layer.image_url not in image_cache:
+                        overlay_response = await client.get(layer.image_url)
+                        overlay_response.raise_for_status()
+                        image_cache[layer.image_url] = overlay_response.content
+
+        # Process each layer in z-order
+        for item in all_layers:
+            if item["type"] == "text":
+                # Process text layer
+                text_layer = item["layer"]
+                x = int(text_layer.x)
+                y = int(text_layer.y)
+                font_size = int(text_layer.font_size)
+
+                logger.info(f"📝 Text layer: '{text_layer.text}' at ({x}, {y}), z={text_layer.z_index}")
+
+                # Load font
+                font_path = _find_font_file(text_layer.font_family)
+                if font_path:
+                    font = ImageFont.truetype(font_path, font_size)
+                else:
+                    font = ImageFont.load_default()
+
+                # Get text bbox for y adjustment
+                text_bbox = font.getbbox(text_layer.text)
+                y_adjusted = y + text_bbox[1]
+
+                # Create a temporary image for the text with transparency
+                text_image = Image.new("RGBA", base_image.size, (0, 0, 0, 0))
+                draw = ImageDraw.Draw(text_image)
+
+                color_rgb = _hex_to_rgb(text_layer.color)
+
+                # Draw stroke
+                if text_layer.stroke_width > 0 and text_layer.stroke_color:
+                    stroke_rgb = _hex_to_rgb(text_layer.stroke_color)
+                    stroke_width = int(text_layer.stroke_width)
+                    for dx in range(-stroke_width, stroke_width + 1):
+                        for dy in range(-stroke_width, stroke_width + 1):
+                            if dx*dx + dy*dy <= stroke_width * stroke_width:
+                                draw.text((x + dx, y_adjusted + dy), text_layer.text, font=font, fill=stroke_rgb + (255,))
+
+                # Draw main text
+                draw.text((x, y_adjusted), text_layer.text, font=font, fill=color_rgb + (255,))
+
+                # Apply opacity
+                if text_layer.opacity < 1.0:
+                    alpha = text_image.split()[3]
+                    alpha = ImageEnhance.Brightness(alpha).enhance(text_layer.opacity)
+                    text_image.putalpha(alpha)
+
+                # Composite text onto base
+                base_image = Image.alpha_composite(base_image, text_image)
+
+            elif item["type"] == "image":
+                # Process image layer
+                img_layer = item["layer"]
+                overlay_data = image_cache[img_layer.image_url]
+                overlay_image = Image.open(BytesIO(overlay_data)).convert("RGBA")
+
+                logger.info(f"🖼️ Image layer at ({img_layer.x}, {img_layer.y}), scale={img_layer.scale}, z={img_layer.z_index}")
+
+                # Apply scale
+                if img_layer.scale != 1.0:
+                    new_width = int(overlay_image.width * img_layer.scale)
+                    new_height = int(overlay_image.height * img_layer.scale)
+                    overlay_image = overlay_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                # Apply rotation
+                if img_layer.rotation != 0.0:
+                    overlay_image = overlay_image.rotate(img_layer.rotation, expand=True, fillcolor=(0, 0, 0, 0))
+
+                # Apply opacity
+                if img_layer.opacity < 1.0:
+                    alpha = overlay_image.split()[3]
+                    alpha = ImageEnhance.Brightness(alpha).enhance(img_layer.opacity)
+                    overlay_image.putalpha(alpha)
+
+                # Position (TOP-LEFT coordinates)
+                x = int(img_layer.x)
+                y = int(img_layer.y)
+
+                # Clamp to bounds
+                x = max(0, min(x, base_image.width - overlay_image.width))
+                y = max(0, min(y, base_image.height - overlay_image.height))
+
+                # Paste overlay
+                base_image.paste(overlay_image, (x, y), overlay_image)
+
+        logger.info(f"✅ Composite complete")
+
+        # Convert to RGB for final output
+        if base_image.mode == "RGBA":
+            background = Image.new("RGB", base_image.size, (255, 255, 255))
+            background.paste(base_image, mask=base_image.split()[3])
+            final_image = background
+        else:
+            final_image = base_image
+
+        # Save to bytes
+        buffer = BytesIO()
+        final_image.save(buffer, format="PNG", quality=95)
+        composed_image_data = buffer.getvalue()
+
+        # Upload to R2
+        r2_key, image_url = await r2_storage.upload_file(
+            file_bytes=composed_image_data,
+            key=f"campaigns/{request.campaign_id or 0}/generated_images/composite_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            content_type="image/png"
+        )
+
+        # Generate thumbnail
+        thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
+
+        # Save to database
+        image_record = GeneratedImage(
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            meta_data={
+                "composite": True,
+                "original_image_url": request.image_url,
+                "text_layers": [layer.dict() for layer in request.text_layers],
+                "image_layers": [layer.dict() for layer in request.image_layers],
+                "width": final_image.width,
+                "height": final_image.height
+            },
+            ai_generation_cost=0.0,
+            content_id=None
+        )
+
+        db.add(image_record)
+        await db.commit()
+        await db.refresh(image_record)
+
+        return ImageCompositeResponse(
+            id=image_record.id,
+            campaign_id=image_record.campaign_id,
+            image_type=image_record.image_type,
+            image_url=image_record.image_url,
+            thumbnail_url=image_record.thumbnail_url,
+            provider=image_record.provider,
+            model=image_record.model,
+            prompt=image_record.prompt,
+            style=image_record.style,
+            aspect_ratio=image_record.aspect_ratio,
+            metadata=image_record.meta_data or {},
+            ai_generation_cost=0.0,
+            created_at=image_record.created_at
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to download image: {str(e)}")
+    except Exception as e:
+        logger.error(f"Composite failed: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Composite failed: {str(e)}")
