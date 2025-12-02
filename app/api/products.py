@@ -1336,19 +1336,19 @@ async def get_developer_analytics(
     
     # Compliance statistics
     compliant_count = 0
-    needs_review_count = 0
-    non_compliant_count = 0
+    warning_count = 0
+    violation_count = 0
     not_checked_count = 0
-    
+
     for p in products:
         if p.intelligence_data and "compliance" in p.intelligence_data:
             status = p.intelligence_data["compliance"].get("status")
             if status == "compliant":
                 compliant_count += 1
-            elif status == "needs_review":
-                needs_review_count += 1
-            elif status == "non_compliant":
-                non_compliant_count += 1
+            elif status == "warning":
+                warning_count += 1
+            elif status == "violation":
+                violation_count += 1
         else:
             not_checked_count += 1
     
@@ -1385,16 +1385,16 @@ async def get_developer_analytics(
         for cat, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
     ]
     
-    # Products needing attention (not checked or non-compliant)
+    # Products needing attention (not checked or in violation)
     needs_attention = [
         {
             "id": p.id,
             "product_name": p.product_name,
-            "issue": "Not checked for compliance" if not (p.intelligence_data and "compliance" in p.intelligence_data) else f"Non-compliant (Score: {p.intelligence_data['compliance'].get('score', 0)})"
+            "issue": "Not checked for compliance" if not (p.intelligence_data and "compliance" in p.intelligence_data) else f"Violation (Score: {p.intelligence_data['compliance'].get('score', 0)})"
         }
         for p in products
-        if not (p.intelligence_data and "compliance" in p.intelligence_data) or 
-           (p.intelligence_data.get("compliance", {}).get("status") == "non_compliant")
+        if not (p.intelligence_data and "compliance" in p.intelligence_data) or
+           (p.intelligence_data.get("compliance", {}).get("status") == "violation")
     ]
     
     return {
@@ -1406,8 +1406,8 @@ async def get_developer_analytics(
         },
         "compliance": {
             "compliant": compliant_count,
-            "needs_review": needs_review_count,
-            "non_compliant": non_compliant_count,
+            "warning": warning_count,
+            "violation": violation_count,
             "not_checked": not_checked_count
         },
         "top_products": top_products_data,

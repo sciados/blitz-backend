@@ -333,6 +333,69 @@ class IntelligenceCompilerService:
 
             await self.db.commit()
 
+            # Step 6: Auto-check compliance so products become visible to affiliates
+            logger.info("⚖️  Checking compliance for affiliate visibility...")
+            try:
+                from app.services.compliance_checker import ComplianceChecker
+                compliance_checker = ComplianceChecker()
+
+                # Extract description from intelligence data
+                product_description = None
+                if amplified_intelligence.get("product", {}).get("description"):
+                    product_description = amplified_intelligence["product"]["description"]
+                elif product_intelligence.product_name:
+                    product_description = f"Product: {product_intelligence.product_name}"
+
+                # Build content to check
+                content_parts = []
+                if product_intelligence.product_name:
+                    content_parts.append(f"Product: {product_intelligence.product_name}")
+                if product_description:
+                    content_parts.append(f"Description: {product_description}")
+                if product_intelligence.commission_rate:
+                    content_parts.append(f"Commission: {product_intelligence.commission_rate}")
+
+                content_to_check = "\n\n".join(content_parts)
+
+                # Check compliance (skip disclosure requirements for product descriptions)
+                result = compliance_checker.check_content(
+                    content=content_to_check,
+                    content_type="landing_page",
+                    product_category=product_intelligence.product_category,
+                    is_product_description=True  # Skip affiliate disclosure checks for products
+                )
+
+                # Save compliance results to intelligence_data
+                if product_intelligence.intelligence_data is None:
+                    product_intelligence.intelligence_data = {}
+
+                product_intelligence.intelligence_data["compliance"] = {
+                    "status": result["status"],
+                    "score": result["score"],
+                    "issues": result["issues"],
+                    "warnings": result.get("warnings", []),
+                    "summary": result.get("summary", ""),
+                    "checked_at": datetime.utcnow().isoformat()
+                }
+
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(product_intelligence, "intelligence_data")
+
+                # Auto-publish compliant products to affiliate library
+                if result["status"] == "compliant" or result.get("score", 0) >= 90:
+                    product_intelligence.is_public = "true"
+                    logger.info(f"✅ Product is compliant! Auto-published to affiliate library")
+                else:
+                    logger.info(f"⚠️  Product is not compliant yet. Visible only to creators/admin")
+
+                await self.db.commit()
+                logger.info(f"✅ Compliance check complete - Status: {result['status']}, Score: {result['score']}")
+
+            except Exception as e:
+                logger.error(f"⚠️  Compliance check failed: {str(e)}")
+                # Don't fail the whole compilation if compliance check fails
+                # Product will be visible only to creators/admin
+
             costs['total'] = sum(costs.values())
             processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
 

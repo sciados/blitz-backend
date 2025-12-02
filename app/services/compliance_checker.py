@@ -164,9 +164,9 @@ class ComplianceChecker:
             if score >= 90:
                 status = 'compliant'
             elif score >= 70:
-                status = 'needs_review'
+                status = 'warning'
             else:
-                status = 'non_compliant'
+                status = 'violation'
 
             # Determine FTC and network compliance based on issues
             ftc_issues = [i for i in issues if i['type'] in ['missing_disclosure', 'prohibited_claim', 'missing_element']]
@@ -199,7 +199,7 @@ class ComplianceChecker:
             logger.error(f"Error checking compliance: {str(e)}")
             return {
                 'compliant': False,
-                'status': 'non_compliant',
+                'status': 'violation',
                 'score': 0,
                 'issues': [{
                     'severity': 'critical',
@@ -411,10 +411,10 @@ class ComplianceChecker:
         
         if status == 'compliant':
             return f"Content is compliant with affiliate marketing regulations (Score: {score}/100). {len(warnings)} minor warnings to review."
-        elif status == 'needs_review':
+        elif status == 'warning':
             return f"Content needs review before publication (Score: {score}/100). Found {len(issues)} issues and {len(warnings)} warnings."
         else:
-            return f"Content is non-compliant and requires significant revisions (Score: {score}/100). Found {len(issues)} critical issues."
+            return f"Content is in violation and requires significant revisions (Score: {score}/100). Found {len(issues)} critical issues."
     
     def suggest_improvements(self, compliance_report: Dict[str, Any]) -> List[str]:
         """
