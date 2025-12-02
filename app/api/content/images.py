@@ -1171,35 +1171,31 @@ async def add_text_overlay(
 
             # Convert colors
             color_rgb = _hex_to_rgb(text_layer_config.color)
+            stroke_rgb = None
+            stroke_width = 0
 
             # Draw stroke if specified
             if text_layer_config.stroke_width > 0 and text_layer_config.stroke_color:
                 stroke_rgb = _hex_to_rgb(text_layer_config.stroke_color)
                 stroke_width = int(text_layer_config.stroke_width)
-                logger.info(f"🎨 Drawing stroke: width={stroke_width}px wrapping text at ({x_adjusted}, {y_adjusted})")
-                # Draw stroke by drawing text multiple times with offset
-                # Stroke should be at EXACTLY the same position as main text
-                for dx in range(-stroke_width, stroke_width + 1):
-                    for dy in range(-stroke_width, stroke_width + 1):
-                        if dx*dx + dy*dy <= stroke_width * stroke_width:
-                            draw.text(
-                                (x_adjusted + dx, y_adjusted + dy),
-                                text_layer_config.text,
-                                font=font,
-                                fill=stroke_rgb
-                            )
 
             logger.info(f"🎨 Drawing text at PIL coords: ({x_adjusted}, {y_adjusted}) - font_size={font_size}, font_path={font_path}")
             logger.info(f"📐 PIL image size: {image.width}x{image.height}, mode={image.mode}")
             logger.info(f"🔍 Text bbox from PIL: {font.getbbox(text_layer_config.text)}")
             logger.info(f"📏 Using adjusted draw.text((x_adjusted, y_adjusted), text) approach")
 
-            # Draw main text - use y_adjusted to account for ascender
-            draw.text(
-                (x_adjusted, y_adjusted),
-                text_layer_config.text,
+            # Draw text with styles using helper function
+            _draw_text_with_styles(
+                draw=draw,
+                text=text_layer_config.text,
+                position=(x_adjusted, y_adjusted),
                 font=font,
-                fill=color_rgb
+                fill=color_rgb,
+                stroke_fill=stroke_rgb,
+                stroke_width=stroke_width,
+                bold=text_layer_config.bold,
+                italic=text_layer_config.italic,
+                strikethrough=text_layer_config.strikethrough
             )
 
             logger.info(f"✅ Text drawn successfully at ({x_adjusted}, {y_adjusted})")
@@ -1659,6 +1655,79 @@ async def composite_image(
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
+    def _draw_text_with_styles(draw: ImageDraw.ImageDraw, text: str, position: tuple, font: ImageFont.ImageFont, fill: tuple, stroke_fill: tuple = None, stroke_width: int = 0, bold: bool = False, italic: bool = False, strikethrough: bool = False):
+        """Draw text with optional bold, italic, and strikethrough styles."""
+        x, y = position
+
+        # Create a temporary image for text effects
+        if bold or italic or strikethrough:
+            # Get text bounding box
+            bbox = font.getbbox(text)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            # Create temporary image
+            temp_img = Image.new("RGBA", (text_width + 20, text_height + 20), (0, 0, 0, 0))
+            temp_draw = ImageDraw.Draw(temp_img)
+
+            # Draw stroke if specified
+            if stroke_width > 0 and stroke_fill:
+                stroke_rgb = stroke_fill + (255,) if len(stroke_fill) == 3 else stroke_fill
+                for dx in range(-stroke_width, stroke_width + 1):
+                    for dy in range(-stroke_width, stroke_width + 1):
+                        if dx*dx + dy*dy <= stroke_width * stroke_width:
+                            temp_draw.text((10 + dx, 10 + dy), text, font=font, fill=stroke_rgb)
+
+            # Draw main text
+            temp_draw.text((10, 10), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill)
+
+            # Apply bold effect (draw text multiple times with slight offset)
+            if bold:
+                bold_img = Image.new("RGBA", temp_img.size, (0, 0, 0, 0))
+                bold_draw = ImageDraw.Draw(bold_img)
+                # Draw text multiple times for bold effect
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        if dx != 0 or dy != 0:
+                            bold_draw.text((10 + dx, 10 + dy), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill)
+                # Composite original on top
+                temp_img = Image.alpha_composite(temp_img, bold_img)
+
+            # Apply italic effect (skew the image)
+            if italic:
+                # Create a larger canvas to accommodate skew
+                skew_img = Image.new("RGBA", (int(temp_img.width * 1.3), temp_img.height), (0, 0, 0, 0))
+                # Apply skew transformation
+                from PIL import ImageTransform
+                skew_img.paste(temp_img, (int(temp_img.width * 0.2), 0), temp_img)
+                temp_img = skew_img
+
+            # Apply strikethrough (draw line through middle of text)
+            if strikethrough:
+                line_y = 10 + text_height // 2
+                line_width = max(1, text_height // 15)
+                temp_draw.line([(5, line_y), (text_width + 15, line_y)], fill=fill + (255,) if len(fill) == 3 else fill, width=line_width)
+
+            # Paste to main image
+            base_x = max(0, x)
+            base_y = max(0, y)
+            if isinstance(draw, ImageDraw.ImageDraw) and hasattr(draw, '_image'):
+                # We're drawing on a temporary image
+                draw._image.paste(temp_img, (x, y), temp_img)
+            else:
+                # Draw directly on the provided image
+                if temp_img.mode == "RGBA":
+                    draw._image.paste(temp_img, (x, y), temp_img)
+        else:
+            # Simple text rendering without styles
+            if stroke_width > 0 and stroke_fill:
+                stroke_rgb = stroke_fill + (255,) if len(stroke_fill) == 3 else stroke_fill
+                for dx in range(-stroke_width, stroke_width + 1):
+                    for dy in range(-stroke_width, stroke_width + 1):
+                        if dx*dx + dy*dy <= stroke_width * stroke_width:
+                            draw.text((x + dx, y + dy), text, font=font, fill=stroke_rgb)
+            draw.text(position, text, font=font, fill=fill)
+
     # Verify campaign ownership
     campaign = None
     if request.campaign_id:
@@ -1731,18 +1800,27 @@ async def composite_image(
                 draw = ImageDraw.Draw(text_image)
 
                 color_rgb = _hex_to_rgb(text_layer.color)
+                stroke_rgb = None
+                stroke_width = 0
 
                 # Draw stroke
                 if text_layer.stroke_width > 0 and text_layer.stroke_color:
                     stroke_rgb = _hex_to_rgb(text_layer.stroke_color)
                     stroke_width = int(text_layer.stroke_width)
-                    for dx in range(-stroke_width, stroke_width + 1):
-                        for dy in range(-stroke_width, stroke_width + 1):
-                            if dx*dx + dy*dy <= stroke_width * stroke_width:
-                                draw.text((x + dx, y_adjusted + dy), text_layer.text, font=font, fill=stroke_rgb + (255,))
 
-                # Draw main text
-                draw.text((x, y_adjusted), text_layer.text, font=font, fill=color_rgb + (255,))
+                # Draw text with styles using helper function
+                _draw_text_with_styles(
+                    draw=draw,
+                    text=text_layer.text,
+                    position=(x, y_adjusted),
+                    font=font,
+                    fill=color_rgb,
+                    stroke_fill=stroke_rgb,
+                    stroke_width=stroke_width,
+                    bold=text_layer.bold,
+                    italic=text_layer.italic,
+                    strikethrough=text_layer.strikethrough
+                )
 
                 # Apply opacity
                 if text_layer.opacity < 1.0:

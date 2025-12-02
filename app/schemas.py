@@ -371,6 +371,9 @@ class TextLayer(BaseModel):
     stroke_width: int = 0
     opacity: float = 1.0  # 0.0 to 1.0
     z_index: int = 1  # Layer order (higher = on top)
+    bold: bool = False  # Bold text style
+    italic: bool = False  # Italic text style
+    strikethrough: bool = False  # Strikethrough text style
     # Percentage-based positioning for consistent placement across image sizes
     x_percent: Optional[float] = None
     y_percent: Optional[float] = None
