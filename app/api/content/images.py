@@ -1186,7 +1186,7 @@ async def add_text_overlay(
 
             # Draw text with styles using helper function
             _draw_text_with_styles(
-                draw=draw,
+                target_image=image,
                 text=text_layer_config.text,
                 position=(x_adjusted, y_adjusted),
                 font=font,
@@ -1655,78 +1655,75 @@ async def composite_image(
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
-    def _draw_text_with_styles(draw: ImageDraw.ImageDraw, text: str, position: tuple, font: ImageFont.ImageFont, fill: tuple, stroke_fill: tuple = None, stroke_width: int = 0, bold: bool = False, italic: bool = False, strikethrough: bool = False):
+    def _draw_text_with_styles(target_image: Image.Image, text: str, position: tuple, font: ImageFont.ImageFont, fill: tuple, stroke_fill: tuple = None, stroke_width: int = 0, bold: bool = False, italic: bool = False, strikethrough: bool = False):
         """Draw text with optional bold, italic, and strikethrough styles."""
         x, y = position
 
-        # Create a temporary image for text effects
-        if bold or italic or strikethrough:
-            # Get text bounding box
-            bbox = font.getbbox(text)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
+        # Get text bounding box
+        bbox = font.getbbox(text)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
 
-            # Create temporary image
-            temp_img = Image.new("RGBA", (text_width + 20, text_height + 20), (0, 0, 0, 0))
-            temp_draw = ImageDraw.Draw(temp_img)
+        # Create a temporary image for the text with padding
+        padding = 20
+        temp_img = Image.new("RGBA", (text_width + padding * 2, text_height + padding * 2), (0, 0, 0, 0))
+        temp_draw = ImageDraw.Draw(temp_img)
 
-            # Draw stroke if specified
-            if stroke_width > 0 and stroke_fill:
-                stroke_rgb = stroke_fill + (255,) if len(stroke_fill) == 3 else stroke_fill
-                for dx in range(-stroke_width, stroke_width + 1):
-                    for dy in range(-stroke_width, stroke_width + 1):
-                        if dx*dx + dy*dy <= stroke_width * stroke_width:
-                            temp_draw.text((10 + dx, 10 + dy), text, font=font, fill=stroke_rgb)
+        # Convert fill to RGBA if needed
+        fill_rgba = fill + (255,) if len(fill) == 3 else fill
 
-            # Draw main text
-            temp_draw.text((10, 10), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill)
+        # Draw stroke if specified
+        if stroke_width > 0 and stroke_fill:
+            stroke_rgb = stroke_fill + (255,) if len(stroke_fill) == 3 else stroke_fill
+            for dx in range(-stroke_width, stroke_width + 1):
+                for dy in range(-stroke_width, stroke_width + 1):
+                    if dx*dx + dy*dy <= stroke_width * stroke_width:
+                        temp_draw.text((padding + dx, padding + dy), text, font=font, fill=stroke_rgb)
 
-            # Apply bold effect (draw text multiple times with slight offset)
-            if bold:
-                bold_img = Image.new("RGBA", temp_img.size, (0, 0, 0, 0))
-                bold_draw = ImageDraw.Draw(bold_img)
-                # Draw text multiple times for bold effect
-                for dx in [-1, 0, 1]:
-                    for dy in [-1, 0, 1]:
-                        if dx != 0 or dy != 0:
-                            bold_draw.text((10 + dx, 10 + dy), text, font=font, fill=fill + (255,) if len(fill) == 3 else fill)
-                # Composite original on top
-                temp_img = Image.alpha_composite(temp_img, bold_img)
+        # Draw main text
+        temp_draw.text((padding, padding), text, font=font, fill=fill_rgba)
 
-            # Apply italic effect (skew the image)
-            if italic:
-                # Create a larger canvas to accommodate skew
-                skew_img = Image.new("RGBA", (int(temp_img.width * 1.3), temp_img.height), (0, 0, 0, 0))
-                # Apply skew transformation
-                from PIL import ImageTransform
-                skew_img.paste(temp_img, (int(temp_img.width * 0.2), 0), temp_img)
-                temp_img = skew_img
+        # Apply bold effect (draw text multiple times with slight offset)
+        if bold:
+            bold_overlay = Image.new("RGBA", temp_img.size, (0, 0, 0, 0))
+            bold_draw = ImageDraw.Draw(bold_overlay)
+            # Draw text multiple times for bold effect (around the main text)
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    if dx != 0 or dy != 0:
+                        bold_draw.text((padding + dx, padding + dy), text, font=font, fill=fill_rgba)
+            # Composite onto temp image
+            temp_img = Image.alpha_composite(temp_img, bold_overlay)
 
-            # Apply strikethrough (draw line through middle of text)
-            if strikethrough:
-                line_y = 10 + text_height // 2
-                line_width = max(1, text_height // 15)
-                temp_draw.line([(5, line_y), (text_width + 15, line_y)], fill=fill + (255,) if len(fill) == 3 else fill, width=line_width)
+        # Apply italic effect (skew the image)
+        if italic:
+            # Create larger canvas for skew
+            skew_factor = 0.3
+            new_width = int(temp_img.width * (1 + skew_factor))
+            skew_img = Image.new("RGBA", (new_width, temp_img.height), (0, 0, 0, 0))
+            # Apply shear transformation manually by drawing at offset
+            for py in range(temp_img.height):
+                offset = int(py * skew_factor)
+                # Copy each row with offset
+                row = temp_img.crop((0, py, temp_img.width, py + 1))
+                skew_img.paste(row, (offset, py))
+            temp_img = skew_img
 
-            # Paste to main image
-            base_x = max(0, x)
-            base_y = max(0, y)
-            if isinstance(draw, ImageDraw.ImageDraw) and hasattr(draw, '_image'):
-                # We're drawing on a temporary image
-                draw._image.paste(temp_img, (x, y), temp_img)
-            else:
-                # Draw directly on the provided image
-                if temp_img.mode == "RGBA":
-                    draw._image.paste(temp_img, (x, y), temp_img)
+        # Apply strikethrough (draw line through middle of text)
+        if strikethrough:
+            line_y = padding + text_height // 2
+            line_width = max(1, text_height // 15)
+            temp_draw.line([(padding - 5, line_y), (padding + text_width + 5, line_y)], fill=fill_rgba, width=line_width)
+
+        # Paste the styled text onto the target image
+        # Clamp position to stay within bounds
+        paste_x = max(0, min(x, target_image.width - temp_img.width))
+        paste_y = max(0, min(y, target_image.height - temp_img.height))
+
+        if temp_img.mode == "RGBA":
+            target_image.paste(temp_img, (paste_x, paste_y), temp_img)
         else:
-            # Simple text rendering without styles
-            if stroke_width > 0 and stroke_fill:
-                stroke_rgb = stroke_fill + (255,) if len(stroke_fill) == 3 else stroke_fill
-                for dx in range(-stroke_width, stroke_width + 1):
-                    for dy in range(-stroke_width, stroke_width + 1):
-                        if dx*dx + dy*dy <= stroke_width * stroke_width:
-                            draw.text((x + dx, y + dy), text, font=font, fill=stroke_rgb)
-            draw.text(position, text, font=font, fill=fill)
+            target_image.paste(temp_img, (paste_x, paste_y))
 
     # Verify campaign ownership
     campaign = None
@@ -1810,7 +1807,7 @@ async def composite_image(
 
                 # Draw text with styles using helper function
                 _draw_text_with_styles(
-                    draw=draw,
+                    target_image=text_image,
                     text=text_layer.text,
                     position=(x, y_adjusted),
                     font=font,
