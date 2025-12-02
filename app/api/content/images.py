@@ -1659,13 +1659,16 @@ async def composite_image(
         """Draw text with optional bold, italic, and strikethrough styles."""
         x, y = position
 
+        # Debug logging
+        logger.info(f"✏️ Applying styles to '{text}': bold={bold}, italic={italic}, strikethrough={strikethrough}")
+
         # Get text bounding box
         bbox = font.getbbox(text)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
 
-        # Create a temporary image for the text with padding
-        padding = 20
+        # Create a temporary image for the text with extra padding for bold/italic effects
+        padding = 40
         temp_img = Image.new("RGBA", (text_width + padding * 2, text_height + padding * 2), (0, 0, 0, 0))
         temp_draw = ImageDraw.Draw(temp_img)
 
@@ -1685,6 +1688,7 @@ async def composite_image(
 
         # Apply bold effect (draw text multiple times with slight offset)
         if bold:
+            logger.info("  🟦 Applying BOLD effect")
             bold_overlay = Image.new("RGBA", temp_img.size, (0, 0, 0, 0))
             bold_draw = ImageDraw.Draw(bold_overlay)
             # Draw text multiple times for bold effect (around the main text)
@@ -1697,6 +1701,7 @@ async def composite_image(
 
         # Apply italic effect (skew the image)
         if italic:
+            logger.info("  🟨 Applying ITALIC effect")
             # Create larger canvas for skew
             skew_factor = 0.3
             new_width = int(temp_img.width * (1 + skew_factor))
@@ -1711,6 +1716,7 @@ async def composite_image(
 
         # Apply strikethrough (draw line through middle of text)
         if strikethrough:
+            logger.info("  🟪 Applying STRIKETHROUGH effect")
             line_y = padding + text_height // 2
             line_width = max(1, text_height // 15)
             temp_draw.line([(padding - 5, line_y), (padding + text_width + 5, line_y)], fill=fill_rgba, width=line_width)
@@ -1720,10 +1726,14 @@ async def composite_image(
         paste_x = max(0, min(x, target_image.width - temp_img.width))
         paste_y = max(0, min(y, target_image.height - temp_img.height))
 
+        logger.info(f"  📤 Pasting styled text at ({paste_x}, {paste_y}), size: {temp_img.width}x{temp_img.height}")
+
         if temp_img.mode == "RGBA":
             target_image.paste(temp_img, (paste_x, paste_y), temp_img)
         else:
             target_image.paste(temp_img, (paste_x, paste_y))
+
+        logger.info("  ✅ Text styling complete")
 
     # Verify campaign ownership
     campaign = None
@@ -1792,22 +1802,22 @@ async def composite_image(
                 text_bbox = font.getbbox(text_layer.text)
                 y_adjusted = y + text_bbox[1]
 
-                # Create a temporary image for the text with transparency
-                text_image = Image.new("RGBA", base_image.size, (0, 0, 0, 0))
-                draw = ImageDraw.Draw(text_image)
-
                 color_rgb = _hex_to_rgb(text_layer.color)
                 stroke_rgb = None
                 stroke_width = 0
+
+                # Debug: Log text style properties
+                logger.info(f"🎨 Text styles for '{text_layer.text}': bold={text_layer.bold}, italic={text_layer.italic}, strikethrough={text_layer.strikethrough}")
 
                 # Draw stroke
                 if text_layer.stroke_width > 0 and text_layer.stroke_color:
                     stroke_rgb = _hex_to_rgb(text_layer.stroke_color)
                     stroke_width = int(text_layer.stroke_width)
 
-                # Draw text with styles using helper function
+                # Draw text with styles directly onto a temporary text layer
+                text_layer_img = Image.new("RGBA", base_image.size, (0, 0, 0, 0))
                 _draw_text_with_styles(
-                    target_image=text_image,
+                    target_image=text_layer_img,
                     text=text_layer.text,
                     position=(x, y_adjusted),
                     font=font,
@@ -1819,14 +1829,14 @@ async def composite_image(
                     strikethrough=text_layer.strikethrough
                 )
 
-                # Apply opacity
+                # Apply opacity to the text layer
                 if text_layer.opacity < 1.0:
-                    alpha = text_image.split()[3]
+                    alpha = text_layer_img.split()[3]
                     alpha = ImageEnhance.Brightness(alpha).enhance(text_layer.opacity)
-                    text_image.putalpha(alpha)
+                    text_layer_img.putalpha(alpha)
 
                 # Composite text onto base
-                base_image = Image.alpha_composite(base_image, text_image)
+                base_image = Image.alpha_composite(base_image, text_layer_img)
 
             elif item["type"] == "image":
                 # Process image layer
