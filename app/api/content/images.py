@@ -1699,17 +1699,17 @@ async def composite_image(
             # Composite onto temp image
             temp_img = Image.alpha_composite(temp_img, bold_overlay)
 
-        # Apply italic effect (skew the image)
+        # Apply italic effect (skew the image to the right)
         if italic:
             logger.info("  🟨 Applying ITALIC effect")
             # Create larger canvas for skew
             skew_factor = 0.3
             new_width = int(temp_img.width * (1 + skew_factor))
             skew_img = Image.new("RGBA", (new_width, temp_img.height), (0, 0, 0, 0))
-            # Apply shear transformation manually by drawing at offset
+            # Apply shear transformation manually - slant to the right (top stays, bottom moves left)
             for py in range(temp_img.height):
-                offset = int(py * skew_factor)
-                # Copy each row with offset
+                offset = -int(py * skew_factor)
+                # Copy each row with offset (negative = move left)
                 row = temp_img.crop((0, py, temp_img.width, py + 1))
                 skew_img.paste(row, (offset, py))
             temp_img = skew_img
@@ -1717,9 +1717,10 @@ async def composite_image(
         # Apply strikethrough (draw line through middle of text)
         if strikethrough:
             logger.info("  🟪 Applying STRIKETHROUGH effect")
-            line_y = padding + text_height // 2
+            # Position line at the vertical center of the temp image
+            line_y = temp_img.height // 2
             line_width = max(1, text_height // 15)
-            temp_draw.line([(padding - 5, line_y), (padding + text_width + 5, line_y)], fill=fill_rgba, width=line_width)
+            temp_draw.line([(0, line_y), (temp_img.width, line_y)], fill=fill_rgba, width=line_width)
 
         # Paste the styled text onto the target image
         # Clamp position to stay within bounds
