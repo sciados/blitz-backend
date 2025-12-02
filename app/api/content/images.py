@@ -1721,8 +1721,8 @@ async def composite_image(
             temp_draw_final = ImageDraw.Draw(temp_img)
             # Create diagonal strikethrough from bottom-left to top-right
             # Extend beyond edges for smooth appearance
-            extension = 20
-            line_width = max(2, text_height // 20)
+            extension = 5
+            line_width = max(2, text_height // 5)
             temp_draw_final.line(
                 [(-extension, temp_img.height + extension), (temp_img.width + extension, -extension)],
                 fill=fill_rgba,
