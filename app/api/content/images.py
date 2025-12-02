@@ -1714,13 +1714,20 @@ async def composite_image(
                 skew_img.paste(row, (offset, py))
             temp_img = skew_img
 
-        # Apply strikethrough (draw line through middle of text)
+        # Apply strikethrough AFTER all other effects
         if strikethrough:
-            logger.info("  🟪 Applying STRIKETHROUGH effect")
-            # Position line at the vertical center of the temp image
-            line_y = temp_img.height // 2
-            line_width = max(1, text_height // 15)
-            temp_draw.line([(0, line_y), (temp_img.width, line_y)], fill=fill_rgba, width=line_width)
+            logger.info("  🟪 Applying STRIKETHROUGH effect (diagonal)")
+            # Redraw on the final temp_img to ensure it's centered
+            temp_draw_final = ImageDraw.Draw(temp_img)
+            # Create diagonal strikethrough from bottom-left to top-right
+            # Extend beyond edges for smooth appearance
+            extension = 20
+            line_width = max(2, text_height // 20)
+            temp_draw_final.line(
+                [(-extension, temp_img.height + extension), (temp_img.width + extension, -extension)],
+                fill=fill_rgba,
+                width=line_width
+            )
 
         # Paste the styled text onto the target image
         # Clamp position to stay within bounds
