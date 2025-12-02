@@ -1719,10 +1719,13 @@ async def composite_image(
             logger.info("  🟪 Applying STRIKETHROUGH effect (diagonal)")
             # Redraw on the final temp_img to ensure it's centered
             temp_draw_final = ImageDraw.Draw(temp_img)
-            # Create diagonal strikethrough from bottom-left to top-right corner
+            # Create diagonal strikethrough from bottom of first letter to top of last letter
+            # The text is drawn with padding, so start near bottom-left and end near top-right
+            start_y = padding + text_height - 5  # Bottom of text area (with slight offset)
+            end_y = padding + 5  # Top of text area (with slight offset)
             line_width = max(2, text_height // 15)
             temp_draw_final.line(
-                [(0, temp_img.height), (temp_img.width, 0)],
+                [(padding, start_y), (padding + text_width, end_y)],
                 fill=fill_rgba,
                 width=line_width
             )
