@@ -743,6 +743,46 @@ async def batch_generate_images(
     ]
 
 
+@router.get("/", response_model=List[ImageResponse])
+async def list_all_user_images(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100
+):
+    """List all generated images for the current user across all campaigns."""
+    # Get all images for user's campaigns
+    result = await db.execute(
+        select(GeneratedImage)
+        .join(Campaign)
+        .where(Campaign.user_id == current_user.id)
+        .order_by(GeneratedImage.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    images = result.scalars().all()
+
+    return [
+        ImageResponse(
+            id=image.id,
+            campaign_id=image.campaign_id,
+            image_type=image.image_type,
+            image_url=image.image_url,
+            thumbnail_url=image.thumbnail_url,
+            provider=image.provider,
+            model=image.model,
+            prompt=image.prompt,
+            style=image.style,
+            aspect_ratio=image.aspect_ratio,
+            metadata=image.meta_data or {},
+            ai_generation_cost=image.ai_generation_cost,
+            content_id=image.content_id,
+            created_at=image.created_at
+        )
+        for image in images
+    ]
+
+
 @router.get("/campaign/{campaign_id}", response_model=ImageListResponse)
 async def list_campaign_images(
     campaign_id: int,
