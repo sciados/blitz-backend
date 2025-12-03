@@ -184,7 +184,7 @@ app.include_router(intelligence.router)
 app.include_router(compliance.router)
 app.include_router(overlays.router)
 app.include_router(links.router)  # Link management API under /api/links
-app.include_router(links.redirect_router)  # Public redirect at /{short_code}
+app.include_router(links.redirect_router)  # Public redirect at /r/{short_code}
 app.include_router(product_analytics.router)  # Product analytics and leaderboards
 app.include_router(platform_credentials.router)  # Platform API credentials management
 app.include_router(email_signups.router)  # Email signup service for pre-launch
