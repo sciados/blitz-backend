@@ -167,7 +167,7 @@ async def list_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     category: Optional[str] = None,
-    sort_by: str = Query("recent", regex="^(recent|popular|alphabetical)$"),
+    sort_by: str = Query("recent", regex="^(recent|popular|alphabetical|launch_date)$"),
     recurring_only: Optional[bool] = Query(None, description="Filter for recurring commission products only"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -178,7 +178,7 @@ async def list_products(
     - **skip**: Pagination offset
     - **limit**: Number of products to return (max 100)
     - **category**: Filter by product category (health, wealth, relationships, etc.)
-    - **sort_by**: Sort order - recent (newest first), popular (most used), alphabetical
+    - **sort_by**: Sort order - recent (newest first), popular (most used), alphabetical, launch_date (newest launch first)
     - **recurring_only**: If True, show only products with recurring commissions
 
     Admins can see all products (including inactive) for management.
@@ -206,6 +206,8 @@ async def list_products(
         query = query.order_by(desc(ProductIntelligence.times_used))
     elif sort_by == "alphabetical":
         query = query.order_by(ProductIntelligence.product_name)
+    elif sort_by == "launch_date":
+        query = query.order_by(desc(ProductIntelligence.launch_date))
     else:  # recent (default)
         query = query.order_by(desc(ProductIntelligence.compiled_at))
 
@@ -277,6 +279,7 @@ async def list_products(
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
+            launch_date=p.launch_date.isoformat() if p.launch_date else None,
             created_by_name=p.created_by.full_name if p.created_by else None,
             created_by_email=p.created_by.email if p.created_by else None,
             created_by_user_id=p.created_by_user_id,
@@ -362,6 +365,7 @@ async def get_product(
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
         last_accessed_at=product.last_accessed_at.isoformat() if product.last_accessed_at else None,
+        launch_date=product.launch_date.isoformat() if product.launch_date else None,
         compilation_version=product.compilation_version,
         created_by_name=product.created_by.full_name if product.created_by else None,
         created_by_email=product.created_by.email if product.created_by else None,
@@ -597,6 +601,7 @@ async def search_products(
             times_used=p.times_used,
             compiled_at=p.compiled_at.isoformat() if p.compiled_at else "",
             last_accessed_at=p.last_accessed_at.isoformat() if p.last_accessed_at else None,
+            launch_date=p.launch_date.isoformat() if p.launch_date else None,
             created_by_name=p.created_by.full_name if p.created_by else None,
             created_by_email=p.created_by.email if p.created_by else None,
             created_by_user_id=p.created_by_user_id,
@@ -955,6 +960,7 @@ class ProductUpdate(BaseModel):
     affiliate_link_url: Optional[str] = None
     product_description: Optional[str] = None
     is_recurring: Optional[bool] = None
+    launch_date: Optional[str] = None  # Launch date for affiliate awareness
     is_public: Optional[bool] = None  # Admin can toggle public visibility
 
     class Config:
@@ -967,6 +973,7 @@ class ProductUpdate(BaseModel):
                 "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
                 "product_description": "Updated description...",
                 "is_recurring": True,
+                "launch_date": "2025-12-15",
                 "is_public": True
             }
         }
@@ -1030,6 +1037,21 @@ async def update_product(
 
     if update.affiliate_link_url is not None:
         product.affiliate_link_url = update.affiliate_link_url
+
+    # Update launch_date if provided
+    if update.launch_date is not None:
+        if update.launch_date:
+            # Parse date string (YYYY-MM-DD) to date object
+            from datetime import datetime
+            try:
+                launch_date_obj = datetime.strptime(update.launch_date, "%Y-%m-%d").date()
+                product.launch_date = launch_date_obj
+            except ValueError:
+                # Invalid date format, keep existing
+                pass
+        else:
+            # Empty string means clear the launch date
+            product.launch_date = None
 
     # Update description in intelligence_data if provided
     if update.product_description is not None:
@@ -1103,6 +1125,7 @@ async def update_product(
         times_used=product.times_used,
         compiled_at=product.compiled_at.isoformat() if product.compiled_at else "",
         last_accessed_at=product.last_accessed_at.isoformat() if product.last_accessed_at else None,
+        launch_date=product.launch_date.isoformat() if product.launch_date else None,
         compilation_version=product.compilation_version,
         created_by_name=product.created_by.full_name if product.created_by else None,
         created_by_email=product.created_by.email if product.created_by else None,
