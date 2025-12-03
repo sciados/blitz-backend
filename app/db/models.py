@@ -67,6 +67,7 @@ class ProductIntelligence(Base):
     thumbnail_image_url = Column(Text, nullable=True)  # First product image from R2
     affiliate_network = Column(String(100), nullable=True)  # ClickBank, CJ, ShareASale, etc.
     commission_rate = Column(String(50), nullable=True)  # "50%", "$37/sale", etc.
+    launch_date = Column(Date, nullable=True)  # Product launch date for affiliate awareness
     affiliate_link_url = Column(Text, nullable=True)  # Where affiliates get their affiliate link
 
     # Intelligence data (structured JSON from Claude analysis + RAG research)

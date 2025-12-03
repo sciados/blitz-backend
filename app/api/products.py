@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, desc
 from sqlalchemy.orm import selectinload
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
-from datetime import datetime
+from pydantic import BaseModel, field_serializer
+from datetime import datetime, date
 
 from app.db.session import get_db
 from app.db.models import User, ProductIntelligence
@@ -36,6 +36,7 @@ class ProductSubmission(BaseModel):
     product_description: Optional[str] = None
     affiliate_link_url: Optional[str] = None  # URL where affiliates get their link
     is_recurring: bool = False  # Future: recurring commission checkbox
+    launch_date: Optional[str] = None  # Launch date for affiliate awareness
 
     class Config:
         json_schema_extra = {
@@ -47,7 +48,8 @@ class ProductSubmission(BaseModel):
                 "commission_rate": "50%",
                 "product_description": "Revolutionary weight loss formula...",
                 "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
-                "is_recurring": False
+                "is_recurring": False,
+                "launch_date": "2025-12-15"
             }
         }
 
@@ -62,6 +64,7 @@ class ProductLibraryItem(BaseModel):
     commission_rate: Optional[str]
     product_description: Optional[str] = None  # Summary for affiliate decision-making
     is_recurring: bool = False  # Recurring commission indicator
+    launch_date: Optional[Union[str, date]] = None  # Launch date for affiliate awareness
     times_used: int
     compiled_at: str
     last_accessed_at: Optional[str]
@@ -71,6 +74,12 @@ class ProductLibraryItem(BaseModel):
     created_by_user_id: Optional[int] = None
     # Compliance info
     compliance: Optional[Dict[str, Any]] = None
+
+    @field_serializer("launch_date", when_used="json")
+    def serialize_launch_date(self, value: Optional[Union[str, date]]) -> Optional[str]:
+        if isinstance(value, date):
+            return value.isoformat()
+        return value
 
     class Config:
         from_attributes = True
@@ -86,6 +95,7 @@ class ProductDetails(BaseModel):
     thumbnail_image_url: Optional[str]
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
+    launch_date: Optional[Union[str, date]] = None  # Launch date for affiliate awareness
     affiliate_link_url: Optional[str]
     is_recurring: bool
     is_public: Optional[str] = None  # String "true" or "false"
@@ -101,6 +111,12 @@ class ProductDetails(BaseModel):
     developer_tier: Optional[str] = None
     # Compliance info
     compliance: Optional[Dict[str, Any]] = None
+
+    @field_serializer("launch_date", when_used="json")
+    def serialize_launch_date(self, value: Optional[Union[str, date]]) -> Optional[str]:
+        if isinstance(value, date):
+            return value.isoformat()
+        return value
 
     class Config:
         from_attributes = True
@@ -808,7 +824,16 @@ async def submit_product(
         )
 
     # Create ProductIntelligence record with provided metadata
-    from datetime import datetime
+    from datetime import datetime, date
+
+    # Parse launch_date if provided
+    launch_date_obj = None
+    if submission.launch_date:
+        try:
+            launch_date_obj = datetime.strptime(submission.launch_date, "%Y-%m-%d").date()
+        except ValueError:
+            # Invalid date format, skip it
+            pass
 
     new_product = ProductIntelligence(
         product_url=submission.product_url,
@@ -817,6 +842,7 @@ async def submit_product(
         product_category=submission.product_category,
         affiliate_network=submission.affiliate_network,
         commission_rate=submission.commission_rate,
+        launch_date=launch_date_obj,
         affiliate_link_url=submission.affiliate_link_url,
         created_by_user_id=current_user.id,  # Link to Product Developer
         developer_tier=current_user.developer_tier,  # Copy developer tier
@@ -834,7 +860,8 @@ async def submit_product(
             "submission": {
                 "submitted_by_user_id": current_user.id,
                 "submitted_at": datetime.utcnow().isoformat(),
-                "is_recurring": submission.is_recurring
+                "is_recurring": submission.is_recurring,
+                "launch_date": submission.launch_date
             },
             "status": "pending_intelligence_compilation"
         }
