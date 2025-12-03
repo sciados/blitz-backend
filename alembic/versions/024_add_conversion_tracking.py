@@ -28,13 +28,20 @@ def upgrade() -> None:
         sa.Column('order_id', sa.String(255), nullable=False),
         sa.Column('order_amount', sa.Float(), nullable=False),
         sa.Column('currency', sa.String(3), server_default='USD', nullable=False),
+        # Order type for funnel tracking (upsells, downsells, bumps)
+        sa.Column('order_type', sa.String(20), server_default='main', nullable=False),
+        sa.Column('parent_order_id', sa.String(255), nullable=True),
+        sa.Column('products_data', postgresql.JSONB(), nullable=True),
+        # Commission calculation
         sa.Column('affiliate_commission_rate', sa.Float(), nullable=False),
         sa.Column('affiliate_commission_amount', sa.Float(), nullable=False),
         sa.Column('blitz_fee_rate', sa.Float(), nullable=False),
         sa.Column('blitz_fee_amount', sa.Float(), nullable=False),
         sa.Column('developer_net_amount', sa.Float(), nullable=False),
+        # Tracking data
         sa.Column('click_id', sa.Integer(), nullable=True),
         sa.Column('tracking_cookie', sa.String(255), nullable=True),
+        sa.Column('session_id', sa.String(100), nullable=True),
         sa.Column('ip_address', postgresql.INET(), nullable=True),
         sa.Column('user_agent', sa.Text(), nullable=True),
         sa.Column('status', sa.String(20), server_default='pending', nullable=False),
@@ -54,6 +61,8 @@ def upgrade() -> None:
     op.create_index('ix_conversions_affiliate_id', 'conversions', ['affiliate_id'])
     op.create_index('ix_conversions_developer_id', 'conversions', ['developer_id'])
     op.create_index('ix_conversions_order_id', 'conversions', ['order_id'])
+    op.create_index('ix_conversions_order_type', 'conversions', ['order_type'])
+    op.create_index('ix_conversions_session_id', 'conversions', ['session_id'])
     op.create_index('ix_conversions_status', 'conversions', ['status'])
     op.create_index('ix_conversions_converted_at', 'conversions', ['converted_at'])
 

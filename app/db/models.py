@@ -714,6 +714,7 @@ class Conversion(Base):
     """
     Tracks affiliate conversions (sales) from tracked links.
     This is the core of the affiliate revenue system.
+    Supports multiple conversions per session (upsells, downsells, order bumps).
     """
     __tablename__ = "conversions"
 
@@ -732,6 +733,13 @@ class Conversion(Base):
     order_amount = Column(Float, nullable=False)  # Total sale amount
     currency = Column(String(3), server_default="USD", nullable=False)
 
+    # Order type for funnel tracking
+    order_type = Column(String(20), server_default="main", nullable=False, index=True)  # main, upsell, downsell, bump
+    parent_order_id = Column(String(255), nullable=True)  # Links upsells to main order
+
+    # Product details (for multi-product orders)
+    products_data = Column(JSONB, nullable=True)  # Array of {sku, name, price, quantity}
+
     # Commission calculation
     affiliate_commission_rate = Column(Float, nullable=False)  # e.g., 0.30 for 30%
     affiliate_commission_amount = Column(Float, nullable=False)
@@ -742,6 +750,7 @@ class Conversion(Base):
     # Tracking data
     click_id = Column(Integer, ForeignKey("link_clicks.id", ondelete="SET NULL"), nullable=True)  # Original click
     tracking_cookie = Column(String(255), nullable=True)  # Cookie value used for attribution
+    session_id = Column(String(100), nullable=True, index=True)  # Groups related purchases together
     ip_address = Column(INET, nullable=True)
     user_agent = Column(Text, nullable=True)
 
