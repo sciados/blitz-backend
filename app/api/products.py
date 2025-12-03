@@ -8,7 +8,7 @@ Product Creators can add products (free), Affiliate Marketers can browse and use
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, desc
+from sqlalchemy import select, func, or_, desc, asc
 from sqlalchemy.orm import selectinload
 from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, field_serializer
@@ -207,7 +207,7 @@ async def list_products(
     elif sort_by == "alphabetical":
         query = query.order_by(ProductIntelligence.product_name)
     elif sort_by == "launch_date":
-        query = query.order_by(desc(ProductIntelligence.launch_date))
+        query = query.order_by(asc(ProductIntelligence.launch_date))
     else:  # recent (default)
         query = query.order_by(desc(ProductIntelligence.compiled_at))
 
