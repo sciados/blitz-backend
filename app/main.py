@@ -11,7 +11,7 @@ import logging
 
 from app.core.config.settings import settings
 from app.db.session import engine, Base
-from app.api import auth, campaigns, intelligence, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups
+from app.api import auth, campaigns, intelligence, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups, tracking
 from app.api.content import text_router, images_router
 from app.api import messages, message_requests, affiliates
 from app.api import connections
@@ -192,6 +192,7 @@ app.include_router(messages.router)  # Internal messaging system
 app.include_router(message_requests.router)  # Message requests workflow
 app.include_router(affiliates.router)  # Affiliate directory and networking
 app.include_router(connections.router)  # Connection management (delete, block, unblock)
+app.include_router(tracking.router)  # Affiliate conversion tracking
 app.include_router(admin_ai_router.router)
 app.include_router(admin_config.router)
 app.include_router(admin_users.router)

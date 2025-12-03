@@ -704,3 +704,136 @@ class AffiliateConnection(Base):
 
     # Unique constraint to prevent duplicate connections
     __table_args__ = (UniqueConstraint('user1_id', 'user2_id'),)
+
+
+# ============================================================================
+# AFFILIATE CONVERSION TRACKING MODELS
+# ============================================================================
+
+class Conversion(Base):
+    """
+    Tracks affiliate conversions (sales) from tracked links.
+    This is the core of the affiliate revenue system.
+    """
+    __tablename__ = "conversions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Product/Campaign identification
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="SET NULL"), nullable=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Parties involved
+    affiliate_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # Who referred the sale
+    developer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # Product owner
+
+    # Transaction details
+    order_id = Column(String(255), nullable=False, index=True)  # External order ID from merchant
+    order_amount = Column(Float, nullable=False)  # Total sale amount
+    currency = Column(String(3), server_default="USD", nullable=False)
+
+    # Commission calculation
+    affiliate_commission_rate = Column(Float, nullable=False)  # e.g., 0.30 for 30%
+    affiliate_commission_amount = Column(Float, nullable=False)
+    blitz_fee_rate = Column(Float, nullable=False)  # e.g., 0.05 for 5%
+    blitz_fee_amount = Column(Float, nullable=False)
+    developer_net_amount = Column(Float, nullable=False)  # order_amount - affiliate - blitz
+
+    # Tracking data
+    click_id = Column(Integer, ForeignKey("link_clicks.id", ondelete="SET NULL"), nullable=True)  # Original click
+    tracking_cookie = Column(String(255), nullable=True)  # Cookie value used for attribution
+    ip_address = Column(INET, nullable=True)
+    user_agent = Column(Text, nullable=True)
+
+    # Status
+    status = Column(String(20), server_default="pending", nullable=False, index=True)  # pending, approved, rejected, refunded
+
+    # Timestamps
+    converted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    product = relationship("ProductIntelligence")
+    campaign = relationship("Campaign")
+    affiliate = relationship("User", foreign_keys=[affiliate_id])
+    developer = relationship("User", foreign_keys=[developer_id])
+    click = relationship("LinkClick")
+
+    # Unique constraint to prevent duplicate order tracking
+    __table_args__ = (
+        UniqueConstraint('product_intelligence_id', 'order_id', name='uq_conversion_product_order'),
+    )
+
+
+class Commission(Base):
+    """
+    Ledger entries for commission payouts.
+    Tracks earnings for affiliates, developers, and Blitz.
+    """
+    __tablename__ = "commissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Link to conversion
+    conversion_id = Column(Integer, ForeignKey("conversions.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Who earned this commission
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for Blitz fee
+    commission_type = Column(String(20), nullable=False, index=True)  # affiliate, developer, blitz
+
+    # Amount
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), server_default="USD", nullable=False)
+
+    # Status
+    status = Column(String(20), server_default="pending", nullable=False, index=True)  # pending, available, paid, refunded
+
+    # Payout tracking (for future)
+    payout_id = Column(Integer, nullable=True)  # Link to future payout table
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    conversion = relationship("Conversion")
+    user = relationship("User")
+
+
+class TrackingCookie(Base):
+    """
+    Stores affiliate tracking cookies for attribution.
+    When a visitor clicks an affiliate link, we store their cookie here.
+    When they purchase, we look up the cookie to credit the affiliate.
+    """
+    __tablename__ = "tracking_cookies"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Cookie identification
+    cookie_value = Column(String(64), unique=True, nullable=False, index=True)  # UUID or hash
+
+    # Attribution data
+    affiliate_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_intelligence_id = Column(Integer, ForeignKey("product_intelligence.id", ondelete="CASCADE"), nullable=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
+    shortened_link_id = Column(Integer, ForeignKey("shortened_links.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Click data
+    click_id = Column(Integer, ForeignKey("link_clicks.id", ondelete="SET NULL"), nullable=True)
+    ip_address = Column(INET, nullable=True)
+    user_agent = Column(Text, nullable=True)
+
+    # Expiration
+    expires_at = Column(DateTime(timezone=True), nullable=False)  # Typically 60-90 days
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_seen_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    affiliate = relationship("User")
+    product = relationship("ProductIntelligence")
+    campaign = relationship("Campaign")
+    shortened_link = relationship("ShortenedLink")
+    click = relationship("LinkClick")
