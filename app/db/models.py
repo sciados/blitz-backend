@@ -65,6 +65,7 @@ class ProductIntelligence(Base):
     product_name = Column(String(255), nullable=True, index=True)  # For search/display
     product_category = Column(String(100), nullable=True, index=True)  # health, wealth, relationships, etc.
     thumbnail_image_url = Column(Text, nullable=True)  # First product image from R2
+    hero_media_url = Column(Text, nullable=True)  # Custom hero image/video uploaded by developer
     affiliate_network = Column(String(100), nullable=True)  # ClickBank, CJ, ShareASale, etc.
     commission_rate = Column(String(50), nullable=True)  # "50%", "$37/sale", etc.
     launch_date = Column(Date, nullable=True)  # Product launch date for affiliate awareness

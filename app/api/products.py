@@ -37,6 +37,7 @@ class ProductSubmission(BaseModel):
     affiliate_link_url: Optional[str] = None  # URL where affiliates get their link
     is_recurring: bool = False  # Future: recurring commission checkbox
     launch_date: Optional[str] = None  # Launch date for affiliate awareness
+    hero_media_url: Optional[str] = None  # Custom hero image/video URL
 
     class Config:
         json_schema_extra = {
@@ -49,7 +50,8 @@ class ProductSubmission(BaseModel):
                 "product_description": "Revolutionary weight loss formula...",
                 "affiliate_link_url": "https://clickbank.com/affiliate/get-link/productid",
                 "is_recurring": False,
-                "launch_date": "2025-12-15"
+                "launch_date": "2025-12-15",
+                "hero_media_url": "https://storage.example.com/hero-video.mp4"
             }
         }
 
@@ -60,6 +62,7 @@ class ProductLibraryItem(BaseModel):
     product_name: Optional[str]
     product_category: Optional[str]
     thumbnail_image_url: Optional[str]
+    hero_media_url: Optional[str] = None  # Custom hero image/video uploaded by developer
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
     product_description: Optional[str] = None  # Summary for affiliate decision-making
@@ -93,6 +96,7 @@ class ProductDetails(BaseModel):
     product_category: Optional[str]
     product_description: Optional[str]
     thumbnail_image_url: Optional[str]
+    hero_media_url: Optional[str] = None  # Custom hero image/video uploaded by developer
     affiliate_network: Optional[str]
     commission_rate: Optional[str]
     launch_date: Optional[Union[str, date]] = None  # Launch date for affiliate awareness
@@ -272,6 +276,7 @@ async def list_products(
             product_name=p.product_name,
             product_category=p.product_category,
             thumbnail_image_url=p.thumbnail_image_url,
+            hero_media_url=p.hero_media_url,
             affiliate_network=p.affiliate_network,
             commission_rate=p.commission_rate,
             product_description=description,
@@ -356,6 +361,7 @@ async def get_product(
         product_category=product.product_category,
         product_description=description,
         thumbnail_image_url=product.thumbnail_image_url,
+        hero_media_url=product.hero_media_url,
         affiliate_network=product.affiliate_network,
         commission_rate=product.commission_rate,
         affiliate_link_url=product.affiliate_link_url,
@@ -594,6 +600,7 @@ async def search_products(
             product_name=p.product_name,
             product_category=p.product_category,
             thumbnail_image_url=p.thumbnail_image_url,
+            hero_media_url=p.hero_media_url,
             affiliate_network=p.affiliate_network,
             commission_rate=p.commission_rate,
             product_description=description,
@@ -848,6 +855,7 @@ async def submit_product(
         affiliate_network=submission.affiliate_network,
         commission_rate=submission.commission_rate,
         launch_date=launch_date_obj,
+        hero_media_url=submission.hero_media_url,
         affiliate_link_url=submission.affiliate_link_url,
         created_by_user_id=current_user.id,  # Link to Product Developer
         developer_tier=current_user.developer_tier,  # Copy developer tier
@@ -930,6 +938,7 @@ async def submit_product(
         product_category=new_product.product_category,
         product_description=description,
         thumbnail_image_url=new_product.thumbnail_image_url,
+        hero_media_url=new_product.hero_media_url,
         affiliate_network=new_product.affiliate_network,
         commission_rate=new_product.commission_rate,
         affiliate_link_url=new_product.affiliate_link_url,
@@ -961,6 +970,7 @@ class ProductUpdate(BaseModel):
     product_description: Optional[str] = None
     is_recurring: Optional[bool] = None
     launch_date: Optional[str] = None  # Launch date for affiliate awareness
+    hero_media_url: Optional[str] = None  # Custom hero image/video URL
     is_public: Optional[bool] = None  # Admin can toggle public visibility
 
     class Config:
@@ -974,6 +984,7 @@ class ProductUpdate(BaseModel):
                 "product_description": "Updated description...",
                 "is_recurring": True,
                 "launch_date": "2025-12-15",
+                "hero_media_url": "https://storage.example.com/hero-video.mp4",
                 "is_public": True
             }
         }
@@ -1053,6 +1064,10 @@ async def update_product(
             # Empty string means clear the launch date
             product.launch_date = None
 
+    # Update hero_media_url if provided
+    if update.hero_media_url is not None:
+        product.hero_media_url = update.hero_media_url
+
     # Update description in intelligence_data if provided
     if update.product_description is not None:
         if product.intelligence_data is None:
@@ -1116,6 +1131,7 @@ async def update_product(
         product_category=product.product_category,
         product_description=description,
         thumbnail_image_url=product.thumbnail_image_url,
+        hero_media_url=product.hero_media_url,
         affiliate_network=product.affiliate_network,
         commission_rate=product.commission_rate,
         affiliate_link_url=product.affiliate_link_url,
