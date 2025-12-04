@@ -35,8 +35,8 @@ async def create_campaign(
     """
     Create a new campaign.
 
-    Standard affiliate marketers can only create campaigns from Product Library products.
-    Pro affiliate marketers can create campaigns from any external product URL.
+    Marketers can only create campaigns from Product Library products.
+    Pro Marketers can create campaigns from any external product URL.
     """
 
     # Check affiliate tier restrictions
@@ -49,7 +49,7 @@ async def create_campaign(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail={
                         "error": "Upgrade Required",
-                        "message": "Standard affiliates can only create campaigns from the Product Library. Upgrade to Pro to create campaigns with any product URL.",
+                        "message": "Marketers can only create campaigns from the Product Library. Upgrade to Pro to create campaigns with any product URL.",
                         "code": "AFFILIATE_TIER_UPGRADE_REQUIRED",
                         "upgrade_required": True
                     }

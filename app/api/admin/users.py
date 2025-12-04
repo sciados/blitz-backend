@@ -318,7 +318,7 @@ async def upgrade_affiliate_tier(
     """
     Upgrade a user's affiliate tier to Pro.
 
-    This endpoint allows admins to upgrade standard affiliates to pro affiliates,
+    This endpoint allows admins to upgrade Marketers to Pro Marketers,
     enabling them to create campaigns from any product URL.
     """
     if current_user.role != "admin":
