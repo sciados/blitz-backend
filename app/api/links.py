@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 # Main router for link management (authenticated endpoints)
 router = APIRouter(prefix="/api/links", tags=["URL Shortener"])
 
-# Separate router for public redirect (prefixed to avoid conflicts, no auth)
-redirect_router = APIRouter(prefix="/r", tags=["URL Shortener"])
+# Separate router for public redirect (no prefix, no auth)
+redirect_router = APIRouter(tags=["URL Shortener"])
 
 
 # ============================================================================

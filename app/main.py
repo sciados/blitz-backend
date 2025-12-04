@@ -13,7 +13,7 @@ from app.core.config.settings import settings
 from app.db.session import engine, Base
 from app.api import auth, campaigns, intelligence, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups, tracking
 from app.api.content import text_router, images_router
-from app.api import messages, message_requests, affiliates, upload
+from app.api import messages, message_requests, affiliates
 from app.api import connections
 from app.api.admin import ai_router as admin_ai_router
 from app.api.admin import products as admin_products
@@ -179,12 +179,11 @@ app.include_router(campaigns.router)
 app.include_router(products.router)
 app.include_router(text_router)
 app.include_router(images_router)
-app.include_router(upload.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
 app.include_router(overlays.router)
 app.include_router(links.router)  # Link management API under /api/links
-app.include_router(links.redirect_router)  # Public redirect at /r/{short_code}
+app.include_router(links.redirect_router)  # Public redirect at /{short_code}
 app.include_router(product_analytics.router)  # Product analytics and leaderboards
 app.include_router(platform_credentials.router)  # Platform API credentials management
 app.include_router(email_signups.router)  # Email signup service for pre-launch
