@@ -3,6 +3,7 @@
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
@@ -98,9 +99,39 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# Trust proxy headers (for HTTPS redirect preservation)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["blitzed.up.railway.app", "*.railway.app", "127.0.0.1", "localhost"]
+)
+
 # ====
 # MIDDLEWARE
 # ====
+
+# Trust proxy headers (for HTTPS redirect preservation)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["blitzed.up.railway.app", "*.railway.app", "127.0.0.1", "localhost"]
+)
+
+# Protocol Preservation Middleware
+@app.middleware("http")
+async def https_redirect_fix(request: Request, call_next):
+    """Fix redirects to preserve HTTPS protocol from proxy headers."""
+    response = await call_next(request)
+
+    # If this is a redirect and came from HTTPS, fix the location header
+    if response.status_code in (301, 302, 303, 307, 308):
+        # Check if the original request came via HTTPS
+        if request.headers.get("x-forwarded-proto") == "https":
+            location = response.headers.get("location")
+            if location and location.startswith("http://"):
+                # Replace http:// with https:// in the redirect location
+                location = location.replace("http://", "https://", 1)
+                response.headers["location"] = location
+
+    return response
 
 # Request Timing Middleware
 @app.middleware("http")
