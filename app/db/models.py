@@ -30,6 +30,13 @@ class User(Base):
     # Developer tier (for product developers)
     developer_tier = Column(String(20), nullable=True, index=True)  # new, verified, premium
     developer_tier_upgraded_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Affiliate tier (for affiliate marketers)
+    # "standard" - can only use Product Library products
+    # "pro" - can use any external product URL
+    affiliate_tier = Column(String(20), nullable=True, default="standard", index=True)
+    affiliate_tier_upgraded_at = Column(DateTime(timezone=True), nullable=True)
+
     stripe_subscription_id = Column(String(255), nullable=True)  # For premium tier
     email_notifications = Column(JSONB, nullable=True)  # Email notification preferences
 

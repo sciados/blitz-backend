@@ -35,9 +35,25 @@ async def create_campaign(
     """
     Create a new campaign.
 
-    Campaign can be created without a product URL initially.
-    User can add URL later via check-url endpoint or browse product library.
+    Standard affiliate marketers can only create campaigns from Product Library products.
+    Pro affiliate marketers can create campaigns from any external product URL.
     """
+
+    # Check affiliate tier restrictions
+    if current_user.user_type == "affiliate":
+        # Standard tier affiliates can only use Product Library products
+        if current_user.affiliate_tier == "standard":
+            # If trying to use custom product URL (not from library), reject
+            if campaign_data.product_url and not campaign_data.product_intelligence_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "error": "Upgrade Required",
+                        "message": "Standard affiliates can only create campaigns from the Product Library. Upgrade to Pro to create campaigns with any product URL.",
+                        "code": "AFFILIATE_TIER_UPGRADE_REQUIRED",
+                        "upgrade_required": True
+                    }
+                )
 
     # Normalize product URL if provided: add trailing slash to avoid 301 redirects during scraping
     product_url = None

@@ -33,6 +33,8 @@ class UserResponse(BaseModel):
     is_active: bool
     last_login: Optional[datetime] = None
     campaign_count: int = 0
+    affiliate_tier: Optional[str] = None
+    affiliate_tier_upgraded_at: Optional[datetime] = None
 
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = None
@@ -143,7 +145,9 @@ async def list_users(
             created_at=user.created_at,
             is_active=True,  # Default to active
             last_login=None,  # Not tracking yet
-            campaign_count=campaign_count
+            campaign_count=campaign_count,
+            affiliate_tier=user.affiliate_tier,
+            affiliate_tier_upgraded_at=user.affiliate_tier_upgraded_at
         ))
 
     return user_responses
@@ -178,7 +182,9 @@ async def get_user(
         role=user.role,
         created_at=user.created_at,
         is_active=True,
-        campaign_count=campaign_count
+        campaign_count=campaign_count,
+        affiliate_tier=user.affiliate_tier,
+        affiliate_tier_upgraded_at=user.affiliate_tier_upgraded_at
     )
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -228,7 +234,9 @@ async def update_user(
         role=user.role,
         created_at=user.created_at,
         is_active=True,
-        campaign_count=campaign_count
+        campaign_count=campaign_count,
+        affiliate_tier=user.affiliate_tier,
+        affiliate_tier_upgraded_at=user.affiliate_tier_upgraded_at
     )
 
 @router.post("", response_model=UserResponse)
@@ -300,3 +308,55 @@ async def delete_user(
     await db.commit()
 
     return {"message": "User deleted successfully"}
+
+@router.post("/{user_id}/upgrade-affiliate-tier")
+async def upgrade_affiliate_tier(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upgrade a user's affiliate tier to Pro.
+
+    This endpoint allows admins to upgrade standard affiliates to pro affiliates,
+    enabling them to create campaigns from any product URL.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Get the user to upgrade
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if user is an affiliate
+    if user.role != "affiliate":
+        raise HTTPException(
+            status_code=400,
+            detail="Only affiliate users can have their tier upgraded"
+        )
+
+    # Check if already pro
+    if user.affiliate_tier == "pro":
+        return {
+            "message": "User is already a Pro affiliate",
+            "affiliate_tier": user.affiliate_tier,
+            "upgraded_at": user.affiliate_tier_upgraded_at
+        }
+
+    # Upgrade to pro
+    user.affiliate_tier = "pro"
+    user.affiliate_tier_upgraded_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "message": f"Successfully upgraded {user.email} to Pro affiliate",
+        "user_id": user.id,
+        "email": user.email,
+        "affiliate_tier": user.affiliate_tier,
+        "upgraded_at": user.affiliate_tier_upgraded_at
+    }
