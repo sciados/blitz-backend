@@ -39,7 +39,7 @@ from app.services.text_renderer import TkinterTextRenderer
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/content/images", tags=["images"])
+router = APIRouter(prefix="/api/images", tags=["images"])
 
 # Text Overlay - Simple direct positioning using bbox[1] offset
 
