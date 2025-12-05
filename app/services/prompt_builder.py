@@ -404,11 +404,13 @@ PRODUCT INFORMATION:
 
             if content_type == 'video_script':
                 user_prompt += f"\n\n🎬 VIDEO DURATION GUIDANCE"
-                user_prompt += f"\nTarget word count: ~{word_count} words"
-                user_prompt += f"\nEstimated speaking time: {int(word_count / 2.5)} seconds (average 2.5 words/second)"
-                user_prompt += f"\nShort-form videos (15-20s) should be 40-50 words MAX"
-                user_prompt += f"\nFocus on impact per word - every word must count!"
-                user_prompt += f"\n\n⚠️ CRITICAL: Keep spoken content concise and punchy"
+                user_prompt += f"\nTarget spoken words: ~{word_count} words (average 2.5 words/second)"
+                user_prompt += f"\nEstimated speaking time: {int(word_count / 2.5)} seconds"
+                user_prompt += f"\nIMPORTANT: {word_count} words refers to SPOKEN content only"
+                user_prompt += f"\nYou MUST also include production notes ([VISUAL:], [ANGLE:], etc.)"
+                user_prompt += f"\nProduction notes don't count toward the {word_count} word limit"
+                user_prompt += f"\n\n⚠️ CRITICAL: Complete ALL 5 sections (Hook, Disclosure, Problem, Solution, CTA)"
+                user_prompt += f"\nDo NOT stop early - finish every section with full production notes"
             else:
                 user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
                 user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
