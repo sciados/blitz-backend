@@ -363,8 +363,9 @@ async def generate_content(
         # Video scripts need more tokens for structure and production notes
         if str(request.content_type) == "video_script":
             # Video scripts include timestamps, visual cues, and production notes
-            # So they need ~3x the tokens of plain text
-            max_tokens = max(max_tokens * 3, 500)  # Minimum 500 tokens for complete script
+            # So they need ~3-4x the tokens of plain text
+            # Short-form scripts (50 words) need ~600-800 tokens to include all sections
+            max_tokens = max(max_tokens * 4, 800)  # Minimum 800 tokens for complete script
 
         # For email sequences, multiply by number of emails (word count is per email)
         if str(request.content_type) == "email_sequence":
