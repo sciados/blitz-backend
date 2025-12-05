@@ -208,15 +208,17 @@ async def generate_content(
     compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
 ):
     """Generate new content for a campaign."""
-    # Verify campaign ownership
+    # Verify campaign ownership and eager load product intelligence
     result = await db.execute(
-        select(Campaign).where(
+        select(Campaign)
+        .options(selectinload(Campaign.product_intelligence))
+        .where(
             Campaign.id == request.campaign_id,
             Campaign.user_id == current_user.id
         )
     )
     campaign = result.scalar_one_or_none()
-    
+
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -272,12 +274,24 @@ async def generate_content(
     context_text = "\n".join([f"- {c.get('text', '')}" for c in context]) if context else None
 
     # If no RAG context but we have intelligence data, use it
-    if not context_text and campaign.intelligence_data:
-        logger.info("Using campaign intelligence data as additional context")
-        if isinstance(campaign.intelligence_data, dict):
+    # Check both campaign.intelligence_data (legacy) and campaign.product_intelligence.intelligence_data (current)
+    intelligence_data = None
+    if campaign.intelligence_data:
+        # Legacy: Intelligence stored directly on campaign
+        logger.info("Using legacy campaign intelligence data")
+        intelligence_data = campaign.intelligence_data
+    elif campaign.product_intelligence and campaign.product_intelligence.intelligence_data:
+        # Current: Intelligence stored in ProductIntelligence table
+        logger.info("Using product intelligence data from shared library")
+        intelligence_data = campaign.product_intelligence.intelligence_data
+    else:
+        logger.warning(f"No intelligence data available for campaign {campaign.name}")
+
+    if not context_text and intelligence_data:
+        if isinstance(intelligence_data, dict):
             # Convert intelligence to readable format
             intel_parts = []
-            intel = campaign.intelligence_data
+            intel = intelligence_data
 
             if intel.get("product_analysis"):
                 analysis = intel["product_analysis"]
