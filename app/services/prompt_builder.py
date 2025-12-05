@@ -293,7 +293,8 @@ PRODUCT INFORMATION:
 
         # Add additional context from RAG
         if additional_context:
-            user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
+            user_prompt += f"\n\nADDITIONAL CONTEXT (CAMPAIGN INTELLIGENCE):\n{additional_context}\n"
+            user_prompt += f"\n[IMPORTANT] Use this intelligence data to create your video script!\n"
 
         # Add video-specific configuration
         if content_type == 'video_script' and video_config:
@@ -354,6 +355,16 @@ PRODUCT INFORMATION:
             user_prompt += "- NO landing page formatting (no **bold headers**, no paragraph blocks)\n"
             user_prompt += "- YES to screenplay format with timing and visuals\n\n"
 
+            user_prompt += "[USE INTELLIGENCE DATA - MANDATORY]\n"
+            user_prompt += "✅ Reference the CAMPAIGN INTELLIGENCE provided above in EVERY section:\n"
+            user_prompt += "  - Hook: Use problem/pain point from intelligence\n"
+            user_prompt += "  - Problem: Emphasize the pain points from intelligence data\n"
+            user_prompt += "  - Solution: Highlight BENEFITS and KEY FEATURES from intelligence\n"
+            user_prompt += "  - Demo: Show how product solves the problem (use key points)\n"
+            user_prompt += "  - CTA: Mention specific benefit or result from intelligence\n"
+            user_prompt += "✅ DO NOT make up benefits - use only what's in the intelligence\n"
+            user_prompt += "✅ Use exact phrases from intelligence data where possible\n\n"
+
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"
         if content_type == 'video_script':
@@ -364,11 +375,17 @@ PRODUCT INFORMATION:
                 section_name = section.replace('_', ' ').title()
                 user_prompt += f"{i}. {section_name} (include [TIMESTAMP])\n"
             user_prompt += "\nExample format:\n"
-            user_prompt += "[0-3s] Hook your audience immediately with a compelling statement\n"
-            user_prompt += "[VISUAL: Close-up on speaker, confident expression]\n"
+            user_prompt += "[0-3s] Are you tired of struggling with stubborn belly fat?\n"
+            user_prompt += "[VISUAL: Close-up on speaker, direct eye contact]\n"
+            user_prompt += "[ANGLE: Medium shot]\n"
             user_prompt += "[LIGHTING: Bright, professional setup]\n"
-            user_prompt += "\n[3-5s] Affiliate disclosure (MUST be clear and visible)\n"
-            user_prompt += "[VISUAL: Text overlay on screen]\n\n"
+            user_prompt += "\n"
+            user_prompt += "[3-5s] This video contains affiliate links. I may earn a commission if you purchase through my link at no extra cost to you.\n"
+            user_prompt += "[VISUAL: Text overlay on screen - 'This video contains affiliate links']\n"
+            user_prompt += "[TRANSITION: Quick fade in]\n"
+            user_prompt += "\n"
+            user_prompt += "[5-8s] I tried everything - diets, workouts, supplements - nothing worked until I discovered AquaSculpt.\n"
+            user_prompt += "[B-ROLL: Frustrated person looking in mirror]\n\n"
         else:
             user_prompt += "Please organize the content with the following sections:\n"
             for i, section in enumerate(structure, 1):
@@ -406,8 +423,15 @@ PRODUCT INFORMATION:
             user_prompt += f"\n✓ [VISUAL:] cues for what to show"
             user_prompt += f"\n✓ [ANGLE:] camera direction (if enabled)"
             user_prompt += f"\n✓ [LIGHTING:] style notes (if required)"
-            user_prompt += f"\n✓ Affiliate disclosure AFTER hook, BEFORE product promotion"
-            user_prompt += f"\n✓ Clear CTA in final 3-5 seconds"
+            user_prompt += f"\n✓ EXACT disclosure text in [3-5s] section:"
+            user_prompt += f"\n  'This video contains affiliate links. I may earn a commission"
+            user_prompt += f"\n  if you purchase through my link at no extra cost to you.'"
+            user_prompt += f"\n✓ [VISUAL: Text overlay on screen] AFTER disclosure"
+            user_prompt += f"\n✓ Hook in [0-3s] BEFORE disclosure"
+            user_prompt += f"\n✓ Problem in [5-8s] AFTER disclosure"
+            user_prompt += f"\n✓ Solution/Demo in [8-15s]"
+            user_prompt += f"\n✓ CTA in [15-18s] with urgency"
+            user_prompt += f"\n✓ Use campaign intelligence data from above"
             user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
             user_prompt += f"\n✓ YES to screenplay format (timestamps + visuals)"
             user_prompt += f"\n" + "=" * 60 + "\n"
@@ -615,20 +639,48 @@ SOCIAL MEDIA GUIDELINES:
             
             'video_script': """
 VIDEO SCRIPT GUIDELINES:
-- Format: Each section must include [TIMESTAMP] at the start (e.g., [0-3s], [3-8s])
-- Disclosure: Show affiliate disclosure AFTER hook but BEFORE promoting the product
-- Structure: Hook → Disclosure → Problem → Solution → Demo → CTA → Outro
-- Visual Cues: Format as [VISUAL: description] or [B-ROLL: scene]
-- Camera Angles: Include [ANGLE: close-up/wide/POV/over-shoulder]
-- Lighting: Add [LIGHTING: style] for each scene
-- Transitions: Use [TRANSITION: cut/fade/zoom] between scenes
-- Pacing: Short-form videos (15-20s) must have tight, fast-paced delivery
-- Platform: TikTok/Reels = vertical 9:16, fast hooks, immediate value
-- YouTube = horizontal 16:9, can have longer intro (5-10s)
-- CTA: Must be clear, urgent, and action-oriented in final 3-5 seconds
-- Writing: Conversational tone, as if speaking directly to one person
-- DO NOT use: Landing page format (headlines, subheadlines, paragraphs)
-- DO use: Screenplay format with timing, visuals, and production notes"""
+
+FORMATTING (MANDATORY):
+- EVERY line must start with [TIMESTAMP] (e.g., [0-3s], [3-5s], [5-8s])
+- NO other text before the timestamp
+- NO double brackets [[ ]]
+- Include production notes in separate lines: [VISUAL:], [ANGLE:], [LIGHTING:], [TRANSITION:]
+
+DISCLOSURE (CRITICAL - MUST FOLLOW EXACTLY):
+- MUST be its own timestamp segment (typically [3-5s])
+- MUST use this EXACT wording: "This video contains affiliate links. I may earn a commission if you purchase through my link at no extra cost to you."
+- MUST include: [VISUAL: Text overlay on screen] after the disclosure
+
+REQUIRED STRUCTURE (MUST INCLUDE ALL):
+1. [0-3s] HOOK - Attention-grabbing statement/question
+2. [3-5s] DISCLOSURE - Required affiliate disclosure (see above)
+3. [5-8s] PROBLEM - Identify the pain point
+4. [8-15s] SOLUTION/DEMO - Show the product solution
+5. [15-18s] CTA - Clear call-to-action
+
+VISUAL PRODUCTION:
+- [VISUAL: detailed scene description] for what to show on screen
+- [B-ROLL: specific footage needed]
+- [ANGLE: close-up/wide/medium/POV/over-shoulder/drone]
+- [LIGHTING: bright/soft/warm/cool/dramatic/natural/cinematic]
+- [TRANSITION: cut/fade/zoom/slide/dissolve]
+
+WRITING STYLE:
+- Conversational, speak directly to one person
+- Keep sentences short and punchy
+- Use "you" and "your" to engage viewer
+- Avoid jargon or complex words
+
+CTA REQUIREMENTS:
+- Clear action (link in bio, tap link, visit website)
+- Include urgency or scarcity
+- Mention specific benefit
+
+PROHIBITED:
+- NO **bold headers**
+- NO paragraph blocks
+- NO "Headline:" or "Subheadline:" format
+- NO landing page style content"""
         }
         
         return instructions.get(content_type, "")
