@@ -186,7 +186,8 @@ You understand cinematic techniques, visual storytelling, and platform-specific 
         base_system: str,
         tone: str,
         constraints: Optional[Dict[str, Any]],
-        content_type: Optional[str] = None
+        content_type: Optional[str] = None,
+        video_config: Optional[Dict[str, Any]] = None
     ) -> str:
         """Build the system prompt with tone and constraints"""
 
@@ -244,7 +245,8 @@ QUALITY STANDARDS:
         marketing_angle: str,
         additional_context: Optional[str],
         constraints: Optional[Dict[str, Any]],
-        email_sequence_config: Optional[Dict[str, Any]] = None
+        email_sequence_config: Optional[Dict[str, Any]] = None,
+        video_config: Optional[Dict[str, Any]] = None
     ) -> str:
         """Build the user prompt with product info and structure"""
 
@@ -294,6 +296,30 @@ PRODUCT INFORMATION:
         # Add additional context from RAG
         if additional_context:
             user_prompt += f"\n\nADDITIONAL CONTEXT:\n{additional_context}\n"
+
+        # Add video-specific configuration
+        if content_type == 'video_script' and video_config:
+            user_prompt += f"\n\nVIDEO CONFIGURATION:\n"
+            if video_config.get('video_type'):
+                user_prompt += f"Video Type: {video_config['video_type'].replace('_', ' ').title()}\n"
+            if video_config.get('video_format'):
+                user_prompt += f"Video Format: {video_config['video_format'].replace('_', ' ').title()}\n"
+            if video_config.get('target_platform'):
+                user_prompt += f"Target Platform: {video_config['target_platform'].title()}\n"
+            if video_config.get('video_atmosphere'):
+                user_prompt += f"Atmosphere/Mood: {video_config['video_atmosphere'].replace('_', ' ').title()}\n"
+            if video_config.get('video_lighting'):
+                user_prompt += f"Lighting Style: {video_config['video_lighting'].replace('_', ' ').title()}\n"
+            if video_config.get('video_style'):
+                user_prompt += f"Visual Style: {video_config['video_style'].replace('_', ' ').title()}\n"
+            if video_config.get('video_pace'):
+                user_prompt += f"Pacing: {video_config['video_pace'].title()}\n"
+            if video_config.get('include_camera_angles') is not None:
+                user_prompt += f"Include Camera Angles: {'Yes' if video_config['include_camera_angles'] else 'No'}\n"
+            if video_config.get('include_visual_cues') is not None:
+                user_prompt += f"Include Visual Cues: {'Yes' if video_config['include_visual_cues'] else 'No'}\n"
+            if video_config.get('include_transitions') is not None:
+                user_prompt += f"Include Transitions: {'Yes' if video_config['include_transitions'] else 'No'}\n"
 
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"

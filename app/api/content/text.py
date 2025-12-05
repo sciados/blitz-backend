@@ -331,10 +331,25 @@ async def generate_content(
     }
 
     # Add email sequence parameters if needed
-    if request.content_type == "email_sequence":
+    if str(request.content_type) == "email_sequence":
         prompt_params["email_sequence_config"] = {
             "num_emails": request.num_emails,
             "sequence_type": request.sequence_type
+        }
+
+    # Add video script parameters if needed
+    if str(request.content_type) == "video_script":
+        prompt_params["video_config"] = {
+            "video_type": request.video_type,
+            "video_format": request.video_format,
+            "video_atmosphere": request.video_atmosphere,
+            "video_lighting": request.video_lighting,
+            "video_style": request.video_style,
+            "video_pace": request.video_pace,
+            "target_platform": request.target_platform,
+            "include_camera_angles": request.include_camera_angles,
+            "include_visual_cues": request.include_visual_cues,
+            "include_transitions": request.include_transitions
         }
 
     prompt = prompt_builder.build_prompt(**prompt_params)
@@ -345,7 +360,7 @@ async def generate_content(
     if word_count:
         max_tokens = int(word_count * 1.5 * 1.2)
         # For email sequences, multiply by number of emails (word count is per email)
-        if request.content_type == "email_sequence":
+        if str(request.content_type) == "email_sequence":
             max_tokens = max_tokens * request.num_emails
     else:
         max_tokens = 1500  # Default for unspecified length
@@ -364,7 +379,7 @@ async def generate_content(
     product_category = campaign.product_type if campaign.product_type else "general"
 
     # Special handling for email sequences - create separate content records for each email
-    if request.content_type == "email_sequence":
+    if str(request.content_type) == "email_sequence":
         # Parse into individual emails
         parsed_emails = parse_email_sequence(generated_text, request.num_emails)
 
