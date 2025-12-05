@@ -96,14 +96,18 @@ You understand platform-specific best practices and audience engagement.""",
         },
         'video_script': {
             'system': """You are an expert video script writer who creates engaging, persuasive video content.
-Your scripts are conversational, benefit-focused, and optimized for viewer retention.""",
+Your scripts are conversational, benefit-focused, and optimized for viewer retention.
+You understand cinematic techniques, visual storytelling, and platform-specific best practices.""",
             'structure': [
                 'hook',
                 'introduction',
                 'main_content',
                 'demonstration',
                 'call_to_action',
-                'outro'
+                'outro',
+                'visual_cues',
+                'camera_angles',
+                'transitions'
             ]
         }
     }
@@ -116,7 +120,8 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
         tone: str = 'professional',
         additional_context: Optional[str] = None,
         constraints: Optional[Dict[str, Any]] = None,
-        email_sequence_config: Optional[Dict[str, Any]] = None
+        email_sequence_config: Optional[Dict[str, Any]] = None,
+        video_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, str]:
         """
         Build a complete prompt for content generation
@@ -129,6 +134,7 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
             additional_context: Additional context from RAG
             constraints: Content constraints (word count, keywords, etc.)
             email_sequence_config: Email sequence configuration (num_emails, sequence_type)
+            video_config: Video-specific configuration (type, atmosphere, lighting, style, pace, etc.)
 
         Returns:
             Dictionary with system and user prompts
@@ -148,7 +154,8 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
                 template['system'],
                 tone,
                 constraints,
-                content_type=content_type
+                content_type=content_type,
+                video_config=video_config
             )
 
             # Build user prompt
@@ -159,7 +166,8 @@ Your scripts are conversational, benefit-focused, and optimized for viewer reten
                 marketing_angle=marketing_angle,
                 additional_context=additional_context,
                 constraints=constraints,
-                email_sequence_config=email_sequence_config
+                email_sequence_config=email_sequence_config,
+                video_config=video_config
             )
 
             return {
@@ -511,12 +519,16 @@ SOCIAL MEDIA GUIDELINES:
             
             'video_script': """
 VIDEO SCRIPT GUIDELINES:
-- Hook viewers in the first 5 seconds
-- Write for spoken delivery (conversational)
-- Include visual cues and demonstrations
-- Maintain energy and pacing
-- Use pattern interrupts to maintain attention
-- End with a strong, clear CTA"""
+- Hook viewers in the first 3-5 seconds with a compelling question, statistic, or visual
+- Write for spoken delivery (conversational, natural language)
+- Include detailed visual cues, camera angles, and transitions
+- Maintain consistent pacing and energy throughout
+- Use pattern interrupts to maintain viewer attention
+- Include platform-specific optimization (TikTok: vertical, fast-paced; YouTube: longer intro)
+- End with a strong, clear CTA with next steps
+- Include shot types: close-ups, wide shots, product demos, B-roll
+- Specify lighting, atmosphere, and style for each scene
+- Add timing cues and transition effects"""
         }
         
         return instructions.get(content_type, "")

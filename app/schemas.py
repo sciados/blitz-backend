@@ -27,6 +27,73 @@ class MarketingAngle(str, Enum):
     COMPARISON = "comparison"
     STORY = "story"
 
+# ============================================================================
+# VIDEO SCRIPT ENUMS
+# ============================================================================
+
+class VideoType(str, Enum):
+    """Types of videos for script generation"""
+    REVIEW = "review"
+    TUTORIAL = "tutorial"
+    TESTIMONIAL = "testimonial"
+    PRODUCT_DEMO = "product_demo"
+    EXPLAINER = "explainer"
+    COMMERCIAL = "commercial"
+    INTERVIEW = "interview"
+    STORYTELLING = "storytelling"
+    UNBOXING = "unboxing"
+    COMPARISON = "comparison"
+
+class VideoAtmosphere(str, Enum):
+    """Atmosphere and mood for the video"""
+    PROFESSIONAL = "professional"
+    CASUAL = "casual"
+    ENERGETIC = "energetic"
+    CALM = "calm"
+    DRAMATIC = "dramatic"
+    FRIENDLY = "friendly"
+    AUTHORITATIVE = "authoritative"
+    UPLIFTING = "uplifting"
+    INTIMATE = "intimate"
+    MYSTERIOUS = "mysterious"
+
+class VideoLighting(str, Enum):
+    """Lighting style for the video"""
+    BRIGHT = "bright"
+    SOFT = "soft"
+    WARM = "warm"
+    COOL = "cool"
+    DRAMATIC = "dramatic"
+    NATURAL = "natural"
+    CINEMATIC = "cinematic"
+    HIGH_CONTRAST = "high_contrast"
+    MOOD = "mood"
+
+class VideoStyle(str, Enum):
+    """Overall visual style"""
+    CORPORATE = "corporate"
+    LIFESTYLE = "lifestyle"
+    MINIMALIST = "minimalist"
+    BOLD = "bold"
+    RUSTIC = "rustic"
+    MODERN = "modern"
+    VINTAGE = "vintage"
+    GRITTY = "gritty"
+    CLEAN = "clean"
+
+class VideoPace(str, Enum):
+    """Pacing and rhythm of the video"""
+    FAST = "fast"
+    MEDIUM = "medium"
+    SLOW = "slow"
+    DYNAMIC = "dynamic"
+
+class VideoFormat(str, Enum):
+    """Video format and duration"""
+    SHORT_FORM = "short_form"  # 15-20 seconds (TikTok, Instagram Reels, YouTube Shorts)
+    LONG_FORM = "long_form"    # 1+ minutes (YouTube, Facebook)
+    STORY = "story"           # 15 seconds (Instagram Stories, Snapchat)
+
 class CampaignStatus(str, Enum):
     DRAFT = "draft"
     ACTIVE = "active"
@@ -136,6 +203,17 @@ class ContentGenerateRequest(BaseModel):
     # Email sequence configuration
     num_emails: Optional[int] = Field(default=5, ge=3, le=10)
     sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
+    # Video script specific parameters
+    video_type: Optional[VideoType] = None
+    video_format: Optional[VideoFormat] = Field(default=VideoFormat.LONG_FORM, description="short_form: 15-20s, long_form: 1+ min, story: 15s")
+    video_atmosphere: Optional[VideoAtmosphere] = None
+    video_lighting: Optional[VideoLighting] = None
+    video_style: Optional[VideoStyle] = None
+    video_pace: Optional[VideoPace] = None
+    include_camera_angles: Optional[bool] = Field(default=True)
+    include_visual_cues: Optional[bool] = Field(default=True)
+    include_transitions: Optional[bool] = Field(default=True)
+    target_platform: Optional[str] = Field(default="youtube", description="youtube, tiktok, instagram, facebook, linkedin")
 
 class ContentRefineRequest(BaseModel):
     refinement_instructions: str
