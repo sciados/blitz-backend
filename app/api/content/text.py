@@ -359,6 +359,13 @@ async def generate_content(
     # Add 20% buffer to ensure AI has room to complete
     if word_count:
         max_tokens = int(word_count * 1.5 * 1.2)
+
+        # Video scripts need more tokens for structure and production notes
+        if str(request.content_type) == "video_script":
+            # Video scripts include timestamps, visual cues, and production notes
+            # So they need ~3x the tokens of plain text
+            max_tokens = max(max_tokens * 3, 500)  # Minimum 500 tokens for complete script
+
         # For email sequences, multiply by number of emails (word count is per email)
         if str(request.content_type) == "email_sequence":
             max_tokens = max_tokens * request.num_emails
