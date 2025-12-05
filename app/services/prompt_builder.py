@@ -95,19 +95,17 @@ You understand platform-specific best practices and audience engagement.""",
             ]
         },
         'video_script': {
-            'system': """You are an expert video script writer who creates engaging, persuasive video content.
-Your scripts are conversational, benefit-focused, and optimized for viewer retention.
-You understand cinematic techniques, visual storytelling, and platform-specific best practices.""",
+            'system': """You are an expert video script writer who creates professional, production-ready video scripts.
+Your scripts are formatted for video production with timestamps, visual cues, and cinematic elements.
+You understand pacing, visual storytelling, and platform-specific optimization.""",
             'structure': [
                 'hook',
-                'introduction',
-                'main_content',
+                'disclosure',
+                'problem',
+                'solution',
                 'demonstration',
                 'call_to_action',
-                'outro',
-                'visual_cues',
-                'camera_angles',
-                'transitions'
+                'outro'
             ]
         }
     }
@@ -299,13 +297,29 @@ PRODUCT INFORMATION:
 
         # Add video-specific configuration
         if content_type == 'video_script' and video_config:
-            user_prompt += f"\n\nVIDEO CONFIGURATION:\n"
+            user_prompt += f"\n\n🎬 VIDEO PRODUCTION REQUIREMENTS:\n"
+            user_prompt += "=" * 60 + "\n\n"
+
             if video_config.get('video_type'):
                 user_prompt += f"Video Type: {video_config['video_type'].replace('_', ' ').title()}\n"
             if video_config.get('video_format'):
                 user_prompt += f"Video Format: {video_config['video_format'].replace('_', ' ').title()}\n"
             if video_config.get('target_platform'):
                 user_prompt += f"Target Platform: {video_config['target_platform'].title()}\n"
+                # Add platform-specific guidance
+                platform = video_config['target_platform'].lower()
+                if platform == 'tiktok':
+                    user_prompt += "\n[TARGET: TikTok]\n- Vertical 9:16 aspect ratio\n- Hook in first 1-2 seconds\n- Fast-paced, energetic delivery\n- Text on screen for key points\n- Trending audio potential\n"
+                elif platform == 'instagram':
+                    user_prompt += "\n[TARGET: Instagram Reels/Stories]\n- Vertical 9:16 aspect ratio\n- Eye-catching first frame\n- Stylish, aesthetic visuals\n- Brand-friendly content\n"
+                elif platform == 'youtube':
+                    user_prompt += "\n[TARGET: YouTube Shorts]\n- Vertical 9:16 for Shorts\n- Horizontal 16:9 for regular videos\n- Can have longer narrative\n- SEO-optimized descriptions\n- Call-to-subscribe CTA\n"
+                elif platform == 'facebook':
+                    user_prompt += "\n[TARGET: Facebook]\n- Square 1:1 or vertical 9:16\n- Audience-friendly tone\n- Soft sell approach\n- Engagement-focused\n"
+                elif platform == 'linkedin':
+                    user_prompt += "\n[TARGET: LinkedIn]\n- Professional tone\n- Value-first content\n- Industry insights\n- Business-focused messaging\n"
+
+            user_prompt += "\n"
             if video_config.get('video_atmosphere'):
                 user_prompt += f"Atmosphere/Mood: {video_config['video_atmosphere'].replace('_', ' ').title()}\n"
             if video_config.get('video_lighting'):
@@ -314,19 +328,52 @@ PRODUCT INFORMATION:
                 user_prompt += f"Visual Style: {video_config['video_style'].replace('_', ' ').title()}\n"
             if video_config.get('video_pace'):
                 user_prompt += f"Pacing: {video_config['video_pace'].title()}\n"
-            if video_config.get('include_camera_angles') is not None:
-                user_prompt += f"Include Camera Angles: {'Yes' if video_config['include_camera_angles'] else 'No'}\n"
-            if video_config.get('include_visual_cues') is not None:
-                user_prompt += f"Include Visual Cues: {'Yes' if video_config['include_visual_cues'] else 'No'}\n"
-            if video_config.get('include_transitions') is not None:
-                user_prompt += f"Include Transitions: {'Yes' if video_config['include_transitions'] else 'No'}\n"
+
+            # Format-specific guidance
+            video_format = video_config.get('video_format', 'long_form')
+            user_prompt += "\n[FORMAT REQUIREMENTS]\n"
+            if video_format == 'short_form':
+                user_prompt += "- Duration: 15-20 seconds MAX\n- Structure: Hook (0-3s) → Disclosure (3-5s) → Problem (5-8s) → Solution/Demo (8-15s) → CTA (15-20s)\n- Every second counts - no filler\n- Visual should support every word\n"
+            elif video_format == 'long_form':
+                user_prompt += "- Duration: 1-5 minutes\n- Can include storytelling elements\n- More detailed demonstration\n- Build trust and authority\n"
+            elif video_format == 'story':
+                user_prompt += "- Duration: 15 seconds exactly\n- Hook → Quick showcase → CTA\n- Ultra-focused message\n"
+
+            user_prompt += "\n[PRODUCTION ELEMENTS]\n"
+            if video_config.get('include_camera_angles'):
+                user_prompt += "✓ Include camera angle notes: [ANGLE: close-up/wide/POV/drone/over-shoulder]\n"
+            if video_config.get('include_visual_cues'):
+                user_prompt += "✓ Include visual cues: [VISUAL: scene description] or [B-ROLL: footage needed]\n"
+            if video_config.get('include_transitions'):
+                user_prompt += "✓ Include transitions: [TRANSITION: cut/fade/zoom/slide]\n"
+
+            user_prompt += "\n[CRITICAL FORMATTING]\n"
+            user_prompt += "- MUST start each line with [TIMESTAMP]\n"
+            user_prompt += "- Example: [0-3s] Your spoken content here\n"
+            user_prompt += "- Include production notes in brackets: [VISUAL:], [ANGLE:], [LIGHTING:], [TRANSITION:]\n"
+            user_prompt += "- NO landing page formatting (no **bold headers**, no paragraph blocks)\n"
+            user_prompt += "- YES to screenplay format with timing and visuals\n\n"
 
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"
-        user_prompt += "Please organize the content with the following sections:\n"
-        for i, section in enumerate(structure, 1):
-            section_name = section.replace('_', ' ').title()
-            user_prompt += f"{i}. {section_name}\n"
+        if content_type == 'video_script':
+            user_prompt += "VIDEO SCRIPT FORMAT (MUST FOLLOW EXACTLY):\n"
+            user_prompt += "Each line MUST start with [TIMESTAMP] followed by content.\n"
+            user_prompt += "Include production notes in [BRACKETS] after the spoken words.\n\n"
+            for i, section in enumerate(structure, 1):
+                section_name = section.replace('_', ' ').title()
+                user_prompt += f"{i}. {section_name} (include [TIMESTAMP])\n"
+            user_prompt += "\nExample format:\n"
+            user_prompt += "[0-3s] Hook your audience immediately with a compelling statement\n"
+            user_prompt += "[VISUAL: Close-up on speaker, confident expression]\n"
+            user_prompt += "[LIGHTING: Bright, professional setup]\n"
+            user_prompt += "\n[3-5s] Affiliate disclosure (MUST be clear and visible)\n"
+            user_prompt += "[VISUAL: Text overlay on screen]\n\n"
+        else:
+            user_prompt += "Please organize the content with the following sections:\n"
+            for i, section in enumerate(structure, 1):
+                section_name = section.replace('_', ' ').title()
+                user_prompt += f"{i}. {section_name}\n"
 
         # Add specific instructions based on content type
         user_prompt += self._get_content_type_instructions(content_type)
@@ -334,13 +381,36 @@ PRODUCT INFORMATION:
         # Add marketing angle guidance
         user_prompt += self._get_marketing_angle_guidance(marketing_angle)
 
-        # Enforce word count constraint
+        # Enforce word count or duration constraint
         if constraints and constraints.get('word_count'):
             word_count = constraints['word_count']
-            user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
-            user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
-            user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words."
-            user_prompt += f"\nCount carefully and adjust before submitting."
+
+            if content_type == 'video_script':
+                user_prompt += f"\n\n🎬 VIDEO DURATION GUIDANCE"
+                user_prompt += f"\nTarget word count: ~{word_count} words"
+                user_prompt += f"\nEstimated speaking time: {int(word_count / 2.5)} seconds (average 2.5 words/second)"
+                user_prompt += f"\nShort-form videos (15-20s) should be 40-50 words MAX"
+                user_prompt += f"\nFocus on impact per word - every word must count!"
+                user_prompt += f"\n\n⚠️ CRITICAL: Keep spoken content concise and punchy"
+            else:
+                user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
+                user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
+                user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words."
+                user_prompt += f"\nCount carefully and adjust before submitting."
+
+        # Final formatting reminder for video scripts
+        if content_type == 'video_script':
+            user_prompt += f"\n\n" + "=" * 60
+            user_prompt += f"\n🎬 FINAL CHECKLIST - Your script MUST include:"
+            user_prompt += f"\n✓ [TIMESTAMP] at the start of EVERY line"
+            user_prompt += f"\n✓ [VISUAL:] cues for what to show"
+            user_prompt += f"\n✓ [ANGLE:] camera direction (if enabled)"
+            user_prompt += f"\n✓ [LIGHTING:] style notes (if required)"
+            user_prompt += f"\n✓ Affiliate disclosure AFTER hook, BEFORE product promotion"
+            user_prompt += f"\n✓ Clear CTA in final 3-5 seconds"
+            user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
+            user_prompt += f"\n✓ YES to screenplay format (timestamps + visuals)"
+            user_prompt += f"\n" + "=" * 60 + "\n"
 
         return user_prompt
 
@@ -545,16 +615,20 @@ SOCIAL MEDIA GUIDELINES:
             
             'video_script': """
 VIDEO SCRIPT GUIDELINES:
-- Hook viewers in the first 3-5 seconds with a compelling question, statistic, or visual
-- Write for spoken delivery (conversational, natural language)
-- Include detailed visual cues, camera angles, and transitions
-- Maintain consistent pacing and energy throughout
-- Use pattern interrupts to maintain viewer attention
-- Include platform-specific optimization (TikTok: vertical, fast-paced; YouTube: longer intro)
-- End with a strong, clear CTA with next steps
-- Include shot types: close-ups, wide shots, product demos, B-roll
-- Specify lighting, atmosphere, and style for each scene
-- Add timing cues and transition effects"""
+- Format: Each section must include [TIMESTAMP] at the start (e.g., [0-3s], [3-8s])
+- Disclosure: Show affiliate disclosure AFTER hook but BEFORE promoting the product
+- Structure: Hook → Disclosure → Problem → Solution → Demo → CTA → Outro
+- Visual Cues: Format as [VISUAL: description] or [B-ROLL: scene]
+- Camera Angles: Include [ANGLE: close-up/wide/POV/over-shoulder]
+- Lighting: Add [LIGHTING: style] for each scene
+- Transitions: Use [TRANSITION: cut/fade/zoom] between scenes
+- Pacing: Short-form videos (15-20s) must have tight, fast-paced delivery
+- Platform: TikTok/Reels = vertical 9:16, fast hooks, immediate value
+- YouTube = horizontal 16:9, can have longer intro (5-10s)
+- CTA: Must be clear, urgent, and action-oriented in final 3-5 seconds
+- Writing: Conversational tone, as if speaking directly to one person
+- DO NOT use: Landing page format (headlines, subheadlines, paragraphs)
+- DO use: Screenplay format with timing, visuals, and production notes"""
         }
         
         return instructions.get(content_type, "")

@@ -297,7 +297,7 @@ async def generate_content(
         "article": {"short": 300, "medium": 600, "long": 1200},
         "email": {"short": 75, "medium": 150, "long": 300},
         "email_sequence": {"short": 75, "medium": 150, "long": 300},
-        "video_script": {"short": 100, "medium": 200, "long": 400},
+        "video_script": {"short": 50, "medium": 150, "long": 300},  # short: 15-20s, medium: 1 min, long: 2+ min
         "social_post": {"short": 30, "medium": 75, "long": 150},
         "landing_page": {"short": 400, "medium": 800, "long": 1500},
         "ad_copy": {"short": 25, "medium": 50, "long": 100},
