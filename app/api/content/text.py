@@ -363,11 +363,19 @@ async def generate_content(
         # Video scripts need more tokens for structure and production notes
         if str(request.content_type) == "video_script":
             # Video scripts include timestamps, visual cues, and production notes
-            # So they need ~15-20x the tokens of plain text for complete output
-            # Short-form scripts (50 words) need 3000+ tokens to include all sections and production notes
-            # CRITICAL: Increased from 2000 to 3500 to prevent truncation
+            # Estimate production instruction words (e.g., "[VISUAL: Close-up]", etc.)
+            # CRITICAL: Using 75% overestimate to be safe - for 50 spoken words we get ~88 total words
+            # This ensures we have enough buffer to complete all 5 sections + production notes
+            production_words_estimate = max(20, int(word_count * 0.75))  # ~75% of spoken words (OVERESTIMATE)
+            total_estimated_words = word_count + production_words_estimate
+            logger.info(f"[DEBUG] Video script: {word_count} spoken + {production_words_estimate} production = {total_estimated_words} total words (OVERESTIMATE)")
+            word_count = total_estimated_words  # Use total for token calculation
+
+            # Use the total for token calculation
+            max_tokens = int(word_count * 1.5 * 1.2)
+            # Video scripts need ~15-20x tokens for complete output with all production notes
             max_tokens = max(max_tokens * 15, 3500)  # Minimum 3500 tokens for complete production-ready script
-            logger.info(f"[DEBUG] Video script: {word_count} words -> {max_tokens} tokens allocated")
+            logger.info(f"[DEBUG] Video script: {word_count} total words -> {max_tokens} tokens allocated")
 
         # For email sequences, multiply by number of emails (word count is per email)
         if str(request.content_type) == "email_sequence":

@@ -403,12 +403,14 @@ PRODUCT INFORMATION:
             word_count = constraints['word_count']
 
             if content_type == 'video_script':
+                # Calculate original spoken words from total (we overestimated by 75%)
+                spoken_words = int(word_count / 1.75)  # Reverse the 75% production estimate
                 user_prompt += f"\n\n🎬 VIDEO DURATION GUIDANCE"
-                user_prompt += f"\nTarget spoken words: ~{word_count} words (average 2.5 words/second)"
-                user_prompt += f"\nEstimated speaking time: {int(word_count / 2.5)} seconds"
-                user_prompt += f"\nIMPORTANT: {word_count} words refers to SPOKEN content only"
-                user_prompt += f"\nYou MUST also include production notes ([VISUAL:], [ANGLE:], etc.)"
-                user_prompt += f"\nProduction notes don't count toward the {word_count} word limit"
+                user_prompt += f"\nTarget spoken words: ~{spoken_words} words (average 2.5 words/second)"
+                user_prompt += f"\nEstimated speaking time: {int(spoken_words / 2.5)} seconds"
+                user_prompt += f"\nTotal word budget (including production notes): {word_count} words"
+                user_prompt += f"\nIMPORTANT: {spoken_words} words refers to SPOKEN content only"
+                user_prompt += f"\nProduction notes ([VISUAL:], [ANGLE:], etc.) use the remaining {word_count - spoken_words} words"
                 user_prompt += f"\n\n⚠️ CRITICAL: Complete ALL 5 sections (Hook, Disclosure, Problem, Solution, CTA)"
                 user_prompt += f"\nDo NOT stop early - finish every section with full production notes"
             else:
