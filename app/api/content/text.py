@@ -1,3 +1,6 @@
+# src/api/content/text.py
+# content generation API endpoints.py 
+
 """Content generation API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
