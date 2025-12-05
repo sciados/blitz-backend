@@ -255,23 +255,6 @@ async def generate_content(
         "price": None,  # Not always available in campaigns
     }
 
-    # Add intelligence data if available
-    if campaign.intelligence_data:
-        logger.info(f"✅ Using campaign intelligence data for {campaign.name}")
-        if isinstance(campaign.intelligence_data, dict):
-            # Extract key information from intelligence
-            intel = campaign.intelligence_data
-            if intel.get("product_analysis"):
-                product_info["description"] = intel["product_analysis"].get("description", product_info["description"])
-            if intel.get("target_audience"):
-                product_info["target_audience"] = intel["target_audience"]
-            if intel.get("key_benefits"):
-                product_info["benefits"] = intel["key_benefits"]
-            if intel.get("pain_points"):
-                product_info["pain_points"] = intel["pain_points"]
-    else:
-        logger.warning(f"⚠️ No intelligence data available for campaign {campaign.name}")
-
     # Build prompt
     # Format context for additional_context parameter
     context_text = "\n".join([f"- {c.get('text', '')}" for c in context]) if context else None
@@ -380,9 +363,9 @@ async def generate_content(
         # Video scripts need more tokens for structure and production notes
         if str(request.content_type) == "video_script":
             # Video scripts include timestamps, visual cues, and production notes
-            # So they need ~6-8x the tokens of plain text
-            # Short-form scripts (50 words) need 1500+ tokens to include all sections and production notes
-            max_tokens = max(max_tokens * 6, 1500)  # Minimum 1500 tokens for complete production-ready script
+            # So they need ~10-12x the tokens of plain text
+            # Short-form scripts (50 words) need 2000+ tokens to include all sections and production notes
+            max_tokens = max(max_tokens * 10, 2000)  # Minimum 2000 tokens for complete production-ready script
 
         # For email sequences, multiply by number of emails (word count is per email)
         if str(request.content_type) == "email_sequence":
@@ -772,13 +755,18 @@ async def refine_content(
     # Get original text from content_data
     original_text = content.content_data.get("text", "")
 
+    # Get content type to preserve structure
+    content_type = content.content_type
+
     # Build refinement prompt
-    refinement_prompt = f"""Refine the following content based on this feedback: {request.refinement_instructions}
+    refinement_prompt = f"""Refine the following {content_type} content based on this feedback: {request.refinement_instructions}
+
+IMPORTANT: Maintain the {content_type} format and structure. Do not change it to a different content type.
 
 Original content:
 {original_text}
 
-Provide the refined version:"""
+Provide the refined {content_type} version:"""
 
     # Generate refined content
     refined_text = await ai_router.generate_text(
@@ -1004,27 +992,36 @@ async def create_variations(
 
     for i in range(request.num_variations):
         # Build variation prompt based on type
+        # Get content type to preserve structure
+        content_type = content.content_type
+
         if request.variation_type == "tone":
-            variation_prompt = f"""Create a variation of the following content with a different tone but same message:
+            variation_prompt = f"""Create a variation of the following {content_type} content with a different tone but same message:
+
+IMPORTANT: Maintain the {content_type} format and structure. Do not change it to a different content type.
 
 Original content:
 {original_text}
 
-Provide variation {i+1} with a different tone:"""
+Provide variation {i+1} with a different tone (maintain {content_type} format):"""
         elif request.variation_type == "angle":
-            variation_prompt = f"""Create a variation of the following content with a different marketing angle but same message:
+            variation_prompt = f"""Create a variation of the following {content_type} content with a different marketing angle but same message:
+
+IMPORTANT: Maintain the {content_type} format and structure. Do not change it to a different content type.
 
 Original content:
 {original_text}
 
-Provide variation {i+1} with a different approach:"""
+Provide variation {i+1} with a different approach (maintain {content_type} format):"""
         else:
-            variation_prompt = f"""Create a variation of the following content:
+            variation_prompt = f"""Create a variation of the following {content_type} content:
+
+IMPORTANT: Maintain the {content_type} format and structure. Do not change it to a different content type.
 
 Original content:
 {original_text}
 
-Variation {i+1}:"""
+Variation {i+1} (maintain {content_type} format):"""
 
         # Generate variation
         variation_text = await ai_router.generate_text(
