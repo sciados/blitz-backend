@@ -363,9 +363,11 @@ async def generate_content(
         # Video scripts need more tokens for structure and production notes
         if str(request.content_type) == "video_script":
             # Video scripts include timestamps, visual cues, and production notes
-            # So they need ~10-12x the tokens of plain text
-            # Short-form scripts (50 words) need 2000+ tokens to include all sections and production notes
-            max_tokens = max(max_tokens * 10, 2000)  # Minimum 2000 tokens for complete production-ready script
+            # So they need ~15-20x the tokens of plain text for complete output
+            # Short-form scripts (50 words) need 3000+ tokens to include all sections and production notes
+            # CRITICAL: Increased from 2000 to 3500 to prevent truncation
+            max_tokens = max(max_tokens * 15, 3500)  # Minimum 3500 tokens for complete production-ready script
+            logger.info(f"[DEBUG] Video script: {word_count} words -> {max_tokens} tokens allocated")
 
         # For email sequences, multiply by number of emails (word count is per email)
         if str(request.content_type) == "email_sequence":
@@ -379,6 +381,13 @@ async def generate_content(
         max_tokens=max_tokens,
         temperature=0.7
     )
+
+    # Log generation details for debugging
+    text_length = len(generated_text)
+    word_count_actual = len(generated_text.split())
+    logger.info(f"[DEBUG] Generated {text_length} chars, {word_count_actual} words")
+    logger.info(f"[DEBUG] Generated text preview (first 200 chars):\n{generated_text[:200]}")
+    logger.info(f"[DEBUG] Generated text preview (last 200 chars):\n{generated_text[-200:]}")
 
     # Note: Affiliate URLs will be replaced with tracking after content is saved
     # (need content ID for tracking parameters)

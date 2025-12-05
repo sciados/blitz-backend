@@ -434,6 +434,13 @@ PRODUCT INFORMATION:
             user_prompt += f"\n✓ Use campaign intelligence data from above"
             user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
             user_prompt += f"\n✓ YES to screenplay format (timestamps + visuals)"
+            user_prompt += f"\n"
+            user_prompt += f"\n" + "=" * 60
+            user_prompt += f"\n⚠️ CRITICAL COMPLETION REQUIREMENT ⚠️"
+            user_prompt += f"\nYou MUST complete ALL sections listed above (Hook, Disclosure, Problem, Solution/Demo, CTA)."
+            user_prompt += f"\nDO NOT stop mid-generation. Every section must be fully written out with timestamps."
+            user_prompt += f"\nYour response will be cut off if incomplete, so finish all 5 sections completely."
+            user_prompt += f"\nEND YOUR RESPONSE ONLY AFTER completing the final CTA section."
             user_prompt += f"\n" + "=" * 60 + "\n"
 
         return user_prompt
