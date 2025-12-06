@@ -445,6 +445,10 @@ PRODUCT INFORMATION:
             user_prompt += f"\nDO NOT stop mid-generation. Every section must be fully written out with timestamps."
             user_prompt += f"\nYour response will be cut off if incomplete, so finish all 5 sections completely."
             user_prompt += f"\nEND YOUR RESPONSE ONLY AFTER completing the final CTA section."
+            user_prompt += f"\n"
+            user_prompt += f"\nIMPORTANT: The {spoken_words}-word limit is for SPOKEN content only."
+            user_prompt += f"\nYou MUST include production notes ([VISUAL:], [ANGLE:], etc.) even if it exceeds the word count."
+            user_prompt += f"\nThe word count is a GUIDELINE, not a hard stop. Completeness is more important."
             user_prompt += f"\n" + "=" * 60 + "\n"
 
         return user_prompt

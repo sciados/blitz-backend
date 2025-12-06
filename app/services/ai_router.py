@@ -560,14 +560,21 @@ class AIRouter:
                     messages.append({"role": "system", "content": system_prompt})
                 messages.append({"role": "user", "content": user_prompt})
 
+                logger.info(f"[Groq] Calling with max_tokens={max_tokens}, temperature={temperature}, model={spec.model}")
+                logger.info(f"[Groq] Prompt length: system={len(system_prompt)}, user={len(user_prompt)}")
+
                 response = await client.chat.completions.create(
                     model=spec.model,
                     messages=messages,
                     max_tokens=max_tokens,
-                    temperature=temperature
+                    temperature=temperature,
+                    stream=False
                 )
+
+                result_text = response.choices[0].message.content
+                logger.info(f"[Groq] Response length: {len(result_text)} chars, {len(result_text.split())} words")
                 self.last_used_model = spec.model
-                return response.choices[0].message.content
+                return result_text
 
             elif spec.name == "xai":
                 import openai
