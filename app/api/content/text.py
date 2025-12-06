@@ -373,8 +373,19 @@ async def generate_content(
 
             # Use the total for token calculation
             max_tokens = int(word_count * 1.5 * 1.2)
-            # Video scripts need ~15-20x tokens for complete output with all production notes
-            max_tokens = max(max_tokens * 15, 3500)  # Minimum 3500 tokens for complete production-ready script
+
+            # Check video format to determine token allocation
+            video_format = getattr(request, 'video_format', 'short_form')
+            if str(video_format) == 'long_form' or (hasattr(video_format, 'value') and video_format.value == 'long_form'):
+                # Long-form videos (1+ minute) need MUCH more tokens
+                # At 20x multiplier, this gives us 8000-12000 tokens for long videos
+                max_tokens = max(max_tokens * 20, 8000)  # Minimum 8000 tokens for long-form
+                logger.info(f"[DEBUG] Long-form video detected, using 8000+ token allocation")
+            else:
+                # Short-form videos (15-20s) need fewer tokens
+                max_tokens = max(max_tokens * 15, 3500)  # Minimum 3500 tokens for short-form
+                logger.info(f"[DEBUG] Short-form video detected, using 3500+ token allocation")
+
             logger.info(f"[DEBUG] Video script: {word_count} total words -> {max_tokens} tokens allocated")
 
         # For email sequences, multiply by number of emails (word count is per email)
