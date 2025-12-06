@@ -354,9 +354,6 @@ async def generate_content(
 
     prompt = prompt_builder.build_prompt(**prompt_params)
 
-    # Debug: Log content type
-    logger.info(f"[DEBUG] Content type: {request.content_type}, Type: {type(request.content_type)}, Str: {str(request.content_type)}")
-
     # Calculate max_tokens from word count
     # Words to tokens conversion: ~1.3-1.5 tokens per word
     # Add 20% buffer to ensure AI has room to complete
@@ -364,7 +361,7 @@ async def generate_content(
         max_tokens = int(word_count * 1.5 * 1.2)
 
         # Video scripts need more tokens for structure and production notes
-        if str(request.content_type) == "video_script":
+        if str(request.content_type) == "video_script" or request.content_type.value == "video_script":
             # Video scripts include timestamps, visual cues, and production notes
             # Estimate production instruction words (e.g., "[VISUAL: Close-up]", etc.)
             # CRITICAL: Using 75% overestimate to be safe - for 50 spoken words we get ~88 total words
@@ -381,7 +378,7 @@ async def generate_content(
             logger.info(f"[DEBUG] Video script: {word_count} total words -> {max_tokens} tokens allocated")
 
         # For email sequences, multiply by number of emails (word count is per email)
-        if str(request.content_type) == "email_sequence":
+        if str(request.content_type) == "email_sequence" or request.content_type.value == "email_sequence":
             max_tokens = max_tokens * request.num_emails
     else:
         max_tokens = 1500  # Default for unspecified length
