@@ -354,6 +354,9 @@ async def generate_content(
 
     prompt = prompt_builder.build_prompt(**prompt_params)
 
+    # Debug: Log content type
+    logger.info(f"[DEBUG] Content type: {request.content_type}, Type: {type(request.content_type)}, Str: {str(request.content_type)}")
+
     # Calculate max_tokens from word count
     # Words to tokens conversion: ~1.3-1.5 tokens per word
     # Add 20% buffer to ensure AI has room to complete
