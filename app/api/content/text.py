@@ -338,6 +338,7 @@ async def generate_content(
         }
 
     # Add video script parameters if needed
+    logger.info(f"[DEBUG] Checking content_type: {request.content_type}, equals 'video_script': {str(request.content_type) == 'video_script'}")
     if str(request.content_type) == "video_script":
         logger.info(f"[DEBUG] request.content_type = {request.content_type}")
         logger.info(f"[DEBUG] request.video_type = {request.video_type}")
@@ -351,6 +352,8 @@ async def generate_content(
             "include_transitions": request.include_transitions
         }
         logger.info(f"[DEBUG] prompt_params['video_config'] = {prompt_params['video_config']}")
+    else:
+        logger.info(f"[DEBUG] NOT adding video_config - condition failed")
 
     prompt = prompt_builder.build_prompt(**prompt_params)
 
