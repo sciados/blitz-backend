@@ -400,16 +400,12 @@ PRODUCT INFORMATION:
         # Final formatting reminder for video scripts
         if content_type == 'video_script':
             # Determine video format and set appropriate timestamps
-            logger.info(f"[PromptBuilder] DEBUG: video_config received = {video_config}")
             video_format = video_config.get('video_format', 'short_form') if video_config else 'short_form'
-            logger.info(f"[PromptBuilder] DEBUG: video_format after get = {video_format}, type = {type(video_format)}")
             # Handle both enum objects and string values
             if hasattr(video_format, 'value'):
                 format_str = video_format.value
-                logger.info(f"[PromptBuilder] DEBUG: Extracted enum value = {format_str}")
             else:
                 format_str = str(video_format)
-                logger.info(f"[PromptBuilder] DEBUG: Converted to string = {format_str}")
             # Normalize to lowercase for comparison
             format_str = format_str.lower().replace('videoformat.', '')
             logger.info(f"[PromptBuilder] video_format raw={video_format}, format_str={format_str}")

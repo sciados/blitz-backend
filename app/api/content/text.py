@@ -338,8 +338,11 @@ async def generate_content(
         }
 
     # Add video script parameters if needed
-    logger.info(f"[DEBUG] Checking content_type: {request.content_type}, equals 'video_script': {str(request.content_type) == 'video_script'}")
-    if str(request.content_type) == "video_script":
+    # Check if content_type is the enum VIDEO_SCRIPT
+    from app.schemas import ContentType
+    is_video_script = str(request.content_type.value) == "video_script" or request.content_type == ContentType.VIDEO_SCRIPT
+    logger.info(f"[DEBUG] Checking content_type: {request.content_type}, is_video_script: {is_video_script}")
+    if is_video_script:
         logger.info(f"[DEBUG] request.content_type = {request.content_type}")
         logger.info(f"[DEBUG] request.video_type = {request.video_type}")
         logger.info(f"[DEBUG] request.video_format = {request.video_format}, type = {type(request.video_format)}")
@@ -364,7 +367,7 @@ async def generate_content(
         max_tokens = int(word_count * 1.5 * 1.2)
 
         # Video scripts need more tokens for structure and production notes
-        if str(request.content_type) == "video_script" or request.content_type.value == "video_script":
+        if is_video_script:
             # Video scripts include timestamps, visual cues, and production notes
             # Estimate production instruction words (e.g., "[VISUAL: Close-up]", etc.)
             # CRITICAL: Using 75% overestimate to be safe - for 50 spoken words we get ~88 total words
