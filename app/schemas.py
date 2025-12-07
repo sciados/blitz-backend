@@ -138,7 +138,12 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     role: str
+    user_type: Optional[str] = None
+    profile_image_url: Optional[str] = None
     created_at: datetime
+    is_active: bool = True
+    affiliate_tier: Optional[str] = None
+    affiliate_tier_upgraded_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
