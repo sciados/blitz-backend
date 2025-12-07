@@ -29,6 +29,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: Optional[str]
     role: str
+    user_type: Optional[str] = None
     created_at: datetime
     is_active: bool
     last_login: Optional[datetime] = None
@@ -39,6 +40,7 @@ class UserResponse(BaseModel):
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
+    user_type: Optional[str] = None
     is_active: Optional[bool] = None
 
 class UserCreateRequest(BaseModel):
@@ -46,6 +48,7 @@ class UserCreateRequest(BaseModel):
     full_name: str
     password: str
     role: str = "user"
+    user_type: Optional[str] = None
 
 class UserStatsResponse(BaseModel):
     total_users: int
@@ -142,6 +145,7 @@ async def list_users(
             email=user.email,
             full_name=user.full_name or "",
             role=user.role,
+            user_type=user.user_type,
             created_at=user.created_at,
             is_active=True,  # Default to active
             last_login=None,  # Not tracking yet
@@ -180,6 +184,7 @@ async def get_user(
         email=user.email,
         full_name=user.full_name or "",
         role=user.role,
+        user_type=user.user_type,
         created_at=user.created_at,
         is_active=True,
         campaign_count=campaign_count,
@@ -215,6 +220,11 @@ async def update_user(
         if user_update.role not in ["user", "admin"]:
             raise HTTPException(status_code=400, detail="Invalid role")
         user.role = user_update.role
+    if user_update.user_type is not None:
+        # Validate user_type
+        if user_update.user_type not in ["", "affiliate", "creator", "business", "admin"]:
+            raise HTTPException(status_code=400, detail="Invalid user_type")
+        user.user_type = user_update.user_type if user_update.user_type else None
     # is_active would be updated here when we add that field
 
     await db.commit()
@@ -232,6 +242,7 @@ async def update_user(
         email=user.email,
         full_name=user.full_name or "",
         role=user.role,
+        user_type=user.user_type,
         created_at=user.created_at,
         is_active=True,
         campaign_count=campaign_count,
@@ -260,13 +271,18 @@ async def create_user(
     if user_create.role not in ["user", "admin"]:
         raise HTTPException(status_code=400, detail="Invalid role")
 
+    # Validate user_type if provided
+    if user_create.user_type is not None and user_create.user_type not in ["", "affiliate", "creator", "business", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid user_type")
+
     # Create user
     hashed_password = pwd_context.hash(user_create.password)
     new_user = User(
         email=user_create.email,
         full_name=user_create.full_name,
         hashed_password=hashed_password,
-        role=user_create.role
+        role=user_create.role,
+        user_type=user_create.user_type if user_create.user_type else None
     )
 
     db.add(new_user)
@@ -278,6 +294,7 @@ async def create_user(
         email=new_user.email,
         full_name=new_user.full_name or "",
         role=new_user.role,
+        user_type=new_user.user_type,
         created_at=new_user.created_at,
         is_active=True,
         campaign_count=0
