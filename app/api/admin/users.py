@@ -3,6 +3,7 @@ Admin User Management API
 Manage users, roles, and permissions
 """
 
+import logging
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
@@ -16,6 +17,7 @@ from app.db.session import get_db
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-users"])
+logger = logging.getLogger(__name__)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -213,21 +215,16 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Log the update request for debugging
-    logger.info(f"[Admin] Updating user {user_id}: role={user_update.role}, user_type={user_update.user_type}, full_name={user_update.full_name}")
-
     # Update fields
     if user_update.full_name is not None:
         user.full_name = user_update.full_name
     if user_update.role is not None and user_update.role != "":
         if user_update.role not in ["user", "admin"]:
-            logger.error(f"[Admin] Invalid role received: {user_update.role}")
             raise HTTPException(status_code=400, detail="Invalid role")
         user.role = user_update.role
     if user_update.user_type is not None:
         # Validate user_type (allow empty string to be converted to None)
         if user_update.user_type not in ["", "affiliate", "creator", "business", "admin"]:
-            logger.error(f"[Admin] Invalid user_type received: {user_update.user_type}")
             raise HTTPException(status_code=400, detail="Invalid user_type")
         user.user_type = user_update.user_type if user_update.user_type else None
     # is_active would be updated here when we add that field
