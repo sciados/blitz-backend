@@ -421,20 +421,61 @@ PRODUCT INFORMATION:
 
         # Final formatting reminder for video scripts
         if content_type == 'video_script':
+            # Determine video format and set appropriate timestamps
+            video_format = video_config.get('video_format', 'short_form') if video_config else 'short_form'
+            format_str = str(video_format)
+            if hasattr(video_format, 'value'):
+                format_str = video_format.value
+
+            # Set timestamps based on video format
+            if format_str == 'long_form' or format_str == 'LONG_FORM':
+                # Long-form video (1+ minute)
+                timestamp_ranges = {
+                    'hook': '[0-10s]',
+                    'disclosure': '[10-15s]',
+                    'problem': '[15-30s]',
+                    'solution': '[30-50s]',
+                    'cta': '[50-60s]'
+                }
+                user_prompt += f"\n\n🎬 VIDEO FORMAT: LONG-FORM (1+ minute) - Using timestamps: {timestamp_ranges}"
+                logger.info(f"[PromptBuilder] Long-form video detected, using timestamps: {timestamp_ranges}")
+            elif format_str == 'story' or format_str == 'STORY':
+                # Story format (15 seconds)
+                timestamp_ranges = {
+                    'hook': '[0-3s]',
+                    'disclosure': '[3-5s]',
+                    'problem': '[5-8s]',
+                    'solution': '[8-12s]',
+                    'cta': '[12-15s]'
+                }
+                user_prompt += f"\n\n🎬 VIDEO FORMAT: STORY (15 seconds) - Using timestamps: {timestamp_ranges}"
+                logger.info(f"[PromptBuilder] Story format video detected, using timestamps: {timestamp_ranges}")
+            else:
+                # Default: Short-form video (15-20 seconds)
+                timestamp_ranges = {
+                    'hook': '[0-3s]',
+                    'disclosure': '[3-5s]',
+                    'problem': '[5-8s]',
+                    'solution': '[8-15s]',
+                    'cta': '[15-18s]'
+                }
+                user_prompt += f"\n\n🎬 VIDEO FORMAT: SHORT-FORM (15-20 seconds) - Using timestamps: {timestamp_ranges}"
+                logger.info(f"[PromptBuilder] Short-form video detected, using timestamps: {timestamp_ranges}")
+
             user_prompt += f"\n\n" + "=" * 60
             user_prompt += f"\n🎬 FINAL CHECKLIST - Your script MUST include:"
             user_prompt += f"\n✓ [TIMESTAMP] at the start of EVERY line"
             user_prompt += f"\n✓ [VISUAL:] cues for what to show"
             user_prompt += f"\n✓ [ANGLE:] camera direction (if enabled)"
             user_prompt += f"\n✓ [LIGHTING:] style notes (if required)"
-            user_prompt += f"\n✓ EXACT disclosure text in [3-5s] section:"
+            user_prompt += f"\n✓ EXACT disclosure text in {timestamp_ranges['disclosure']} section:"
             user_prompt += f"\n  'This video contains affiliate links. I may earn a commission"
             user_prompt += f"\n  if you purchase through my link at no extra cost to you.'"
             user_prompt += f"\n✓ [VISUAL: Text overlay on screen] AFTER disclosure"
-            user_prompt += f"\n✓ Hook in [0-3s] BEFORE disclosure"
-            user_prompt += f"\n✓ Problem in [5-8s] AFTER disclosure"
-            user_prompt += f"\n✓ Solution/Demo in [8-15s]"
-            user_prompt += f"\n✓ CTA in [15-18s] with urgency"
+            user_prompt += f"\n✓ Hook in {timestamp_ranges['hook']} BEFORE disclosure"
+            user_prompt += f"\n✓ Problem in {timestamp_ranges['problem']} AFTER disclosure"
+            user_prompt += f"\n✓ Solution/Demo in {timestamp_ranges['solution']}"
+            user_prompt += f"\n✓ CTA in {timestamp_ranges['cta']} with urgency"
             user_prompt += f"\n✓ Use campaign intelligence data from above"
             user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
             user_prompt += f"\n✓ YES to screenplay format (timestamps + visuals)"
