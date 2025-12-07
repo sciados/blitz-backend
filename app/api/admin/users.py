@@ -223,8 +223,8 @@ async def update_user(
             raise HTTPException(status_code=400, detail="Invalid role")
         user.role = user_update.role
     if user_update.user_type is not None:
-        # Validate user_type (allow empty string to be converted to None)
-        if user_update.user_type not in ["", "affiliate", "creator", "business", "admin"]:
+        # Validate user_type (capitalized values to match database)
+        if user_update.user_type not in ["", "Affiliate", "Creator", "Business", "Admin"]:
             raise HTTPException(status_code=400, detail="Invalid user_type")
         user.user_type = user_update.user_type if user_update.user_type else None
     # is_active would be updated here when we add that field
@@ -273,8 +273,8 @@ async def create_user(
     if user_create.role not in ["user", "admin"]:
         raise HTTPException(status_code=400, detail="Invalid role")
 
-    # Validate user_type if provided
-    if user_create.user_type is not None and user_create.user_type not in ["", "affiliate", "creator", "business", "admin"]:
+    # Validate user_type if provided (capitalized values to match database)
+    if user_create.user_type is not None and user_create.user_type not in ["", "Affiliate", "Creator", "Business", "Admin"]:
         raise HTTPException(status_code=400, detail="Invalid user_type")
 
     # Create user
