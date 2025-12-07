@@ -339,6 +339,10 @@ async def generate_content(
 
     # Add video script parameters if needed
     if str(request.content_type) == "video_script":
+        logger.info(f"[DEBUG] request.content_type = {request.content_type}")
+        logger.info(f"[DEBUG] request.video_type = {request.video_type}")
+        logger.info(f"[DEBUG] request.video_format = {request.video_format}, type = {type(request.video_format)}")
+        logger.info(f"[DEBUG] request.video_format value = {request.video_format.value if hasattr(request.video_format, 'value') else 'no value attr'}")
         prompt_params["video_config"] = {
             "video_type": request.video_type,
             "video_format": request.video_format,
@@ -346,6 +350,7 @@ async def generate_content(
             "include_visual_cues": request.include_visual_cues,
             "include_transitions": request.include_transitions
         }
+        logger.info(f"[DEBUG] prompt_params['video_config'] = {prompt_params['video_config']}")
 
     prompt = prompt_builder.build_prompt(**prompt_params)
 
