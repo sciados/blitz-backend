@@ -20,6 +20,7 @@ class User(Base):
     profile_image_url = Column(String(500), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), server_default="user", nullable=False, index=True)
+    is_active = Column(Boolean, server_default="true", nullable=False, index=True)
 
     # User type for two-sided marketplace
     # "Creator" (Product Developer) | "Affiliate" (Marketer) | "Business" | "Admin"
