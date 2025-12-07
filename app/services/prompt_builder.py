@@ -429,15 +429,20 @@ PRODUCT INFORMATION:
 
             # Set timestamps based on video format
             if format_str == 'long_form' or format_str == 'LONG_FORM':
-                # Long-form video (1+ minute)
+                # Long-form video (1+ minute = 60-90 seconds)
                 timestamp_ranges = {
                     'hook': '[0-10s]',
                     'disclosure': '[10-15s]',
                     'problem': '[15-30s]',
                     'solution': '[30-50s]',
-                    'cta': '[50-60s]'
+                    'benefits': '[50-70s]',
+                    'social_proof': '[70-80s]',
+                    'cta': '[80-90s]'
                 }
-                user_prompt += f"\n\n🎬 VIDEO FORMAT: LONG-FORM (1+ minute) - Using timestamps: {timestamp_ranges}"
+                user_prompt += f"\n\n🎬 VIDEO FORMAT: LONG-FORM (60-90 seconds)"
+                user_prompt += f"\n⚠️ CRITICAL: This is a LONG-FORM video. Your script MUST include timestamps up to 80-90 seconds."
+                user_prompt += f"\nTimestamp structure: {timestamp_ranges}"
+                user_prompt += f"\nYou MUST generate content for ALL timestamps: [0-10s], [10-15s], [15-30s], [30-50s], [50-70s], [70-80s], [80-90s]"
                 logger.info(f"[PromptBuilder] Long-form video detected, using timestamps: {timestamp_ranges}")
             elif format_str == 'story' or format_str == 'STORY':
                 # Story format (15 seconds)
@@ -475,6 +480,12 @@ PRODUCT INFORMATION:
             user_prompt += f"\n✓ Hook in {timestamp_ranges['hook']} BEFORE disclosure"
             user_prompt += f"\n✓ Problem in {timestamp_ranges['problem']} AFTER disclosure"
             user_prompt += f"\n✓ Solution/Demo in {timestamp_ranges['solution']}"
+
+            # Add additional sections for long-form videos
+            if format_str == 'long_form' or format_str == 'LONG_FORM':
+                user_prompt += f"\n✓ Benefits showcase in {timestamp_ranges.get('benefits', '[50-70s]')}"
+                user_prompt += f"\n✓ Social proof/testimonials in {timestamp_ranges.get('social_proof', '[70-80s]')}"
+
             user_prompt += f"\n✓ CTA in {timestamp_ranges['cta']} with urgency"
             user_prompt += f"\n✓ Use campaign intelligence data from above"
             user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
@@ -482,12 +493,25 @@ PRODUCT INFORMATION:
             user_prompt += f"\n"
             user_prompt += f"\n" + "=" * 60
             user_prompt += f"\n⚠️ CRITICAL COMPLETION REQUIREMENT ⚠️"
-            user_prompt += f"\nYou MUST complete ALL sections listed above (Hook, Disclosure, Problem, Solution/Demo, CTA)."
+
+            if format_str == 'long_form' or format_str == 'LONG_FORM':
+                user_prompt += f"\nYou MUST complete ALL 7 sections for LONG-FORM video:"
+                user_prompt += f"\n1. Hook {timestamp_ranges['hook']}"
+                user_prompt += f"\n2. Disclosure {timestamp_ranges['disclosure']}"
+                user_prompt += f"\n3. Problem {timestamp_ranges['problem']}"
+                user_prompt += f"\n4. Solution/Demo {timestamp_ranges['solution']}"
+                user_prompt += f"\n5. Benefits {timestamp_ranges.get('benefits', '[50-70s]')}"
+                user_prompt += f"\n6. Social Proof {timestamp_ranges.get('social_proof', '[70-80s]')}"
+                user_prompt += f"\n7. CTA {timestamp_ranges['cta']}"
+                user_prompt += f"\n\n⚠️ DO NOT STOP AT 15-20 SECONDS. This is a 60-90 second video!"
+            else:
+                user_prompt += f"\nYou MUST complete ALL sections listed above (Hook, Disclosure, Problem, Solution/Demo, CTA)."
+
             user_prompt += f"\nDO NOT stop mid-generation. Every section must be fully written out with timestamps."
-            user_prompt += f"\nYour response will be cut off if incomplete, so finish all 5 sections completely."
+            user_prompt += f"\nYour response will be cut off if incomplete, so finish all sections completely."
             user_prompt += f"\nEND YOUR RESPONSE ONLY AFTER completing the final CTA section."
             user_prompt += f"\n"
-            user_prompt += f"\nIMPORTANT: The {spoken_words}-word limit is for SPOKEN content only."
+            user_prompt += f"\nIMPORTANT: The word limit is for SPOKEN content only."
             user_prompt += f"\nYou MUST include production notes ([VISUAL:], [ANGLE:], etc.) even if it exceeds the word count."
             user_prompt += f"\nThe word count is a GUIDELINE, not a hard stop. Completeness is more important."
             user_prompt += f"\n" + "=" * 60 + "\n"
@@ -703,16 +727,18 @@ FORMATTING (MANDATORY):
 - Include production notes in separate lines: [VISUAL:], [ANGLE:], [LIGHTING:], [TRANSITION:]
 
 DISCLOSURE (CRITICAL - MUST FOLLOW EXACTLY):
-- MUST be its own timestamp segment (typically [3-5s])
+- MUST be its own timestamp segment
 - MUST use this EXACT wording: "This video contains affiliate links. I may earn a commission if you purchase through my link at no extra cost to you."
 - MUST include: [VISUAL: Text overlay on screen] after the disclosure
 
-REQUIRED STRUCTURE (MUST INCLUDE ALL):
-1. [0-3s] HOOK - Attention-grabbing statement/question
-2. [3-5s] DISCLOSURE - Required affiliate disclosure (see above)
-3. [5-8s] PROBLEM - Identify the pain point
-4. [8-15s] SOLUTION/DEMO - Show the product solution
-5. [15-18s] CTA - Clear call-to-action
+REQUIRED STRUCTURE (MUST INCLUDE ALL 5 SECTIONS):
+1. HOOK - Attention-grabbing statement/question
+2. DISCLOSURE - Required affiliate disclosure (see above)
+3. PROBLEM - Identify the pain point
+4. SOLUTION/DEMO - Show the product solution
+5. CTA - Clear call-to-action
+
+NOTE: Actual timestamp ranges will be provided in the final checklist based on video format (short-form, long-form, or story).
 
 VISUAL PRODUCTION:
 - [VISUAL: detailed scene description] for what to show on screen
