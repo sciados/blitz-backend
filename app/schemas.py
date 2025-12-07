@@ -33,16 +33,31 @@ class MarketingAngle(str, Enum):
 
 class VideoType(str, Enum):
     """Types of videos for script generation"""
-    REVIEW = "review"
-    TUTORIAL = "tutorial"
+
+    # LOCAL BUSINESS VIDEO TYPES
     TESTIMONIAL = "testimonial"
-    PRODUCT_DEMO = "product_demo"
+    PROBLEM_SOLUTION = "problem_solution"
+    TUTORIAL = "tutorial"
+    BEFORE_AFTER = "before_after"
+    BEHIND_SCENES = "behind_scenes"
+    OWNER_INTRO = "owner_intro"
     EXPLAINER = "explainer"
+    FAQ = "faq"
+
+    # AFFILIATE MARKETING VIDEO TYPES
+    PRODUCT_DEMO = "product_demo"
+    COMPARISON = "comparison"
+    UNBOXING = "unboxing"
+    TRANSFORMATION = "transformation"
+    PROBLEM_AGITATION = "problem_agitation"
+    SOLUTION_PITCH = "solution_pitch"
+    URGENCY = "urgency"
+    STORYTELLING = "storytelling"
+
+    # LEGACY/UNIVERSAL TYPES
+    REVIEW = "review"
     COMMERCIAL = "commercial"
     INTERVIEW = "interview"
-    STORYTELLING = "storytelling"
-    UNBOXING = "unboxing"
-    COMPARISON = "comparison"
 
 class VideoAtmosphere(str, Enum):
     """Atmosphere and mood for the video"""

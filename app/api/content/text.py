@@ -342,11 +342,6 @@ async def generate_content(
         prompt_params["video_config"] = {
             "video_type": request.video_type,
             "video_format": request.video_format,
-            "video_atmosphere": request.video_atmosphere,
-            "video_lighting": request.video_lighting,
-            "video_style": request.video_style,
-            "video_pace": request.video_pace,
-            "target_platform": request.target_platform,
             "include_camera_angles": request.include_camera_angles,
             "include_visual_cues": request.include_visual_cues,
             "include_transitions": request.include_transitions

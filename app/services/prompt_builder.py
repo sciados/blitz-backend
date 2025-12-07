@@ -305,30 +305,8 @@ PRODUCT INFORMATION:
                 user_prompt += f"Video Type: {video_config['video_type'].replace('_', ' ').title()}\n"
             if video_config.get('video_format'):
                 user_prompt += f"Video Format: {video_config['video_format'].replace('_', ' ').title()}\n"
-            if video_config.get('target_platform'):
-                user_prompt += f"Target Platform: {video_config['target_platform'].title()}\n"
-                # Add platform-specific guidance
-                platform = video_config['target_platform'].lower()
-                if platform == 'tiktok':
-                    user_prompt += "\n[TARGET: TikTok]\n- Vertical 9:16 aspect ratio\n- Hook in first 1-2 seconds\n- Fast-paced, energetic delivery\n- Text on screen for key points\n- Trending audio potential\n"
-                elif platform == 'instagram':
-                    user_prompt += "\n[TARGET: Instagram Reels/Stories]\n- Vertical 9:16 aspect ratio\n- Eye-catching first frame\n- Stylish, aesthetic visuals\n- Brand-friendly content\n"
-                elif platform == 'youtube':
-                    user_prompt += "\n[TARGET: YouTube Shorts]\n- Vertical 9:16 for Shorts\n- Horizontal 16:9 for regular videos\n- Can have longer narrative\n- SEO-optimized descriptions\n- Call-to-subscribe CTA\n"
-                elif platform == 'facebook':
-                    user_prompt += "\n[TARGET: Facebook]\n- Square 1:1 or vertical 9:16\n- Audience-friendly tone\n- Soft sell approach\n- Engagement-focused\n"
-                elif platform == 'linkedin':
-                    user_prompt += "\n[TARGET: LinkedIn]\n- Professional tone\n- Value-first content\n- Industry insights\n- Business-focused messaging\n"
 
             user_prompt += "\n"
-            if video_config.get('video_atmosphere'):
-                user_prompt += f"Atmosphere/Mood: {video_config['video_atmosphere'].replace('_', ' ').title()}\n"
-            if video_config.get('video_lighting'):
-                user_prompt += f"Lighting Style: {video_config['video_lighting'].replace('_', ' ').title()}\n"
-            if video_config.get('video_style'):
-                user_prompt += f"Visual Style: {video_config['video_style'].replace('_', ' ').title()}\n"
-            if video_config.get('video_pace'):
-                user_prompt += f"Pacing: {video_config['video_pace'].title()}\n"
 
             # Format-specific guidance
             video_format = video_config.get('video_format', 'long_form')
@@ -423,12 +401,17 @@ PRODUCT INFORMATION:
         if content_type == 'video_script':
             # Determine video format and set appropriate timestamps
             video_format = video_config.get('video_format', 'short_form') if video_config else 'short_form'
-            format_str = str(video_format)
+            # Handle both enum objects and string values
             if hasattr(video_format, 'value'):
                 format_str = video_format.value
+            else:
+                format_str = str(video_format)
+            # Normalize to lowercase for comparison
+            format_str = format_str.lower().replace('videoformat.', '')
+            logger.info(f"[PromptBuilder] video_format raw={video_format}, format_str={format_str}")
 
-            # Set timestamps based on video format
-            if format_str == 'long_form' or format_str == 'LONG_FORM':
+            # Set timestamps based on video format (format_str is already normalized to lowercase)
+            if format_str == 'long_form':
                 # Long-form video (1+ minute = 60-90 seconds)
                 timestamp_ranges = {
                     'hook': '[0-10s]',
@@ -444,7 +427,7 @@ PRODUCT INFORMATION:
                 user_prompt += f"\nTimestamp structure: {timestamp_ranges}"
                 user_prompt += f"\nYou MUST generate content for ALL timestamps: [0-10s], [10-15s], [15-30s], [30-50s], [50-70s], [70-80s], [80-90s]"
                 logger.info(f"[PromptBuilder] Long-form video detected, using timestamps: {timestamp_ranges}")
-            elif format_str == 'story' or format_str == 'STORY':
+            elif format_str == 'story':
                 # Story format (15 seconds)
                 timestamp_ranges = {
                     'hook': '[0-3s]',
@@ -482,7 +465,7 @@ PRODUCT INFORMATION:
             user_prompt += f"\n✓ Solution/Demo in {timestamp_ranges['solution']}"
 
             # Add additional sections for long-form videos
-            if format_str == 'long_form' or format_str == 'LONG_FORM':
+            if format_str == 'long_form':
                 user_prompt += f"\n✓ Benefits showcase in {timestamp_ranges.get('benefits', '[50-70s]')}"
                 user_prompt += f"\n✓ Social proof/testimonials in {timestamp_ranges.get('social_proof', '[70-80s]')}"
 
@@ -494,7 +477,7 @@ PRODUCT INFORMATION:
             user_prompt += f"\n" + "=" * 60
             user_prompt += f"\n⚠️ CRITICAL COMPLETION REQUIREMENT ⚠️"
 
-            if format_str == 'long_form' or format_str == 'LONG_FORM':
+            if format_str == 'long_form':
                 user_prompt += f"\nYou MUST complete ALL 7 sections for LONG-FORM video:"
                 user_prompt += f"\n1. Hook {timestamp_ranges['hook']}"
                 user_prompt += f"\n2. Disclosure {timestamp_ranges['disclosure']}"
