@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedContent, GeneratedImage
 from app.auth import get_current_user
 
-router = APIRouter(prefix="/api/content", tags=["content"])
+router = APIRouter(prefix="/api/content/unified", tags=["content-unified"])
 
 
 @router.get("/campaign/{campaign_id}/all")
@@ -103,15 +103,13 @@ async def get_all_campaign_content(
                     "image_url": image.image_url,
                     "thumbnail_url": image.thumbnail_url,
                     "provider": image.provider,
+                    "model": image.model,
                     "style": image.style,
                     "prompt": image.prompt,
                     "aspect_ratio": image.aspect_ratio,
-                    "resolution": image.resolution,
-                    "compliance_status": image.compliance_status,
-                    "compliance_score": image.compliance_score,
-                    "compliance_notes": image.compliance_notes,
-                    "version": image.version,
-                    "parent_image_id": image.parent_image_id,
+                    "meta_data": image.meta_data,
+                    "ai_generation_cost": image.ai_generation_cost,
+                    "content_id": image.content_id,
                     "created_at": image.created_at
                 }
             })
