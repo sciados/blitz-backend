@@ -242,7 +242,7 @@ class PromptGeneratorService:
         user_prompt: Optional[str],
         **kwargs
     ) -> Dict[str, Any]:
-        """Generate prompt for video content"""
+        """Generate AI-friendly video prompt for Luma AI and similar platforms"""
         product = data["product"]
         market = data["market"]
         marketing = data["marketing"]
@@ -250,28 +250,45 @@ class PromptGeneratorService:
         video_type = kwargs.get("video_type", "slide_video")
         duration = kwargs.get("duration", 10)
 
-        # Build base prompt for video
+        # Build AI-friendly flowing narrative prompt
         prompt_parts = []
 
-        prompt_parts.append(f"Create a {duration}-second {video_type.replace('_', ' ')}")
+        # Opening hook
+        prompt_parts.append(f"A {duration}-second marketing video opens with")
 
-        if product["name"]:
-            prompt_parts.append(f"for {product['name']}")
-
-        # Add key benefits
-        if product["benefits"]:
-            prompt_parts.append(f"highlighting benefits: {', '.join(product['benefits'][:3])}")
-
-        # Add problem/solution context
-        if market["pain_points"]:
-            prompt_parts.append(f"addressing pain points: {', '.join(market['pain_points'][:2])}")
-
-        # Add marketing hook if available
         if marketing["hooks"]:
-            prompt_parts.append(f"using hook: '{marketing['hooks'][0]}'")
+            # Use the hook as visual inspiration
+            hook = marketing["hooks"][0]
+            prompt_parts.append(f"an attention-grabbing scene suggesting '{hook}'.")
+        else:
+            prompt_parts.append("an eye-catching opening scene.")
+
+        # Main content - product showcase
+        if product["name"]:
+            prompt_parts.append(f"The camera reveals {product['name']}")
+            if product["description"]:
+                # Extract key visual from description
+                prompt_parts.append(f"- {product['description'][:100]}.")
+            else:
+                prompt_parts.append("in a professional, aspirational setting.")
+
+        # Transformation/benefit visualization
+        if product["benefits"] and market["pain_points"]:
+            pain = market["pain_points"][0] if market["pain_points"] else "everyday challenges"
+            benefit = product["benefits"][0] if product["benefits"] else "transformation"
+            prompt_parts.append(f"Scene transitions to show the transformation from {pain} to {benefit}.")
+        elif product["benefits"]:
+            prompt_parts.append(f"Visual emphasis on the key benefit: {product['benefits'][0]}.")
+
+        # Mood and atmosphere
+        prompt_parts.append("Warm, professional lighting throughout with smooth transitions.")
+
+        # Closing
+        prompt_parts.append(f"Video closes with the product prominently displayed, inviting viewers to learn more.")
 
         generated_prompt = " ".join(prompt_parts)
 
+        # Add user customization at the beginning if provided
         if user_prompt:
             generated_prompt = f"{user_prompt}. {generated_prompt}"
 

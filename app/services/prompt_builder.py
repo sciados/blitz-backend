@@ -1,6 +1,18 @@
 """
 Prompt Builder - Constructs optimized prompts for AI content generation
 Handles different content types and marketing angles
+
+DEPRECATION NOTICE:
+This module is being phased out in favor of PromptGeneratorService.
+For new development, use: app/services/prompt_generator_service.py
+
+The PromptGeneratorService provides:
+- Unified prompt generation across all content types
+- AI-friendly video prompts (no timestamps/production cues)
+- Campaign intelligence integration
+- Keyword selection API
+
+Migration: Use /api/prompt/generate endpoint instead of direct PromptBuilder usage.
 """
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -95,17 +107,13 @@ You understand platform-specific best practices and audience engagement.""",
             ]
         },
         'video_script': {
-            'system': """You are an expert video script writer who creates professional, production-ready video scripts.
-Your scripts are formatted for video production with timestamps, visual cues, and cinematic elements.
-You understand pacing, visual storytelling, and platform-specific optimization.""",
+            'system': """You are an expert AI video prompt writer who creates concise, descriptive prompts for AI video generation platforms like Luma AI.
+Your prompts describe visual scenes, motion, transitions, and mood in a way AI video generators can understand.
+You write flowing narrative descriptions, NOT production scripts with timestamps or technical cues.""",
             'structure': [
-                'hook',
-                'disclosure',
-                'problem',
-                'solution',
-                'demonstration',
-                'call_to_action',
-                'outro'
+                'opening_scene',
+                'main_content',
+                'closing_scene'
             ]
         }
     }
@@ -298,50 +306,44 @@ PRODUCT INFORMATION:
 
         # Add video-specific configuration
         if content_type == 'video_script' and video_config:
-            user_prompt += f"\n\n🎬 VIDEO PRODUCTION REQUIREMENTS:\n"
+            user_prompt += f"\n\n🎬 AI VIDEO PROMPT REQUIREMENTS:\n"
             user_prompt += "=" * 60 + "\n\n"
 
+            # Get duration from video_format (now using seconds like "5s", "10s", "15s", "20s")
+            video_format = video_config.get('video_format', '10s')
+            if hasattr(video_format, 'value'):
+                format_str = video_format.value
+            else:
+                format_str = str(video_format)
+
+            # Extract duration in seconds
+            duration_seconds = 10  # default
+            if 's' in format_str:
+                try:
+                    duration_seconds = int(format_str.replace('s', ''))
+                except:
+                    duration_seconds = 10
+
+            user_prompt += f"Video Duration: {duration_seconds} seconds\n"
             if video_config.get('video_type'):
                 user_prompt += f"Video Type: {video_config['video_type'].replace('_', ' ').title()}\n"
-            if video_config.get('video_format'):
-                user_prompt += f"Video Format: {video_config['video_format'].replace('_', ' ').title()}\n"
 
-            user_prompt += "\n"
+            user_prompt += "\n[AI VIDEO PROMPT FORMAT]\n"
+            user_prompt += "- Write a SINGLE flowing narrative description\n"
+            user_prompt += "- NO timestamps like [0-3s] or [5-10s]\n"
+            user_prompt += "- NO production cues like [VISUAL:], [B-ROLL:], [ANGLE:]\n"
+            user_prompt += "- Describe scenes visually in present tense\n"
+            user_prompt += "- Keep total prompt under 200 words\n\n"
 
-            # Format-specific guidance
-            video_format = video_config.get('video_format', 'long_form')
-            user_prompt += "\n[FORMAT REQUIREMENTS]\n"
-            if video_format == 'short_form':
-                user_prompt += "- Duration: 15-20 seconds MAX\n- Structure: Hook (0-3s) → Disclosure (3-5s) → Problem (5-8s) → Solution/Demo (8-15s) → CTA (15-20s)\n- Every second counts - no filler\n- Visual should support every word\n"
-            elif video_format == 'long_form':
-                user_prompt += "- Duration: 1-5 minutes\n- Can include storytelling elements\n- More detailed demonstration\n- Build trust and authority\n"
-            elif video_format == 'story':
-                user_prompt += "- Duration: 15 seconds exactly\n- Hook → Quick showcase → CTA\n- Ultra-focused message\n"
+            user_prompt += "[SCENE STRUCTURE FOR " + str(duration_seconds) + " SECOND VIDEO]\n"
+            user_prompt += "1. OPENING (hook the viewer immediately)\n"
+            user_prompt += "2. MAIN CONTENT (show product/benefit visually)\n"
+            user_prompt += "3. CLOSING (implied call-to-action)\n\n"
 
-            user_prompt += "\n[PRODUCTION ELEMENTS]\n"
-            if video_config.get('include_camera_angles'):
-                user_prompt += "✓ Include camera angle notes: [ANGLE: close-up/wide/POV/drone/over-shoulder]\n"
-            if video_config.get('include_visual_cues'):
-                user_prompt += "✓ Include visual cues: [VISUAL: scene description] or [B-ROLL: footage needed]\n"
-            if video_config.get('include_transitions'):
-                user_prompt += "✓ Include transitions: [TRANSITION: cut/fade/zoom/slide]\n"
-
-            user_prompt += "\n[CRITICAL FORMATTING]\n"
-            user_prompt += "- MUST start each line with [TIMESTAMP]\n"
-            user_prompt += "- Example: [0-3s] Your spoken content here\n"
-            user_prompt += "- Include production notes in brackets: [VISUAL:], [ANGLE:], [LIGHTING:], [TRANSITION:]\n"
-            user_prompt += "- NO landing page formatting (no **bold headers**, no paragraph blocks)\n"
-            user_prompt += "- YES to screenplay format with timing and visuals\n\n"
-
-            user_prompt += "[USE INTELLIGENCE DATA - MANDATORY]\n"
-            user_prompt += "✅ Reference the CAMPAIGN INTELLIGENCE provided above in EVERY section:\n"
-            user_prompt += "  - Hook: Use problem/pain point from intelligence\n"
-            user_prompt += "  - Problem: Emphasize the pain points from intelligence data\n"
-            user_prompt += "  - Solution: Highlight BENEFITS and KEY FEATURES from intelligence\n"
-            user_prompt += "  - Demo: Show how product solves the problem (use key points)\n"
-            user_prompt += "  - CTA: Mention specific benefit or result from intelligence\n"
-            user_prompt += "✅ DO NOT make up benefits - use only what's in the intelligence\n"
-            user_prompt += "✅ Use exact phrases from intelligence data where possible\n\n"
+            user_prompt += "[USE INTELLIGENCE DATA]\n"
+            user_prompt += "- Reference the product name and key benefits from intelligence\n"
+            user_prompt += "- Describe the transformation or problem being solved\n"
+            user_prompt += "- Include mood/atmosphere that matches the product\n\n"
 
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"
@@ -701,50 +703,35 @@ SOCIAL MEDIA GUIDELINES:
 - Make it shareable and engaging""",
             
             'video_script': """
-VIDEO SCRIPT GUIDELINES:
+AI VIDEO PROMPT GUIDELINES:
 
-FORMATTING (MANDATORY):
-- EVERY line must start with [TIMESTAMP] (e.g., [0-3s], [3-5s], [5-8s])
-- NO other text before the timestamp
-- NO double brackets [[ ]]
-- Include production notes in separate lines: [VISUAL:], [ANGLE:], [LIGHTING:], [TRANSITION:]
+FORMAT:
+- Write a single flowing narrative description (NOT a production script)
+- NO timestamps like [0-3s] or [5-10s]
+- NO production cues like [VISUAL:], [B-ROLL:], [ANGLE:], [LIGHTING:]
+- NO bullet points or numbered lists
+- Write in present tense, describing what happens visually
 
-DISCLOSURE (CRITICAL - MUST FOLLOW EXACTLY):
-- MUST be its own timestamp segment
-- MUST use this EXACT wording: "This video contains affiliate links. I may earn a commission if you purchase through my link at no extra cost to you."
-- MUST include: [VISUAL: Text overlay on screen] after the disclosure
-
-REQUIRED STRUCTURE (MUST INCLUDE ALL 5 SECTIONS):
-1. HOOK - Attention-grabbing statement/question
-2. DISCLOSURE - Required affiliate disclosure (see above)
-3. PROBLEM - Identify the pain point
-4. SOLUTION/DEMO - Show the product solution
-5. CTA - Clear call-to-action
-
-NOTE: Actual timestamp ranges will be provided in the final checklist based on video format (short-form, long-form, or story).
-
-VISUAL PRODUCTION:
-- [VISUAL: detailed scene description] for what to show on screen
-- [B-ROLL: specific footage needed]
-- [ANGLE: close-up/wide/medium/POV/over-shoulder/drone]
-- [LIGHTING: bright/soft/warm/cool/dramatic/natural/cinematic]
-- [TRANSITION: cut/fade/zoom/slide/dissolve]
+STRUCTURE (describe in flowing prose):
+1. OPENING - Eye-catching opening scene that hooks the viewer
+2. MAIN CONTENT - Visual storytelling showing the product/message
+3. CLOSING - Strong ending with implied call-to-action
 
 WRITING STYLE:
-- Conversational, speak directly to one person
-- Keep sentences short and punchy
-- Use "you" and "your" to engage viewer
-- Avoid jargon or complex words
+- Describe scenes visually: "A woman smiles confidently in morning light..."
+- Include motion and transitions: "Camera slowly zooms in...", "Scene transitions to..."
+- Mention mood and atmosphere: "warm, inviting atmosphere", "professional studio setting"
+- Be specific about subjects: people, products, environments
+- Keep total prompt under 200 words for best AI results
 
-CTA REQUIREMENTS:
-- Clear action (link in bio, tap link, visit website)
-- Include urgency or scarcity
-- Mention specific benefit
+EXAMPLE FORMAT:
+"A professional marketing video opens with a close-up of [product name] on a clean white surface, sunlight streaming in. The camera slowly pulls back to reveal a confident person holding the product, smiling directly at camera. Scene transitions smoothly to lifestyle footage showing the transformation - before and after moments. Warm, aspirational lighting throughout. Video closes with the product prominently displayed alongside a subtle call-to-action moment, inviting viewers to learn more."
 
 PROHIBITED:
-- NO **bold headers**
-- NO paragraph blocks
-- NO "Headline:" or "Subheadline:" format
+- NO timestamps or time markers
+- NO [BRACKETS] for production notes
+- NO numbered shot lists
+- NO "Narrator:" or "VO:" prefixes
 - NO landing page style content"""
         }
         
