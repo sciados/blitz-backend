@@ -124,13 +124,16 @@ class ImageGenerator:
         """Initialize image generator."""
         # Using r2_storage instance from storage_r2 module
         self.r2_storage = r2_storage
-        # Provider rotation: FLUX Pro (best value) + Stability AI + FAL + Pollinations
-        # Replicate removed - quality issues
+        # Provider rotation: FREE providers first, then paid providers
+        # This ensures zero-cost generation for drafts
         self.provider_rotation = [
-            "flux_pro",        # PRIMARY: Best quality-to-price ratio (~6s, $0.002)
-            "stability",       # Backup: Reliability and quality (~5s, $0.001)
+            "pollinations",    # FREE: No API key needed (~4s)
+            "huggingface",     # FREE: No API key needed (~6s)
+            "replicate_free",  # FREE: Replicate free tier (~10s)
             "fal",             # Fast: Quick generation (~3s, $0.00001)
-            "pollinations"     # FALLBACK: Free, slower (~28s)
+            "stability",       # Backup: Reliability and quality (~5s, $0.001)
+            "flux_pro",        # Premium: Best quality-to-price ratio (~6s, $0.002)
+            "replicate"        # Last resort: Paid Replicate (~8s, $0.002)
         ]
         self.current_provider_index = 0
 
@@ -488,19 +491,19 @@ class ImageGenerator:
                 "seed": custom_params.get("seed", 42)  # Add seed for consistency
             }
 
-            # Try SDXL Lightning first (better aspect ratio support)
+            # Try SDXL Turbo first (correct endpoint)
             try:
                 response = await httpx.AsyncClient(timeout=20.0).post(
-                    "https://fal.run/fal-ai/sdxl-lightning-4step",
+                    "https://fal.run/fal-ai/sdxl-turbo",
                     headers={"Authorization": f"Key {api_key}"},
                     json=payload
                 )
             except Exception as e:
-                logger.warning(f"SDXL Lightning failed, falling back to SDXL Turbo: {e}")
-                # Fallback to SDXL Turbo if Lightning fails
-                payload.pop("seed", None)  # Turbo doesn't support seed parameter
+                logger.warning(f"SDXL Turbo failed, falling back to SDXL Lightning: {e}")
+                # Fallback to SDXL Lightning if Turbo fails
+                payload.pop("seed", None)  # Lightning doesn't support seed parameter
                 response = await httpx.AsyncClient(timeout=20.0).post(
-                    "https://fal.run/fal-ai/sdxl-turbo",
+                    "https://fal.run/fal-ai/sdxl-lightning-4step",
                     headers={"Authorization": f"Key {api_key}"},
                     json=payload
                 )
