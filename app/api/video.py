@@ -136,14 +136,31 @@ class LumaVideoService:
                 }
 
             elif generation_mode == "slide_video":
-                if not slides:
+                if not slides or len(slides) == 0:
                     raise HTTPException(
                         status_code=400,
                         detail="Slides are required for slide_video mode"
                     )
-                # Combine slide text for context
-                combined_text = " ".join([slide.get("text", "") for slide in slides[:3]])  # Limit to first 3 slides
-                input_params["prompt"] = self._prepare_prompt(combined_text, style, duration)
+                # PiAPI supports up to 2 keyframes: frame0 (start) and frame1 (end)
+                # Use first two selected images
+                key_frames = {}
+                if len(slides) > 0 and slides[0].get("image_url"):
+                    key_frames["frame0"] = {
+                        "type": "image",
+                        "url": slides[0]["image_url"]
+                    }
+                    # Use first slide's text as prompt if available
+                    if slides[0].get("text"):
+                        input_params["prompt"] = slides[0]["text"]
+
+                if len(slides) > 1 and slides[1].get("image_url"):
+                    key_frames["frame1"] = {
+                        "type": "image",
+                        "url": slides[1]["image_url"]
+                    }
+
+                if key_frames:
+                    input_params["key_frames"] = key_frames
 
             # Build the payload in PiAPI format
             payload = {
