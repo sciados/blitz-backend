@@ -62,6 +62,8 @@ class TierConfigUpdate(BaseModel):
     features: Optional[List[str]] = None
 
 class AIProviderCreate(BaseModel):
+    model_config = {'protected_namespaces': ()}
+
     provider_name: str
     model_name: str
     cost_per_input_token: float
