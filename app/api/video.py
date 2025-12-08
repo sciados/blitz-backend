@@ -106,9 +106,14 @@ class LumaVideoService:
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Prepare the input parameters
+            # Ray 2 supports: 5s, 10s durations
+            # Ray v1 only supports: 5s
+            # We use ray2 for better quality and longer duration support
+            actual_duration = 5 if duration <= 7 else 10  # Map to nearest supported duration
+
             input_params = {
-                "model_name": "ray-v1",
-                "duration": min(duration, 10),  # PiAPI only supports 5 or 10 seconds
+                "model_name": "ray2",  # Use ray2 for 5s and 10s support
+                "duration": actual_duration,
                 "aspect_ratio": aspect_ratio
             }
 
