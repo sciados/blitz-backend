@@ -104,10 +104,11 @@ class VideoPace(str, Enum):
     DYNAMIC = "dynamic"
 
 class VideoFormat(str, Enum):
-    """Video format and duration"""
-    SHORT_FORM = "short_form"  # 15-20 seconds (TikTok, Instagram Reels, YouTube Shorts)
-    LONG_FORM = "long_form"    # 1+ minutes (YouTube, Facebook)
-    STORY = "story"           # 15 seconds (Instagram Stories, Snapchat)
+    """Video format - short form durations only"""
+    FIVE_SECONDS = "5s"      # 5 seconds - Quick Hook
+    TEN_SECONDS = "10s"      # 10 seconds - Short Promo
+    FIFTEEN_SECONDS = "15s"  # 15 seconds - Story/Reel
+    TWENTY_SECONDS = "20s"   # 20 seconds - Extended Short
 
 class CampaignStatus(str, Enum):
     DRAFT = "draft"
@@ -225,7 +226,7 @@ class ContentGenerateRequest(BaseModel):
     sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
     # Video script specific parameters
     video_type: Optional[VideoType] = None
-    video_format: Optional[VideoFormat] = Field(default=VideoFormat.LONG_FORM, description="short_form: 15-20s, long_form: 1+ min, story: 15s")
+    video_format: Optional[VideoFormat] = Field(default=VideoFormat.TEN_SECONDS, description="5s, 10s, 15s, or 20s short-form video")
     video_atmosphere: Optional[VideoAtmosphere] = None
     video_lighting: Optional[VideoLighting] = None
     video_style: Optional[VideoStyle] = None
