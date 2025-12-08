@@ -69,6 +69,13 @@ class ComplianceChecker:
         'social_media': ['disclosure_hashtag'],
         'comparison': ['disclosure', 'balanced_view']
     }
+
+    # Content types exempt from affiliate disclosure requirements
+    # Video scripts are exempt because:
+    # - AI-generated videos are typically silent (no voiceover)
+    # - Short-form videos (5-20s) can't spare time for verbal disclosure
+    # - Disclosure is added during post-production (description, text overlay, pinned comment)
+    DISCLOSURE_EXEMPT_TYPES = ['video_script', 'slide_video']
     
     def check_content(
         self,
@@ -214,7 +221,14 @@ class ComplianceChecker:
     
     def _check_disclosure(self, content: str, content_type: str) -> Dict[str, Any]:
         """Check for proper affiliate disclosure"""
-        
+
+        # Skip disclosure check for exempt content types
+        if content_type in self.DISCLOSURE_EXEMPT_TYPES:
+            return {
+                'compliant': True,
+                'message': f'Disclosure check skipped for {content_type} (added in post-production)'
+            }
+
         content_lower = content.lower()
         
         # Check if any disclosure pattern is present
