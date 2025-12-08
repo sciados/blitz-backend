@@ -68,13 +68,13 @@ class VideoStatusResponse(BaseModel):
 # PROVIDER SELECTION & TIER CHECKING
 # ============================================================================
 
-def select_video_provider(duration: int, user_tier: str = "free", forced_provider: Optional[str] = None) -> str:
+def select_video_provider(duration: int, user_tier: str = "starter", forced_provider: Optional[str] = None) -> str:
     """
     Auto-select video provider based on duration and user tier
 
     Args:
         duration: Requested video duration in seconds
-        user_tier: User's subscription tier (free, starter, pro, enterprise)
+        user_tier: User's subscription tier (starter, pro, enterprise)
         forced_provider: Optional override (for testing)
 
     Returns:
@@ -84,13 +84,13 @@ def select_video_provider(duration: int, user_tier: str = "free", forced_provide
     if forced_provider in ['piapi_luma', 'replicate_veo']:
         return forced_provider
 
-    # Free and starter tiers: max 10 seconds
-    if user_tier in ['free', 'starter'] and duration > 10:
+    # Starter tier: max 10 seconds
+    if user_tier == 'starter' and duration > 10:
         raise HTTPException(
             status_code=403,
             detail={
                 "error": "TIER_LIMIT_EXCEEDED",
-                "message": f"Your {user_tier} tier supports videos up to 10 seconds. Upgrade to Pro or Enterprise for 15-20 second videos.",
+                "message": f"Your Starter plan ($7/month) supports videos up to 10 seconds. Upgrade to Pro or Enterprise for 15-20 second videos.",
                 "current_limit": 10,
                 "required_tier": "pro"
             }
@@ -146,13 +146,12 @@ class LumaVideoService:
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Prepare the input parameters
-            # Ray 2 supports: 5s, 10s durations
-            # Ray v1 only supports: 5s
-            # We use ray2 for better quality and longer duration support
-            actual_duration = 5 if duration <= 7 else 10  # Map to nearest supported duration
+            # PiAPI Luma supports ray-v1 (5s) and ray-v2 (5s, 10s)
+            # However, ray-v2 may not be available yet, so we use ray-v1
+            actual_duration = 5  # Only 5s is supported by ray-v1
 
             input_params = {
-                "model_name": "ray2",  # Use ray2 for 5s and 10s support
+                "model_name": "ray-v1",  # Using ray-v1 which is confirmed to work
                 "duration": actual_duration,
                 "aspect_ratio": aspect_ratio
             }
@@ -172,7 +171,8 @@ class LumaVideoService:
                         status_code=400,
                         detail="Image URL is required for image_to_video mode"
                     )
-                input_params["prompt"] = script or ""  # Optional additional prompt
+                # Prompt is required even for image_to_video
+                input_params["prompt"] = script or f"Create a video with this image showing {style} content"
                 input_params["key_frames"] = {
                     "frame0": {
                         "type": "image",
@@ -194,9 +194,11 @@ class LumaVideoService:
                         "type": "image",
                         "url": slides[0]["image_url"]
                     }
-                    # Use first slide's text as prompt if available
+                    # Use first slide's text as prompt if available, otherwise generate one
                     if slides[0].get("text"):
                         input_params["prompt"] = slides[0]["text"]
+                    else:
+                        input_params["prompt"] = f"Create a {style} video transition"
 
                 if len(slides) > 1 and slides[1].get("image_url"):
                     key_frames["frame1"] = {
@@ -206,6 +208,10 @@ class LumaVideoService:
 
                 if key_frames:
                     input_params["key_frames"] = key_frames
+
+            # Ensure prompt is always set (required by PiAPI)
+            if "prompt" not in input_params:
+                input_params["prompt"] = f"Create a {style} video"
 
             # Build the payload in PiAPI format
             payload = {
@@ -235,6 +241,7 @@ class LumaVideoService:
                     "status": "processing",
                     "video_url": None,  # Will be available when status is checked
                     "thumbnail_url": None,
+                    "actual_duration": actual_duration,  # Return actual duration used
                 }
 
             except httpx.RequestError as e:
@@ -355,7 +362,7 @@ async def generate_video(
     # TODO: Get current user from auth token
     # For now, using a mock user and tier
     user_id = "mock-user-id"
-    user_tier = "free"  # TODO: Get from user profile
+    user_tier = "starter"  # TODO: Get from user profile
 
     # TODO: Check if user has reached video generation limit
     # If user has reached limit, return 429
@@ -390,8 +397,9 @@ async def generate_video(
                 motion_intensity=request.motion_intensity
             )
             # Cost: ~$0.05/second for Luma AI
-            cost = round(request.duration * 0.05, 2)
-            provider_used = "Luma AI (Ray 2)"
+            # Use actual_duration from the result (5s for ray-v1)
+            actual_duration = generation_result.get("actual_duration", 5)
+            cost = round(actual_duration * 0.05, 2)
 
         elif selected_provider == "replicate_veo":
             # TODO: Implement Replicate Veo integration
@@ -400,7 +408,7 @@ async def generate_video(
                 status_code=501,
                 detail={
                     "error": "PROVIDER_NOT_IMPLEMENTED",
-                    "message": f"{selected_provider} provider not yet implemented. Currently only PiAPI (5-10s) is available.",
+                    "message": f"{selected_provider} provider not yet implemented. Currently only PiAPI (5s) is available.",
                     "available_providers": ["piapi_luma"]
                 }
             )
@@ -409,7 +417,7 @@ async def generate_video(
         response = VideoGenerateResponse(
             video_id=generation_result.get("id", str(uuid.uuid4())),
             status="processing",
-            duration=request.duration,
+            duration=actual_duration,
             cost=cost,
             created_at=datetime.utcnow()
         )
