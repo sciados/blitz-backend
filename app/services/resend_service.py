@@ -128,7 +128,7 @@ class ResendService:
         default_vars = {
             "first_name": "",
             "signup_date": "today",
-            "unsubscribe_url": "https://blitz-frontend-three.vercel.app/unsubscribe"
+            "unsubscribe_url": "https://blitz.ws/unsubscribe"
         }
         if variables:
             default_vars.update(variables)
@@ -148,7 +148,7 @@ class ResendService:
                 "hero_emoji": "🎯",
                 "primary_color": "#8b5cf6",
                 "cta_text": "Add Your Products →",
-                "cta_url": "https://blitz-frontend-three.vercel.app/login",
+                "cta_url": "https://blitz.ws/login",
                 "features": [
                     "Access our network of 1000+ affiliate marketers",
                     "AI-powered product intelligence and descriptions",
@@ -162,7 +162,7 @@ class ResendService:
                 "hero_emoji": "💰",
                 "primary_color": "#10b981",
                 "cta_text": "Browse Products →",
-                "cta_url": "https://blitz-frontend-three.vercel.app/login",
+                "cta_url": "https://blitz.ws/login",
                 "features": [
                     "Browse hundreds of products to promote",
                     "Generate content in minutes with AI",
@@ -176,7 +176,7 @@ class ResendService:
                 "hero_emoji": "🚀",
                 "primary_color": "#3b82f6",
                 "cta_text": "Launch Campaigns →",
-                "cta_url": "https://blitz-frontend-three.vercel.app/login",
+                "cta_url": "https://blitz.ws/login",
                 "features": [
                     "Generate professional content instantly",
                     "Access AI-powered marketing campaigns",
@@ -262,7 +262,7 @@ class ResendService:
                     <p>© 2024 Blitz. All rights reserved.</p>
                     <p>
                         <a href="{{{{ unsubscribe_url }}}}">Unsubscribe</a> |
-                        <a href="https://blitz-frontend-three.vercel.app">Visit Website</a>
+                        <a href="https://blitz.ws">Visit Website</a>
                     </p>
                 </div>
             </div>

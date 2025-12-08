@@ -71,7 +71,7 @@ To allow uploads from your frontend:
 [
   {
     "AllowedOrigins": [
-      "https://blitz-frontend-three.vercel.app",
+      "https://blitz.ws",
       "http://localhost:3000"
     ],
     "AllowedMethods": [

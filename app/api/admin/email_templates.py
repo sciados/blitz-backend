@@ -174,7 +174,7 @@ async def preview_template(
     variables = {
         "first_name": first_name or "there",
         "signup_date": "today",
-        "unsubscribe_url": "https://blitz-frontend-three.vercel.app/unsubscribe"
+        "unsubscribe_url": "https://blitz.ws/unsubscribe"
     }
 
     rendered_subject = template.subject

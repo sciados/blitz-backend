@@ -17,17 +17,26 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Add is_active column with default value True
-    op.add_column('users', sa.Column('is_active', sa.Boolean(), nullable=True))
+    # Check if is_active column already exists
+    connection = op.get_bind()
+    result = connection.execute(
+        sa.text("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='is_active'")
+    )
 
-    # Update all existing users to active status
-    op.execute("UPDATE users SET is_active = true WHERE is_active IS NULL")
+    if not result.fetchone():
+        # Add is_active column with default value True
+        op.add_column('users', sa.Column('is_active', sa.Boolean(), nullable=True))
 
-    # Make column not null with default True
-    op.alter_column('users', 'is_active', nullable=False, server_default='true')
+        # Update all existing users to active status
+        op.execute("UPDATE users SET is_active = true WHERE is_active IS NULL")
 
-    # Create index for faster queries on active users
-    op.create_index(op.f('ix_users_is_active'), 'users', ['is_active'], unique=False)
+        # Make column not null with default True
+        op.alter_column('users', 'is_active', nullable=False, server_default='true')
+
+        # Create index for faster queries on active users
+        op.create_index(op.f('ix_users_is_active'), 'users', ['is_active'], unique=False)
+    else:
+        print("is_active column already exists, skipping...")
 
 
 def downgrade() -> None:

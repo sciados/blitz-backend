@@ -91,7 +91,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://blitz-frontend-three.vercel.app"
+        "https://blitz.ws"
     ],
     allow_credentials=True,
     allow_methods=["*"],

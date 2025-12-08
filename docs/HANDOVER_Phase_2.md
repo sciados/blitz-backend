@@ -101,7 +101,7 @@ Deployment:
 1) CORS and 500 masking CORS
 
 - CORS middleware configured early with `allow_origins` including:
-  - <https://blitz-frontend-three.vercel.app>
+  - <https://blitz.ws>
   - <http://localhost:3000>
   - <http://localhost:5173>
 - OPTIONS preflight now returns 200.
