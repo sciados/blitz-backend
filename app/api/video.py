@@ -14,7 +14,7 @@ import json
 from datetime import datetime
 
 from app.db.session import AsyncSessionLocal
-from app.models.user import User
+from app.db.models import User
 from app.core.config.settings import settings
 
 router = APIRouter(prefix="/api/video", tags=["video"])
