@@ -210,7 +210,7 @@ app.include_router(campaigns.router)
 app.include_router(products.router)
 app.include_router(text_router)
 app.include_router(images_router)
-napp.include_router(video.router)  # Video generation API
+app.include_router(video.router)  # Video generation API
 app.include_router(upload.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
