@@ -12,7 +12,7 @@ import logging
 
 from app.core.config.settings import settings
 from app.db.session import engine, Base
-from app.api import auth, campaigns, intelligence, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups, tracking
+from app.api import auth, campaigns, intelligence, video, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups, tracking
 from app.api.content import text_router, images_router
 from app.api import messages, message_requests, affiliates, upload
 from app.api import connections
@@ -210,6 +210,7 @@ app.include_router(campaigns.router)
 app.include_router(products.router)
 app.include_router(text_router)
 app.include_router(images_router)
+napp.include_router(video.router)  # Video generation API
 app.include_router(upload.router)
 app.include_router(intelligence.router)
 app.include_router(compliance.router)
