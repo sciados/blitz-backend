@@ -171,6 +171,7 @@ class Campaign(Base):
     product_intelligence = relationship("ProductIntelligence", back_populates="campaigns")
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     generated_images = relationship("GeneratedImage", cascade="all, delete-orphan")
+    generated_videos = relationship("GeneratedVideo", back_populates="campaign", cascade="all, delete-orphan")
     knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
     analytics = relationship("CampaignAnalytics", back_populates="campaign", cascade="all, delete-orphan")
@@ -227,6 +228,51 @@ class GeneratedImage(Base):
     ai_generation_cost = Column(Float, nullable=True)
     content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# ============================================================================
+# GENERATED VIDEOS MODEL
+# ============================================================================
+
+class GeneratedVideo(Base):
+    __tablename__ = "generated_videos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Video data
+    video_type = Column(String(50), nullable=False)  # text_to_video, image_to_video, slide_video
+    video_url = Column(Text, nullable=False)
+    thumbnail_url = Column(Text, nullable=True)
+
+    # Generation details
+    provider = Column(String(50), nullable=False)    # luma, runway, haiper
+    model = Column(String(100), nullable=False)      # luma-dream-machine, gen3a_turbo, etc.
+    generation_mode = Column(String(50), nullable=False)  # text_to_video, image_to_video, slide_video
+    prompt = Column(Text, nullable=False)
+    script = Column(Text, nullable=True)  # For text_to_video and slide_video modes
+    style = Column(String(50), nullable=True)  # marketing, educational, social
+    duration = Column(Integer, nullable=False)  # seconds
+    aspect_ratio = Column(String(20), nullable=True)  # 16:9, 9:16, 1:1
+    motion_intensity = Column(String(20), nullable=True)  # low, medium, high
+
+    # For image_to_video
+    source_image_url = Column(Text, nullable=True)
+
+    # For slide_video
+    slides_data = Column(JSONB, nullable=True)  # Store slide content as JSON
+
+    # Metadata
+    meta_data = Column("metadata", JSONB, nullable=True)  # Store generation params
+    ai_generation_cost = Column(Float, nullable=True)
+    status = Column(String(50), server_default="processing", nullable=False, index=True)  # processing, completed, failed
+    error_message = Column(Text, nullable=True)
+    content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    campaign = relationship("Campaign", back_populates="generated_videos")
 
 # ============================================================================
 # KNOWLEDGE BASE MODEL (RAG)

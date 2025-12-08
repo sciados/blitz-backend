@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     STABILITY_API_KEY: str
     REPLICATE_API_TOKEN: str
     FAL_API_KEY: str
+    X_API_KEY: str  # PiAPI for Luma video generation
 
     # ==== STORAGE ====
     CLOUDFLARE_ACCOUNT_ID: str

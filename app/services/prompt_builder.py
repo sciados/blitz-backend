@@ -439,15 +439,15 @@ PRODUCT INFORMATION:
                 user_prompt += f"\n\n🎬 VIDEO FORMAT: STORY (15 seconds) - Using timestamps: {timestamp_ranges}"
                 logger.info(f"[PromptBuilder] Story format video detected, using timestamps: {timestamp_ranges}")
             else:
-                # Default: Short-form video (15-20 seconds)
+                # Default: Short-form video (5-20 seconds)
                 timestamp_ranges = {
                     'hook': '[0-3s]',
                     'disclosure': '[3-5s]',
                     'problem': '[5-8s]',
                     'solution': '[8-15s]',
-                    'cta': '[15-18s]'
+                    'cta': '[15-20s]'
                 }
-                user_prompt += f"\n\n🎬 VIDEO FORMAT: SHORT-FORM (15-20 seconds) - Using timestamps: {timestamp_ranges}"
+                user_prompt += f"\n\n🎬 VIDEO FORMAT: SHORT-FORM (5-20 seconds) - Using timestamps: {timestamp_ranges}"
                 logger.info(f"[PromptBuilder] Short-form video detected, using timestamps: {timestamp_ranges}")
 
             user_prompt += f"\n\n" + "=" * 60
