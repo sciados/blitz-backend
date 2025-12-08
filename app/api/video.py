@@ -37,13 +37,15 @@ class VideoGenerateRequest(BaseModel):
     generation_mode: str = Field(default="text_to_video", description="Generation mode: text_to_video, image_to_video, slide_video")
     script: Optional[str] = Field(None, description="Full video script with timestamps (required for text_to_video and slide_video)")
     style: str = Field(default="marketing", description="Video style: marketing, educational, social")
-    duration: int = Field(default=20, ge=5, le=20, description="Video duration in seconds (5-20s for short-form)")
+    duration: int = Field(default=10, ge=5, le=20, description="Video duration in seconds (5-20s for short-form)")
     aspect_ratio: str = Field(default="16:9", description="Aspect ratio: 16:9, 9:16, 1:1")
     # For image_to_video mode
     image_url: Optional[str] = Field(None, description="URL of the source image (required for image_to_video)")
     # For slide_video mode
     slides: Optional[List[Dict[str, Any]]] = Field(None, description="List of slides with text and optionally images (for slide_video)")
     motion_intensity: str = Field(default="medium", description="Motion intensity: low, medium, high")
+    # Optional: Force a specific provider (for testing or user preference)
+    provider: Optional[str] = Field(None, description="Optional: force 'piapi_luma' or 'replicate_veo'")
 
 class VideoGenerateResponse(BaseModel):
     video_id: str
@@ -63,7 +65,45 @@ class VideoStatusResponse(BaseModel):
     error_message: Optional[str] = None
 
 # ============================================================================
-# VIDEO GENERATION SERVICE
+# PROVIDER SELECTION & TIER CHECKING
+# ============================================================================
+
+def select_video_provider(duration: int, user_tier: str = "free", forced_provider: Optional[str] = None) -> str:
+    """
+    Auto-select video provider based on duration and user tier
+
+    Args:
+        duration: Requested video duration in seconds
+        user_tier: User's subscription tier (free, starter, pro, enterprise)
+        forced_provider: Optional override (for testing)
+
+    Returns:
+        Provider name: 'piapi_luma' or 'replicate_veo'
+    """
+    # Allow override for testing
+    if forced_provider in ['piapi_luma', 'replicate_veo']:
+        return forced_provider
+
+    # Free and starter tiers: max 10 seconds
+    if user_tier in ['free', 'starter'] and duration > 10:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "TIER_LIMIT_EXCEEDED",
+                "message": f"Your {user_tier} tier supports videos up to 10 seconds. Upgrade to Pro or Enterprise for 15-20 second videos.",
+                "current_limit": 10,
+                "required_tier": "pro"
+            }
+        )
+
+    # Auto-select provider based on duration
+    if duration <= 10:
+        return "piapi_luma"  # Fast, reliable, cost-effective
+    else:
+        return "replicate_veo"  # Supports long videos (15-20s)
+
+# ============================================================================
+# VIDEO GENERATION SERVICES
 # ============================================================================
 
 class LumaVideoService:
@@ -303,25 +343,25 @@ async def generate_video(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Generate a video from a script using Luma AI
+    Generate a video from a script
 
     This endpoint:
-    1. Validates the user's tier limits
-    2. Initiates video generation with Luma AI
-    3. Returns generation details
-    4. Tracks usage in background
+    1. Checks user's tier limits based on requested duration
+    2. Auto-selects the best provider (PiAPI for 5-10s, Replicate for 15-20s)
+    3. Initiates video generation
+    4. Returns generation details
+    5. Tracks usage in background
     """
     # TODO: Get current user from auth token
-    # For now, using a mock user
+    # For now, using a mock user and tier
     user_id = "mock-user-id"
+    user_tier = "free"  # TODO: Get from user profile
 
-    # TODO: Check user's tier limits
-    # If user has reached video limit, return 429
-
-    # Initialize video service
-    video_service = LumaVideoService()
+    # TODO: Check if user has reached video generation limit
+    # If user has reached limit, return 429
 
     # Validate API key
+    video_service = LumaVideoService()
     if not video_service.api_key:
         raise HTTPException(
             status_code=503,
@@ -329,22 +369,41 @@ async def generate_video(
         )
 
     try:
-        # Generate video using Luma AI
-        generation_result = await video_service.generate_video(
-            generation_mode=request.generation_mode,
-            script=request.script,
-            style=request.style,
+        # Check tier and select provider based on duration
+        selected_provider = select_video_provider(
             duration=request.duration,
-            aspect_ratio=request.aspect_ratio,
-            image_url=request.image_url,
-            slides=request.slides,
-            motion_intensity=request.motion_intensity
+            user_tier=user_tier,
+            forced_provider=request.provider
         )
 
-        # Calculate cost based on Luma AI official pricing (Ray Flash 2, 720p)
-        # $0.24 for 5 seconds = $0.048 per second
-        # Short-form videos (5-20s): ~$0.05 per second
-        cost = round(request.duration * 0.05, 2)
+        # Route to appropriate service
+        if selected_provider == "piapi_luma":
+            # Use PiAPI with Luma AI (5s, 10s)
+            generation_result = await video_service.generate_video(
+                generation_mode=request.generation_mode,
+                script=request.script,
+                style=request.style,
+                duration=request.duration,
+                aspect_ratio=request.aspect_ratio,
+                image_url=request.image_url,
+                slides=request.slides,
+                motion_intensity=request.motion_intensity
+            )
+            # Cost: ~$0.05/second for Luma AI
+            cost = round(request.duration * 0.05, 2)
+            provider_used = "Luma AI (Ray 2)"
+
+        elif selected_provider == "replicate_veo":
+            # TODO: Implement Replicate Veo integration
+            # For now, return error
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "error": "PROVIDER_NOT_IMPLEMENTED",
+                    "message": f"{selected_provider} provider not yet implemented. Currently only PiAPI (5-10s) is available.",
+                    "available_providers": ["piapi_luma"]
+                }
+            )
 
         # Create response
         response = VideoGenerateResponse(
