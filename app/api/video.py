@@ -71,9 +71,9 @@ class LumaVideoService:
 
     def __init__(self):
         self.api_key = settings.X_API_KEY
-        self.base_url = "https://api.piapi.ai/v1"
+        self.base_url = "https://api.piapi.ai"
         self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
             "Content-Type": "application/json"
         }
 
@@ -105,14 +105,11 @@ class LumaVideoService:
             Dict with generation details
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Prepare the request payload for Luma AI
-            payload = {
-                "model": "luma-dream-machine-v1",
-                "generation_mode": generation_mode,
-                "aspect_ratio": aspect_ratio,
-                "duration": duration,
-                "style": style,
-                "motion_intensity": motion_intensity
+            # Prepare the input parameters
+            input_params = {
+                "model_name": "ray-v1",
+                "duration": min(duration, 10),  # PiAPI only supports 5 or 10 seconds
+                "aspect_ratio": aspect_ratio
             }
 
             # Add mode-specific parameters
@@ -122,7 +119,7 @@ class LumaVideoService:
                         status_code=400,
                         detail="Script is required for text_to_video mode"
                     )
-                payload["prompt"] = self._prepare_prompt(script, style, duration)
+                input_params["prompt"] = self._prepare_prompt(script, style, duration)
 
             elif generation_mode == "image_to_video":
                 if not image_url:
@@ -130,10 +127,13 @@ class LumaVideoService:
                         status_code=400,
                         detail="Image URL is required for image_to_video mode"
                     )
-                payload["image_url"] = image_url
-                # For image-to-video, use the script as additional guidance if provided
-                if script:
-                    payload["prompt"] = script
+                input_params["prompt"] = script or ""  # Optional additional prompt
+                input_params["key_frames"] = {
+                    "frame0": {
+                        "type": "image",
+                        "url": image_url
+                    }
+                }
 
             elif generation_mode == "slide_video":
                 if not slides:
@@ -141,17 +141,20 @@ class LumaVideoService:
                         status_code=400,
                         detail="Slides are required for slide_video mode"
                     )
-                payload["slides"] = slides
-                # Combine slide text for context if script not provided
-                if not script and slides:
-                    combined_text = " ".join([slide.get("text", "") for slide in slides])
-                    payload["prompt"] = self._prepare_prompt(combined_text, style, duration)
-                elif script:
-                    payload["prompt"] = self._prepare_prompt(script, style, duration)
+                # Combine slide text for context
+                combined_text = " ".join([slide.get("text", "") for slide in slides[:3]])  # Limit to first 3 slides
+                input_params["prompt"] = self._prepare_prompt(combined_text, style, duration)
+
+            # Build the payload in PiAPI format
+            payload = {
+                "model": "luma",
+                "task_type": "video_generation",
+                "input": input_params
+            }
 
             try:
                 response = await client.post(
-                    f"{self.base_url}/video/generate",
+                    f"{self.base_url}/api/v1/task",
                     headers=self.headers,
                     json=payload
                 )
@@ -162,7 +165,15 @@ class LumaVideoService:
                         detail=f"PiAPI error: {response.text}"
                     )
 
-                return response.json()
+                result = response.json()
+
+                # Extract task ID from response
+                return {
+                    "id": result.get("task_id", str(uuid.uuid4())),
+                    "status": "processing",
+                    "video_url": None,  # Will be available when status is checked
+                    "thumbnail_url": None,
+                }
 
             except httpx.RequestError as e:
                 raise HTTPException(
@@ -189,10 +200,10 @@ class LumaVideoService:
 
     async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
         """
-        Check the status of a video generation
+        Check the status of a video generation using PiAPI
 
         Args:
-            generation_id: The generation ID returned by generate_video
+            generation_id: The task ID returned by generate_video
 
         Returns:
             Dict with status details
@@ -200,7 +211,7 @@ class LumaVideoService:
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.get(
-                    f"{self.base_url}/video/status/{generation_id}",
+                    f"{self.base_url}/api/v1/task/{generation_id}",
                     headers=self.headers
                 )
 
@@ -210,7 +221,48 @@ class LumaVideoService:
                         detail=f"Failed to get status: {response.text}"
                     )
 
-                return response.json()
+                result = response.json()
+
+                # Extract data from response
+                data = result.get("data", {})
+                status = data.get("status", "unknown")
+
+                # Map PiAPI status to our status format
+                status_mapping = {
+                    "Pending": "processing",
+                    "Processing": "processing",
+                    "Completed": "completed",
+                    "Failed": "failed",
+                    "Staged": "processing"
+                }
+                mapped_status = status_mapping.get(status, "unknown")
+
+                # Extract output data if available
+                output = data.get("output", {})
+                video_url = None
+                thumbnail_url = None
+
+                # Check different possible output structures
+                if isinstance(output, dict):
+                    # Try common video URL fields
+                    video_url = (
+                        output.get("video_url")
+                        or output.get("video")
+                        or (output.get("files", [{}])[0].get("url") if output.get("files") else None)
+                    )
+                    thumbnail_url = (
+                        output.get("thumbnail_url")
+                        or output.get("thumbnail")
+                        or (output.get("images", [{}])[0].get("url") if output.get("images") else None)
+                    )
+
+                return {
+                    "status": mapped_status,
+                    "video_url": video_url,
+                    "thumbnail_url": thumbnail_url,
+                    "progress": 100 if mapped_status == "completed" else 0,
+                    "error": data.get("error", {}).get("message") if data.get("error") else None
+                }
 
             except httpx.RequestError as e:
                 raise HTTPException(
