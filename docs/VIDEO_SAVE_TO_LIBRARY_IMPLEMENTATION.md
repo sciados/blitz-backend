@@ -9,10 +9,12 @@ I have successfully implemented the "Save to Library" functionality for videos, 
 ### 1. Backend Changes
 
 #### Database Schema Update
-- **Migration File**: `alembic/versions/031_add_video_r2_storage_fields.py`
+- **Migration File**: `alembic/versions/032_add_video_r2_storage_fields_idempotent.py`
 - **New Columns Added to `video_generations` Table**:
   - `saved_to_r2` (BOOLEAN, default FALSE, indexed)
   - `r2_key` (VARCHAR(255))
+
+**Important**: Migration 032 is **idempotent** - it checks if columns exist before adding them, making it safe to run multiple times or in production environments where columns might already exist.
 
 #### SQLAlchemy Model Update
 - **File**: `app/db/models.py`

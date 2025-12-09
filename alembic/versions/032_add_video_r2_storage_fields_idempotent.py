@@ -1,7 +1,7 @@
 """Add video R2 storage fields (idempotent version)
 
 Revision ID: 032
-Revises: 031
+Revises: 030
 Create Date: 2025-12-09
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '032'
-down_revision = '031'
+down_revision = '030'
 branch_labels = None
 depends_on = None
 
