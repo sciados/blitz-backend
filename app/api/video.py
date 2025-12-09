@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import httpx
 import asyncio
 import uuid
@@ -1146,17 +1147,17 @@ async def get_video_library(
 
     # Query database for user's videos
     result = await db.execute(
-        """
-        SELECT id, task_id, provider, model_name, generation_mode, prompt, script,
-               style, aspect_ratio, requested_duration, actual_duration, video_url,
-               video_raw_url, thumbnail_url, last_frame_url, video_width, video_height,
-               status, progress, cost, created_at, started_at, completed_at, error_message,
-               saved_to_r2, r2_key
-        FROM video_generations
-        WHERE user_id = :user_id
-        ORDER BY created_at DESC
-        LIMIT :limit OFFSET :offset
-        """,
+        text("""
+            SELECT id, task_id, provider, model_name, generation_mode, prompt, script,
+                   style, aspect_ratio, requested_duration, actual_duration, video_url,
+                   video_raw_url, thumbnail_url, last_frame_url, video_width, video_height,
+                   status, progress, cost, created_at, started_at, completed_at, error_message,
+                   saved_to_r2, r2_key
+            FROM video_generations
+            WHERE user_id = :user_id
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+        """),
         {
             "user_id": user_id,
             "limit": per_page,
@@ -1167,7 +1168,7 @@ async def get_video_library(
 
     # Get total count
     count_result = await db.execute(
-        "SELECT COUNT(*) FROM video_generations WHERE user_id = :user_id",
+        text("SELECT COUNT(*) FROM video_generations WHERE user_id = :user_id"),
         {"user_id": user_id}
     )
     total = count_result.fetchone()[0]
@@ -1266,7 +1267,7 @@ async def update_video_status(
     try:
         # Get video from database
         result = await db.execute(
-            "SELECT task_id FROM video_generations WHERE id = :id",
+            text("SELECT task_id FROM video_generations WHERE id = :id"),
             {"id": video_id}
         )
         video_record = result.fetchone()
@@ -1322,14 +1323,14 @@ async def update_video_status(
 
         # Execute update
         await db.execute(
-            "UPDATE video_generations SET "
-            "status = :status, progress = :progress, "
-            "video_url = :video_url, video_raw_url = :video_raw_url, "
-            "thumbnail_url = :thumbnail_url, last_frame_url = :last_frame_url, "
-            "video_width = :video_width, video_height = :video_height, "
-            "completed_at = :completed_at, error_message = :error_message, "
-            "error_code = :error_code "
-            "WHERE id = :id",
+            text("UPDATE video_generations SET "
+                 "status = :status, progress = :progress, "
+                 "video_url = :video_url, video_raw_url = :video_raw_url, "
+                 "thumbnail_url = :thumbnail_url, last_frame_url = :last_frame_url, "
+                 "video_width = :video_width, video_height = :video_height, "
+                 "completed_at = :completed_at, error_message = :error_message, "
+                 "error_code = :error_code "
+                 "WHERE id = :id"),
             {**update_data, "id": video_id}
         )
         await db.commit()
@@ -1352,7 +1353,7 @@ async def update_video_status_hunyuan(
     try:
         # Get video from database
         result = await db.execute(
-            "SELECT task_id FROM video_generations WHERE id = :id",
+            text("SELECT task_id FROM video_generations WHERE id = :id"),
             {"id": video_id}
         )
         video_record = result.fetchone()
@@ -1426,7 +1427,7 @@ async def update_video_status_wanx(
     try:
         # Get video from database
         result = await db.execute(
-            "SELECT task_id FROM video_generations WHERE id = :id",
+            text("SELECT task_id FROM video_generations WHERE id = :id"),
             {"id": video_id}
         )
         video_record = result.fetchone()
