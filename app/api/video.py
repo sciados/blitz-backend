@@ -417,7 +417,7 @@ class HunyuanVideoService:
             # Determine task type
             task_type = "txt2video"
             if generation_mode == "image_to_video" and image_url:
-                task_type = "img2video"
+                task_type = "img2video-concat"
                 input_params["image"] = image_url
 
             request_data = {
@@ -593,7 +593,12 @@ class WanxVideoService:
 
             # Add mode-specific parameters
             if generation_mode == "image_to_video" and image_url:
-                task_type = f"img2video-{model_variant}"
+                # WanX only supports img2video with 14b models
+                if model_variant == "1.3b":
+                    # No img2video support for 1.3b, fallback to 14b
+                    task_type = "img2video-14b"
+                else:
+                    task_type = f"img2video-{model_variant}"
                 input_params["image"] = image_url
 
             request_data = {
