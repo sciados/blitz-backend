@@ -1,5 +1,6 @@
 # app/main.py
 # with added landing pages and admin routes
+# Main application file for the Blitz API using FastAPI
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
