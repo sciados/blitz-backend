@@ -1155,10 +1155,16 @@ async def save_video_to_library(
 async def get_video_library(
     page: int = 1,
     per_page: int = 20,
+    campaign_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get user's generated videos
+    Get user's generated videos, optionally filtered by campaign
+
+    Args:
+        page: Page number (default: 1)
+        per_page: Videos per page (default: 20)
+        campaign_id: Optional campaign ID to filter videos
 
     Returns:
         Paginated list of generated videos
@@ -1169,32 +1175,39 @@ async def get_video_library(
     # Calculate offset for pagination
     offset = (page - 1) * per_page
 
+    # Build query conditions
+    where_conditions = ["user_id = :user_id"]
+    query_params = {
+        "user_id": user_id,
+        "limit": per_page,
+        "offset": offset
+    }
+
+    # Add campaign filter if provided
+    if campaign_id:
+        where_conditions.append("campaign_id = :campaign_id")
+        query_params["campaign_id"] = campaign_id
+
     # Query database for user's videos
     result = await db.execute(
-        text("""
+        text(f"""
             SELECT id, task_id, provider, model_name, generation_mode, prompt, script,
                    style, aspect_ratio, requested_duration, actual_duration, video_url,
                    video_raw_url, thumbnail_url, last_frame_url, video_width, video_height,
                    status, progress, cost, created_at, started_at, completed_at, error_message,
-                   saved_to_r2, r2_key
+                   saved_to_r2, r2_key, campaign_id
             FROM video_generations
-            WHERE user_id = :user_id
+            WHERE {" AND ".join(where_conditions)}
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
         """),
-        {
-            "user_id": user_id,
-            "limit": per_page,
-            "offset": offset
-        }
+        query_params
     )
     videos = result.fetchall()
 
     # Get total count
-    count_result = await db.execute(
-        text("SELECT COUNT(*) FROM video_generations WHERE user_id = :user_id"),
-        {"user_id": user_id}
-    )
+    count_query = "SELECT COUNT(*) FROM video_generations WHERE " + " AND ".join(where_conditions)
+    count_result = await db.execute(text(count_query), query_params)
     total = count_result.fetchone()[0]
 
     # Format videos for response
@@ -1226,7 +1239,8 @@ async def get_video_library(
             "completed_at": video[22],
             "error_message": video[23],
             "saved_to_r2": video[24],
-            "r2_key": video[25]
+            "r2_key": video[25],
+            "campaign_id": video[26]
         })
 
     return {
