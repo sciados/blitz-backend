@@ -135,14 +135,21 @@ Content-Type: application/json
 
 ### 1. Run Database Migration
 
-In production (Railway), the migration runs automatically on deployment. To run manually:
+**Production (Railway)**: The migration will run automatically on deployment.
 
+**Manual Run**:
 ```bash
 cd /path/to/blitz-backend
 alembic upgrade head
 ```
 
-**Note**: Requires all environment variables configured in `.env` or Railway dashboard.
+**Note**: Migration 032 is **idempotent** and will:
+- ✅ Check if columns already exist
+- ✅ Skip adding them if they exist
+- ✅ Only add missing columns
+- ✅ Work even if run multiple times safely
+
+**If migration fails**: Ensure you're using migration 032 (not 031). Migration 031 was removed to avoid conflicts.
 
 ### 2. Generate Test Video
 
@@ -239,12 +246,16 @@ curl http://localhost:8000/api/video/library
 ## Files Modified
 
 ### Backend
-1. `alembic/versions/031_add_video_r2_storage_fields.py` (NEW)
-2. `app/db/models.py` (UPDATED)
-3. `app/api/video.py` (UPDATED)
+1. `alembic/versions/032_add_video_r2_storage_fields_idempotent.py` (NEW - idempotent migration)
+2. `alembic/versions/031_add_video_r2_storage_fields.py` (REMOVED - caused conflicts)
+3. `app/db/models.py` (UPDATED)
+4. `app/api/video.py` (UPDATED)
 
 ### Frontend
 1. `src/app/(dashboard)/content/video/library/page.tsx` (UPDATED)
+
+### Migration Chain
+- **030** → **032** (skips 031 which was removed)
 
 ## Key Features
 
