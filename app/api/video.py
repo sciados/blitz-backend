@@ -1261,7 +1261,7 @@ async def save_video_generation_to_db(
         provider=provider,
         model_name=model_name,
         generation_mode=request.generation_mode,
-        prompt=None,  # Will be updated when status is checked
+        prompt=request.script,  # Use script as prompt
         script=request.script,
         style=request.style,
         aspect_ratio=request.aspect_ratio,

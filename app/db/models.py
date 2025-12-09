@@ -925,7 +925,7 @@ class VideoGeneration(Base):
 
     # Request parameters
     generation_mode = Column(String(50), nullable=False)  # 'text_to_video', 'image_to_video', 'slide_video'
-    prompt = Column(Text, nullable=True)
+    prompt = Column(Text, nullable=False)
     script = Column(Text, nullable=True)
     style = Column(String(50), nullable=True)
     aspect_ratio = Column(String(10), nullable=True)
