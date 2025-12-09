@@ -1086,7 +1086,60 @@ async def save_video_to_library(
                 saved_at=datetime.utcnow()
             )
 
-        # Validate video URL exists
+        # If video_url is missing from database, re-check status with provider
+        if not video_url:
+            logger.info(f"Video URL not in database, re-checking status for task {task_id}...")
+
+            # Determine which service to use based on provider
+            if provider == "piapi_hunyuan_fast" or provider == "piapi_hunyuan":
+                video_service = HunyuanVideoService()
+            elif provider == "piapi_wanx":
+                video_service = WanxVideoService()
+            else:
+                # Default to Hunyuan for backward compatibility
+                video_service = HunyuanVideoService()
+
+            # Get fresh status from provider
+            status_result = await video_service.get_generation_status(task_id)
+
+            # Update database with fresh status and URLs
+            update_data = {
+                "status": status_result.get("status"),
+                "progress": status_result.get("progress", 0),
+                "video_url": status_result.get("video_url"),
+                "thumbnail_url": status_result.get("thumbnail_url")
+            }
+
+            if status_result.get("status") == "completed":
+                update_data["completed_at"] = datetime.utcnow()
+
+            # Update database
+            await db.execute(
+                text("""
+                    UPDATE video_generations
+                    SET status = :status, progress = :progress, video_url = :video_url,
+                        thumbnail_url = :thumbnail_url,
+                        completed_at = COALESCE(completed_at, :completed_at)
+                    WHERE id = :id
+                """),
+                {
+                    "id": video_id,
+                    "status": update_data["status"],
+                    "progress": update_data["progress"],
+                    "video_url": update_data["video_url"],
+                    "thumbnail_url": update_data["thumbnail_url"],
+                    "completed_at": update_data.get("completed_at")
+                }
+            )
+            await db.commit()
+
+            # Refresh video_url from updated database
+            video_url = update_data["video_url"]
+            thumbnail_url = update_data["thumbnail_url"]
+
+            logger.info(f"Updated video {video_id} with URL from provider")
+
+        # Validate video URL exists after update
         if not video_url:
             raise HTTPException(
                 status_code=400,
