@@ -3,7 +3,7 @@ Video Generation API
 Generate videos using Luma AI via PiAPI
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +38,7 @@ async def get_db() -> AsyncSession:
 # ============================================================================
 
 class VideoGenerateRequest(BaseModel):
-    campaign_id: str
+    campaign_id: Union[str, int]
     generation_mode: str = Field(default="text_to_video", description="Generation mode: text_to_video, image_to_video, slide_video")
     script: Optional[str] = Field(None, description="Full video script with timestamps (required for text_to_video and slide_video)")
     style: str = Field(default="marketing", description="Video style: marketing, educational, social")
@@ -740,6 +740,19 @@ async def generate_video(
     user_id = 1  # TODO: Get from auth token
     user_tier = "starter"  # TODO: Get from user profile
 
+    # Validate request parameters
+    if request.generation_mode == "text_to_video" and not request.script:
+        raise HTTPException(
+            status_code=422,
+            detail="Script is required for text_to_video mode"
+        )
+
+    if request.generation_mode == "image_to_video" and not request.image_url:
+        raise HTTPException(
+            status_code=422,
+            detail="Image URL is required for image_to_video mode"
+        )
+
     # TODO: Check if user has reached video generation limit
     # If user has reached limit, return 429
 
@@ -755,6 +768,17 @@ async def generate_video(
         )
 
     try:
+        # Convert campaign_id to int, handling both string and int inputs
+        campaign_id_int = None
+        if request.campaign_id:
+            try:
+                campaign_id_int = int(request.campaign_id)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid campaign_id: {request.campaign_id}. Must be a number."
+                )
+
         # Check tier and select provider based on duration
         selected_provider = select_video_provider(
             duration=request.duration,
@@ -782,7 +806,7 @@ async def generate_video(
             # Save to database
             video_gen = await save_video_generation_to_db(
                 user_id=user_id,
-                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                campaign_id=campaign_id_int,
                 task_id=generation_result["id"],
                 provider=selected_provider,
                 model_name="ray-v1",
@@ -818,7 +842,7 @@ async def generate_video(
             # Save to database
             video_gen = await save_video_generation_to_db(
                 user_id=user_id,
-                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                campaign_id=campaign_id_int,
                 task_id=generation_result["id"],
                 provider=selected_provider,
                 model_name="hunyuan-fast",
@@ -854,7 +878,7 @@ async def generate_video(
             # Save to database
             video_gen = await save_video_generation_to_db(
                 user_id=user_id,
-                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                campaign_id=campaign_id_int,
                 task_id=generation_result["id"],
                 provider=selected_provider,
                 model_name="hunyuan-standard",
@@ -890,7 +914,7 @@ async def generate_video(
             # Save to database
             video_gen = await save_video_generation_to_db(
                 user_id=user_id,
-                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                campaign_id=campaign_id_int,
                 task_id=generation_result["id"],
                 provider=selected_provider,
                 model_name="wanx-1.3b",
@@ -926,7 +950,7 @@ async def generate_video(
             # Save to database
             video_gen = await save_video_generation_to_db(
                 user_id=user_id,
-                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                campaign_id=campaign_id_int,
                 task_id=generation_result["id"],
                 provider=selected_provider,
                 model_name="wanx-14b",
