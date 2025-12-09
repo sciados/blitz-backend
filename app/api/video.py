@@ -1549,12 +1549,12 @@ async def update_video_status_hunyuan(
 
         # Execute update
         await db.execute(
-            "UPDATE video_generations SET "
+            text("UPDATE video_generations SET "
             "status = :status, progress = :progress, "
             "video_url = :video_url, thumbnail_url = :thumbnail_url, "
             "completed_at = :completed_at, error_message = :error_message, "
             "error_code = :error_code "
-            "WHERE id = :id",
+            "WHERE id = :id"),
             {**update_data, "id": video_id}
         )
         await db.commit()
@@ -1623,12 +1623,12 @@ async def update_video_status_wanx(
 
         # Execute update
         await db.execute(
-            "UPDATE video_generations SET "
+            text("UPDATE video_generations SET "
             "status = :status, progress = :progress, "
             "video_url = :video_url, thumbnail_url = :thumbnail_url, "
             "completed_at = :completed_at, error_message = :error_message, "
             "error_code = :error_code "
-            "WHERE id = :id",
+            "WHERE id = :id"),
             {**update_data, "id": video_id}
         )
         await db.commit()
