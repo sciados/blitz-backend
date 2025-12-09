@@ -6,12 +6,12 @@ Use-case routing, fallback, and basic health-aware selection.
 Environment-driven configuration so you can rotate providers at deploy time.
 
 ENV EXAMPLES (Railway):
-  AI_CHAT_FAST="google:gemini-2.5-flash-lite,google:gemini-2.5-flash,groq:llama-3.3-70b-versatile,xai:grok-beta,together:llama-3.2-3b-instruct-turbo,openai:gpt-4o-mini"
-  AI_CHAT_QUALITY="google:gemini-3-pro,anthropic:claude-3.5-sonnet-20241022,openai:gpt-4.1,deepseek:deepseek-reasoner"
+  AI_CHAT_FAST="groq:llama-3.3-70b-versatile,xai:grok-beta,together:llama-3.2-3b-instruct-turbo,openai:gpt-4o-mini"
+  AI_CHAT_QUALITY="anthropic:claude-3.5-sonnet-20241022,openai:gpt-4.1,deepseek:deepseek-reasoner"
   AI_EMBEDDINGS="openai:text-embedding-3-small,cohere:embed-english-v3.0"
   AI_VISION="groq:llama-3.2-vision,openai:gpt-4o"
   AI_IMAGE_GEN="fal:sdxl-turbo,stability:sd-3.5-medium,replicate:flux"
-  AI_VIDEO_GEN="piapi:hunyuan-fast,piapi:hunyuan-standard,piapi:wanx-1.3b,piapi:wanx-14b,replicate:luma-dream-machine,aimlapi:runway-gen3a-turbo,fal:video-01"
+  AI_VIDEO_GEN="replicate:luma-dream-machine,aimlapi:runway-gen3a-turbo,fal:video-01"
 
 Flags in settings.py:
   AI_COST_OPTIMIZATION: bool
@@ -59,11 +59,6 @@ _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
     ("groq", "llama-3.3-70b-versatile"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
     ("xai", "grok-beta"): {"in": 0.00, "out": 0.00, "ctx": 128_000, "tags": ["fast"]},
 
-    # Google Gemini (99% cost savings - DEFAULT for text)
-    ("google", "gemini-2.5-flash"): {"in": 0.30, "out": 2.50, "ctx": 1_000_000, "tags": ["fast", "text", "multimodal"]},
-    ("google", "gemini-2.5-flash-lite"): {"in": 0.10, "out": 0.40, "ctx": 1_000_000, "tags": ["fast", "text", "multimodal"]},
-    ("google", "gemini-3-pro"): {"in": 3.00, "out": 12.00, "ctx": 2_000_000, "tags": ["quality", "text", "multimodal"]},
-
     # CHEAPEST Paid Providers (Your API keys available)
     ("together", "llama-3.2-3b-instruct-turbo"): {"in": 0.10, "out": 0.10, "ctx": 128_000, "tags": ["fast"]},
     ("minimax", "abab6.5s-chat"): {"in": 0.12, "out": 0.12, "ctx": 245_760, "tags": ["fast"]},
@@ -98,14 +93,6 @@ _DEFAULTS: Dict[tuple[str, str], Dict[str, Any]] = {
     ("replicate", "luma-dream-machine"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
     ("fal", "video-01"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
     ("fal", "stable-video-diffusion"): {"in": 0.00, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
-
-    # Hunyuan Video (PiAPI) - Cost-effective
-    ("piapi", "hunyuan-fast"): {"in": 0.03, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
-    ("piapi", "hunyuan-standard"): {"in": 0.09, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
-
-    # WanX Video (Alibaba Cloud) - Premium quality
-    ("piapi", "wanx-1.3b"): {"in": 0.12, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
-    ("piapi", "wanx-14b"): {"in": 0.28, "out": 0.00, "ctx": 0, "tags": ["video_gen"]},
 }
 
 # ------------------------------
@@ -482,39 +469,29 @@ class AIRouter:
         # Enterprise: All models including specialized ones
         tier_providers = {
             "free": [
-                "google:gemini-2.5-flash-lite",  # Cost-effective default
-                "google:gemini-2.5-flash",      # Fallback
-                "groq:llama-3.3-70b-versatile", # Fallback
-                "xai:grok-beta",                # Fallback
+                "groq:llama-3.3-70b-versatile",
+                "xai:grok-beta",
             ],
             "starter": [
-                "google:gemini-2.5-flash-lite",  # Fast and cost-effective
-                "google:gemini-2.5-flash",      # Higher quality
-                "openai:gpt-4o-mini",           # Premium fallback
-                "anthropic:claude-3-haiku-20240307",  # Premium fallback
-                "groq:llama-3.3-70b-versatile", # Fallback
-                "xai:grok-beta",                # Fallback
+                "openai:gpt-4o-mini",
+                "anthropic:claude-3-haiku-20240307",
+                "groq:llama-3.3-70b-versatile",  # Fallback
+                "xai:grok-beta",  # Fallback
             ],
             "pro": [
-                "google:gemini-3-pro",          # High quality for complex content
-                "google:gemini-2.5-flash",      # Fast option
-                "google:gemini-2.5-flash-lite", # Cost-effective option
-                "openai:gpt-4o-mini",           # Premium fallback
-                "anthropic:claude-3-haiku-20240307",  # Premium fallback
-                "deepseek:deepseek-reasoner",   # Reasoning for complex content
+                "openai:gpt-4o-mini",
+                "anthropic:claude-3-haiku-20240307",
+                "deepseek:deepseek-reasoner",  # Reasoning for complex content
                 "together:llama-3.2-3b-instruct-turbo",
                 "minimax:abab6.5s-chat",
                 "groq:llama-3.3-70b-versatile",
                 "xai:grok-beta",
             ],
             "enterprise": [
-                "google:gemini-3-pro",          # Highest quality
-                "google:gemini-2.5-flash",      # Fast premium
-                "google:gemini-2.5-flash-lite", # Cost-effective
-                "openai:gpt-4.1",               # Premium
-                "anthropic:claude-3.5-sonnet-20241022",  # Premium
                 "openai:gpt-4o-mini",
                 "anthropic:claude-3-haiku-20240307",
+                "openai:gpt-4.1",
+                "anthropic:claude-3.5-sonnet-20241022",
                 "deepseek:deepseek-reasoner",
                 "together:llama-3.2-3b-instruct-turbo",
                 "minimax:abab6.5s-chat",
@@ -664,26 +641,6 @@ class AIRouter:
                 client = openai.AsyncOpenAI(
                     api_key=os.getenv("DEEPSEEK_API_KEY"),
                     base_url="https://api.deepseek.com/v1",
-                )
-                messages = []
-                if system_prompt:
-                    messages.append({"role": "system", "content": system_prompt})
-                messages.append({"role": "user", "content": user_prompt})
-
-                response = await client.chat.completions.create(
-                    model=spec.model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature
-                )
-                self.last_used_model = spec.model
-                return response.choices[0].message.content
-
-            elif spec.name == "google":
-                import openai
-                client = openai.AsyncOpenAI(
-                    api_key=os.getenv("GOOGLE_AI_API_KEY"),
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                 )
                 messages = []
                 if system_prompt:

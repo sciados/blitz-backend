@@ -11,11 +11,14 @@ import httpx
 import asyncio
 import uuid
 import json
+import logging
 from datetime import datetime
 
 from app.db.session import AsyncSessionLocal
-from app.db.models import User
+from app.db.models import User, VideoGeneration
 from app.core.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/video", tags=["video"])
 
@@ -78,10 +81,10 @@ def select_video_provider(duration: int, user_tier: str = "starter", forced_prov
         forced_provider: Optional override (for testing)
 
     Returns:
-        Provider name: 'piapi_luma' or 'replicate_veo'
+        Provider name: 'piapi_luma', 'piapi_hunyuan', 'piapi_wanx', or 'replicate_veo'
     """
     # Allow override for testing
-    if forced_provider in ['piapi_luma', 'replicate_veo']:
+    if forced_provider in ['piapi_luma', 'piapi_hunyuan_fast', 'piapi_hunyuan_standard', 'piapi_wanx_1.3b', 'piapi_wanx_14b', 'replicate_veo']:
         return forced_provider
 
     # Starter tier: max 10 seconds
@@ -90,17 +93,28 @@ def select_video_provider(duration: int, user_tier: str = "starter", forced_prov
             status_code=403,
             detail={
                 "error": "TIER_LIMIT_EXCEEDED",
-                "message": f"Your Starter plan ($7/month) supports videos up to 10 seconds. Upgrade to Pro or Enterprise for 15-20 second videos.",
+                "message": f"Your Starter plan ($7/month) supports videos up to 10 seconds. Upgrade to Pro or Enterprise for longer videos.",
                 "current_limit": 10,
                 "required_tier": "pro"
             }
         )
 
-    # Auto-select provider based on duration
+    # Auto-select provider based on duration and tier
+    # Starter/Pro tiers with ≤10s: Use Hunyuan (cheapest)
     if duration <= 10:
-        return "piapi_luma"  # Fast, reliable, cost-effective
+        return "piapi_hunyuan_fast"  # $0.03 - Most cost-effective
+
+    # Pro tier with 10-60s: Use WanX 1.3B (good quality, competitive price)
+    elif duration <= 60:
+        return "piapi_wanx_1.3b"  # $0.12 - Best value for longer videos
+
+    # Enterprise tier >60s: Use WanX 14B (premium quality)
+    elif duration > 60 and user_tier == 'enterprise':
+        return "piapi_wanx_14b"  # $0.28 - Premium quality for long videos
+
+    # Default fallback for edge cases
     else:
-        return "replicate_veo"  # Supports long videos (15-20s)
+        return "piapi_wanx_1.3b"  # Use WanX 1.3B as fallback
 
 # ============================================================================
 # VIDEO GENERATION SERVICES
@@ -339,6 +353,350 @@ class LumaVideoService:
                     detail=f"Failed to connect to PiAPI: {str(e)}"
                 )
 
+
+class HunyuanVideoService:
+    """Service for generating videos using Hunyuan Video via PiAPI"""
+
+    def __init__(self):
+        self.api_key = settings.X_API_KEY
+        self.base_url = "https://api.piapi.ai"
+        self.headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json"
+        }
+
+    async def generate_video(
+        self,
+        generation_mode: str,
+        script: Optional[str],
+        style: str,
+        duration: int,
+        aspect_ratio: str,
+        image_url: Optional[str] = None,
+        slides: Optional[List[Dict[str, Any]]] = None,
+        motion_intensity: str = "medium",
+        model_variant: str = "standard"
+    ) -> Dict[str, Any]:
+        """
+        Generate video using Hunyuan Video via PiAPI
+
+        Args:
+            generation_mode: text_to_video, image_to_video, or slide_video
+            script: Video script with timestamps (required for text_to_video and slide_video)
+            style: marketing, educational, or social
+            duration: Video duration in seconds
+            aspect_ratio: 16:9, 9:16, or 1:1
+            image_url: URL of source image (required for image_to_video)
+            slides: List of slides with text/images (for slide_video)
+            motion_intensity: low, medium, or high
+            model_variant: 'standard' (only variant available)
+
+        Returns:
+            Dict with generation details
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Prepare the input parameters
+            # Hunyuan uses standard /api/v1/task endpoint
+            input_params = {
+                "prompt": self._prepare_prompt(script, style, duration),
+                "aspect_ratio": aspect_ratio
+            }
+
+            # Determine task type
+            task_type = "txt2video"
+            if generation_mode == "image_to_video" and image_url:
+                task_type = "img2video"
+                input_params["image"] = image_url
+
+            request_data = {
+                "model": "Qubico/hunyuan",
+                "task_type": task_type,
+                "input": input_params
+            }
+
+            logger.info(f"Generating video with Hunyuan: {input_params['prompt'][:100]}...")
+
+            response = await client.post(
+                f"{self.base_url}/api/v1/task",
+                headers=self.headers,
+                json=request_data
+            )
+
+            if response.status_code != 200:
+                error_detail = response.text
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get("message", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Hunyuan video generation failed: {error_detail}"
+                )
+
+            result = response.json()
+            task_id = result.get("data", {}).get("task_id")
+
+            if not task_id:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No task ID returned from Hunyuan video generation"
+                )
+
+            logger.info(f"Hunyuan video generation started: {task_id}")
+
+            return {
+                "id": task_id,
+                "status": "processing",
+                "actual_duration": 5  # Hunyuan generates 5-second videos
+            }
+
+    def _prepare_prompt(self, script: Optional[str], style: str, duration: int) -> str:
+        """Prepare prompt for Hunyuan video generation"""
+        if not script:
+            script = f"Create a {style} video"
+
+        style_prompts = {
+            "marketing": "Professional, engaging marketing video with smooth transitions",
+            "educational": "Clear, informative educational video with clean visuals",
+            "social": "Dynamic, eye-catching social media video optimized for mobile"
+        }
+
+        base_prompt = style_prompts.get(style, style_prompts["marketing"])
+        return f"{base_prompt}. Duration: {duration}s. Script: {script}"
+
+    async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
+        """
+        Check the status of a Hunyuan video generation
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                response = await client.get(
+                    f"{self.base_url}/api/v1/task/{generation_id}",
+                    headers=self.headers
+                )
+
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Failed to get Hunyuan status: {response.text}"
+                    )
+
+                result = response.json()
+                data = result.get("data", {})
+                status = data.get("status", "unknown")
+
+                # Map Hunyuan status to our format
+                status_mapping = {
+                    "pending": "processing",
+                    "processing": "processing",
+                    "completed": "completed",
+                    "failed": "failed"
+                }
+                mapped_status = status_mapping.get(status.lower(), "unknown")
+
+                # Extract video URLs
+                output = data.get("output", {})
+                video_url = None
+                thumbnail_url = None
+
+                if isinstance(output, dict):
+                    if "video_url" in output:
+                        video_url = output.get("video_url")
+                    # Hunyuan may not provide thumbnail separately
+
+                return {
+                    "status": mapped_status,
+                    "video_url": video_url,
+                    "thumbnail_url": thumbnail_url,
+                    "progress": 100 if mapped_status == "completed" else 0,
+                    "error": data.get("error", {}).get("message") if data.get("error") else None
+                }
+
+            except httpx.RequestError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Failed to connect to PiAPI Hunyuan: {str(e)}"
+                )
+
+
+class WanxVideoService:
+    """Service for generating videos using WanX via PiAPI"""
+
+    def __init__(self):
+        self.api_key = settings.X_API_KEY
+        self.base_url = "https://api.piapi.ai"
+        self.headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json"
+        }
+
+    async def generate_video(
+        self,
+        generation_mode: str,
+        script: Optional[str],
+        style: str,
+        duration: int,
+        aspect_ratio: str,
+        image_url: Optional[str] = None,
+        slides: Optional[List[Dict[str, Any]]] = None,
+        motion_intensity: str = "medium",
+        model_variant: str = "1.3b"
+    ) -> Dict[str, Any]:
+        """
+        Generate video using WanX via PiAPI
+
+        Args:
+            generation_mode: text_to_video, image_to_video, or slide_video
+            script: Video script with timestamps (required for text_to_video and slide_video)
+            style: marketing, educational, or social
+            duration: Video duration in seconds (5 or 60)
+            aspect_ratio: 16:9 or 9:16 (WanX limitation)
+            image_url: URL of source image (required for image_to_video)
+            slides: List of slides with text/images (for slide_video)
+            motion_intensity: low, medium, or high
+            model_variant: '1.3b' or '14b'
+
+        Returns:
+            Dict with generation details
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Validate aspect ratio (WanX only supports 16:9 and 9:16)
+            if aspect_ratio not in ["16:9", "9:16"]:
+                # Default to 16:9 if invalid
+                aspect_ratio = "16:9"
+
+            # Select task type based on variant
+            task_type = f"txt2video-{model_variant}"
+
+            # Determine actual duration
+            # WanX generates fixed duration: 5s for all models
+            actual_duration = 5
+
+            # Prepare the input parameters
+            input_params = {
+                "prompt": self._prepare_prompt(script, style, actual_duration),
+                "aspect_ratio": aspect_ratio
+            }
+
+            # Add mode-specific parameters
+            if generation_mode == "image_to_video" and image_url:
+                task_type = f"img2video-{model_variant}"
+                input_params["image"] = image_url
+
+            request_data = {
+                "model": "Qubico/wanx",
+                "task_type": task_type,
+                "input": input_params
+            }
+
+            logger.info(f"Generating video with WanX ({model_variant}): {input_params['prompt'][:100]}...")
+
+            response = await client.post(
+                f"{self.base_url}/api/v1/task",
+                headers=self.headers,
+                json=request_data
+            )
+
+            if response.status_code != 200:
+                error_detail = response.text
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get("message", error_detail)
+                except:
+                    pass
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"WanX video generation failed: {error_detail}"
+                )
+
+            result = response.json()
+            task_id = result.get("data", {}).get("task_id")
+
+            if not task_id:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No task ID returned from WanX video generation"
+                )
+
+            logger.info(f"WanX video generation started: {task_id}")
+
+            return {
+                "id": task_id,
+                "status": "processing",
+                "actual_duration": actual_duration
+            }
+
+    def _prepare_prompt(self, script: Optional[str], style: str, duration: int) -> str:
+        """Prepare prompt for WanX video generation"""
+        if not script:
+            script = f"Create a {style} video"
+
+        style_prompts = {
+            "marketing": "Professional, engaging marketing video with smooth transitions and high production value",
+            "educational": "Clear, informative educational video with clean visuals and easy-to-read text",
+            "social": "Dynamic, eye-catching social media video optimized for mobile with bold visuals"
+        }
+
+        base_prompt = style_prompts.get(style, style_prompts["marketing"])
+        duration_note = "5-second clip" if duration == 5 else "1-minute video"
+        return f"{base_prompt}. {duration_note}. Script: {script}"
+
+    async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
+        """
+        Check the status of a WanX video generation
+        """
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                response = await client.get(
+                    f"{self.base_url}/api/v1/task/{generation_id}",
+                    headers=self.headers
+                )
+
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Failed to get WanX status: {response.text}"
+                    )
+
+                result = response.json()
+                data = result.get("data", {})
+                status = data.get("status", "unknown")
+
+                # Map WanX status to our format
+                status_mapping = {
+                    "pending": "processing",
+                    "processing": "processing",
+                    "completed": "completed",
+                    "failed": "failed"
+                }
+                mapped_status = status_mapping.get(status.lower(), "unknown")
+
+                # Extract video URLs
+                output = data.get("output", {})
+                video_url = None
+                thumbnail_url = None
+
+                if isinstance(output, dict):
+                    if "video_url" in output:
+                        video_url = output.get("video_url")
+                    # WanX may not provide thumbnail separately
+
+                return {
+                    "status": mapped_status,
+                    "video_url": video_url,
+                    "thumbnail_url": thumbnail_url,
+                    "progress": 100 if mapped_status == "completed" else 0,
+                    "error": data.get("error", {}).get("message") if data.get("error") else None
+                }
+
+            except httpx.RequestError as e:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Failed to connect to PiAPI WanX: {str(e)}"
+                )
+
+
 # ============================================================================
 # API ENDPOINTS
 # ============================================================================
@@ -361,7 +719,7 @@ async def generate_video(
     """
     # TODO: Get current user from auth token
     # For now, using a mock user and tier
-    user_id = "mock-user-id"
+    user_id = 1  # TODO: Get from auth token
     user_tier = "starter"  # TODO: Get from user profile
 
     # TODO: Check if user has reached video generation limit
@@ -369,6 +727,9 @@ async def generate_video(
 
     # Validate API key
     video_service = LumaVideoService()
+    hunyuan_service = HunyuanVideoService()
+    wanx_service = WanxVideoService()
+
     if not video_service.api_key:
         raise HTTPException(
             status_code=503,
@@ -385,7 +746,7 @@ async def generate_video(
 
         # Route to appropriate service
         if selected_provider == "piapi_luma":
-            # Use PiAPI with Luma AI (5s, 10s)
+            # Use PiAPI with Luma AI (5s)
             generation_result = await video_service.generate_video(
                 generation_mode=request.generation_mode,
                 script=request.script,
@@ -396,10 +757,173 @@ async def generate_video(
                 slides=request.slides,
                 motion_intensity=request.motion_intensity
             )
-            # Cost: ~$0.05/second for Luma AI
+
             # Use actual_duration from the result (5s for ray-v1)
             actual_duration = generation_result.get("actual_duration", 5)
-            cost = round(actual_duration * 0.05, 2)
+
+            # Save to database
+            video_gen = await save_video_generation_to_db(
+                user_id=user_id,
+                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                task_id=generation_result["id"],
+                provider=selected_provider,
+                model_name="ray-v1",
+                request=request,
+                actual_duration=actual_duration,
+                db=db
+            )
+
+            # Start background task to poll PiAPI for status
+            background_tasks.add_task(
+                update_video_status,
+                video_id=video_gen.id,
+                db=db,
+                video_service=video_service
+            )
+
+        elif selected_provider == "piapi_hunyuan_fast":
+            # Use Hunyuan Fast (cheapest, 5s)
+            generation_result = await hunyuan_service.generate_video(
+                generation_mode=request.generation_mode,
+                script=request.script,
+                style=request.style,
+                duration=request.duration,
+                aspect_ratio=request.aspect_ratio,
+                image_url=request.image_url,
+                slides=request.slides,
+                motion_intensity=request.motion_intensity,
+                model_variant="fast"
+            )
+
+            actual_duration = generation_result.get("actual_duration", 5)
+
+            # Save to database
+            video_gen = await save_video_generation_to_db(
+                user_id=user_id,
+                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                task_id=generation_result["id"],
+                provider=selected_provider,
+                model_name="hunyuan-fast",
+                request=request,
+                actual_duration=actual_duration,
+                db=db
+            )
+
+            # Start background task to poll for status
+            background_tasks.add_task(
+                update_video_status_hunyuan,
+                video_id=video_gen.id,
+                db=db,
+                video_service=hunyuan_service
+            )
+
+        elif selected_provider == "piapi_hunyuan_standard":
+            # Use Hunyuan Standard (higher quality, 5s)
+            generation_result = await hunyuan_service.generate_video(
+                generation_mode=request.generation_mode,
+                script=request.script,
+                style=request.style,
+                duration=request.duration,
+                aspect_ratio=request.aspect_ratio,
+                image_url=request.image_url,
+                slides=request.slides,
+                motion_intensity=request.motion_intensity,
+                model_variant="standard"
+            )
+
+            actual_duration = generation_result.get("actual_duration", 5)
+
+            # Save to database
+            video_gen = await save_video_generation_to_db(
+                user_id=user_id,
+                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                task_id=generation_result["id"],
+                provider=selected_provider,
+                model_name="hunyuan-standard",
+                request=request,
+                actual_duration=actual_duration,
+                db=db
+            )
+
+            # Start background task to poll for status
+            background_tasks.add_task(
+                update_video_status_hunyuan,
+                video_id=video_gen.id,
+                db=db,
+                video_service=hunyuan_service
+            )
+
+        elif selected_provider == "piapi_wanx_1.3b":
+            # Use WanX 1.3B (5s or 60s)
+            generation_result = await wanx_service.generate_video(
+                generation_mode=request.generation_mode,
+                script=request.script,
+                style=request.style,
+                duration=request.duration,
+                aspect_ratio=request.aspect_ratio,
+                image_url=request.image_url,
+                slides=request.slides,
+                motion_intensity=request.motion_intensity,
+                model_variant="1.3b"
+            )
+
+            actual_duration = generation_result.get("actual_duration", 5)
+
+            # Save to database
+            video_gen = await save_video_generation_to_db(
+                user_id=user_id,
+                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                task_id=generation_result["id"],
+                provider=selected_provider,
+                model_name="wanx-1.3b",
+                request=request,
+                actual_duration=actual_duration,
+                db=db
+            )
+
+            # Start background task to poll for status
+            background_tasks.add_task(
+                update_video_status_wanx,
+                video_id=video_gen.id,
+                db=db,
+                video_service=wanx_service
+            )
+
+        elif selected_provider == "piapi_wanx_14b":
+            # Use WanX 14B (premium quality, 5s or 60s)
+            generation_result = await wanx_service.generate_video(
+                generation_mode=request.generation_mode,
+                script=request.script,
+                style=request.style,
+                duration=request.duration,
+                aspect_ratio=request.aspect_ratio,
+                image_url=request.image_url,
+                slides=request.slides,
+                motion_intensity=request.motion_intensity,
+                model_variant="14b"
+            )
+
+            actual_duration = generation_result.get("actual_duration", 5)
+
+            # Save to database
+            video_gen = await save_video_generation_to_db(
+                user_id=user_id,
+                campaign_id=int(request.campaign_id) if request.campaign_id else None,
+                task_id=generation_result["id"],
+                provider=selected_provider,
+                model_name="wanx-14b",
+                request=request,
+                actual_duration=actual_duration,
+                db=db
+            )
+
+            # Start background task to poll for status
+            background_tasks.add_task(
+                update_video_status_wanx,
+                video_id=video_gen.id,
+                db=db,
+                video_service=wanx_service
+            )
 
         elif selected_provider == "replicate_veo":
             # TODO: Implement Replicate Veo integration
@@ -408,8 +932,8 @@ async def generate_video(
                 status_code=501,
                 detail={
                     "error": "PROVIDER_NOT_IMPLEMENTED",
-                    "message": f"{selected_provider} provider not yet implemented. Currently only PiAPI (5s) is available.",
-                    "available_providers": ["piapi_luma"]
+                    "message": f"{selected_provider} provider not yet implemented. Available providers: Hunyuan (Fast/Standard), WanX (1.3B/14B), PiAPI Luma",
+                    "available_providers": ["piapi_hunyuan_fast", "piapi_hunyuan_standard", "piapi_wanx_1.3b", "piapi_wanx_14b", "piapi_luma"]
                 }
             )
 
@@ -418,12 +942,9 @@ async def generate_video(
             video_id=generation_result.get("id", str(uuid.uuid4())),
             status="processing",
             duration=actual_duration,
-            cost=cost,
+            cost=round(actual_duration * 0.05, 2),
             created_at=datetime.utcnow()
         )
-
-        # TODO: Save to database in background
-        # background_tasks.add_task(save_video_generation, user_id, request, response)
 
         return response
 
@@ -498,16 +1019,70 @@ async def get_video_library(
         Paginated list of generated videos
     """
     # TODO: Get current user from auth token
-    user_id = "mock-user-id"
+    user_id = 1  # TODO: Get from auth token
 
-    # TODO: Query database for user's videos
-    # For now, return mock data
+    # Calculate offset for pagination
+    offset = (page - 1) * per_page
 
-    videos = []
-    total = 0
+    # Query database for user's videos
+    result = await db.execute(
+        """
+        SELECT id, task_id, provider, model_name, generation_mode, prompt, script,
+               style, aspect_ratio, requested_duration, actual_duration, video_url,
+               video_raw_url, thumbnail_url, last_frame_url, video_width, video_height,
+               status, progress, cost, created_at, started_at, completed_at, error_message
+        FROM video_generations
+        WHERE user_id = :user_id
+        ORDER BY created_at DESC
+        LIMIT :limit OFFSET :offset
+        """,
+        {
+            "user_id": user_id,
+            "limit": per_page,
+            "offset": offset
+        }
+    )
+    videos = result.fetchall()
+
+    # Get total count
+    count_result = await db.execute(
+        "SELECT COUNT(*) FROM video_generations WHERE user_id = :user_id",
+        {"user_id": user_id}
+    )
+    total = count_result.fetchone()[0]
+
+    # Format videos for response
+    formatted_videos = []
+    for video in videos:
+        formatted_videos.append({
+            "id": video[0],
+            "task_id": video[1],
+            "provider": video[2],
+            "model_name": video[3],
+            "generation_mode": video[4],
+            "prompt": video[5],
+            "script": video[6],
+            "style": video[7],
+            "aspect_ratio": video[8],
+            "requested_duration": video[9],
+            "actual_duration": video[10],
+            "video_url": video[11],
+            "video_raw_url": video[12],
+            "thumbnail_url": video[13],
+            "last_frame_url": video[14],
+            "video_width": video[15],
+            "video_height": video[16],
+            "status": video[17],
+            "progress": video[18],
+            "cost": video[19],
+            "created_at": video[20],
+            "started_at": video[21],
+            "completed_at": video[22],
+            "error_message": video[23]
+        })
 
     return {
-        "videos": videos,
+        "videos": formatted_videos,
         "total": total,
         "page": page,
         "per_page": per_page,
@@ -518,16 +1093,274 @@ async def get_video_library(
 # HELPER FUNCTIONS
 # ============================================================================
 
-async def save_video_generation(
-    user_id: str,
+async def save_video_generation_to_db(
+    user_id: int,
+    campaign_id: int | None,
+    task_id: str,
+    provider: str,
+    model_name: str,
     request: VideoGenerateRequest,
-    response: VideoGenerateResponse,
+    actual_duration: int,
     db: AsyncSession
-):
+) -> VideoGeneration:
     """
     Save video generation record to database
-
-    TODO: Implement database save
     """
-    # This will be implemented when we add the database models
-    pass
+    video_gen = VideoGeneration(
+        user_id=user_id,
+        campaign_id=campaign_id,
+        task_id=task_id,
+        provider=provider,
+        model_name=model_name,
+        generation_mode=request.generation_mode,
+        prompt=None,  # Will be updated when status is checked
+        script=request.script,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        requested_duration=request.duration,
+        actual_duration=actual_duration,
+        status="processing",
+        progress=0,
+        cost=round(actual_duration * 0.05, 2),
+        created_at=datetime.utcnow()
+    )
+
+    db.add(video_gen)
+    await db.commit()
+    await db.refresh(video_gen)
+
+    return video_gen
+
+
+async def update_video_status(
+    video_id: int,
+    db: AsyncSession,
+    video_service: LumaVideoService
+):
+    """
+    Background task to poll PiAPI for video status and update database
+    """
+    try:
+        # Get video from database
+        result = await db.execute(
+            "SELECT task_id FROM video_generations WHERE id = :id",
+            {"id": video_id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            logger.error(f"Video record not found: {video_id}")
+            return
+
+        task_id = video_record[0]
+
+        # Poll PiAPI for status
+        status_result = await video_service.get_generation_status(task_id)
+
+        # Map status to our format
+        status_mapping = {
+            "pending": "processing",
+            "processing": "processing",
+            "completed": "completed",
+            "failed": "failed"
+        }
+        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+
+        # Update database
+        update_data = {
+            "status": mapped_status,
+            "progress": status_result.get("progress", 0),
+        }
+
+        # If completed, add video URLs and metadata
+        if mapped_status == "completed":
+            output = status_result.get("output", {})
+            if isinstance(output, dict):
+                video_data = output.get("video", {})
+                thumbnail_data = output.get("thumbnail", {})
+                last_frame_data = output.get("last_frame", {})
+
+                update_data.update({
+                    "video_url": video_data.get("url") if isinstance(video_data, dict) else None,
+                    "video_raw_url": status_result.get("video_raw_url"),
+                    "thumbnail_url": thumbnail_data.get("url") if isinstance(thumbnail_data, dict) else None,
+                    "last_frame_url": last_frame_data.get("url") if isinstance(last_frame_data, dict) else None,
+                    "video_width": video_data.get("width") if isinstance(video_data, dict) else None,
+                    "video_height": video_data.get("height") if isinstance(video_data, dict) else None,
+                    "completed_at": datetime.utcnow()
+                })
+
+        # If failed, add error info
+        if mapped_status == "failed":
+            update_data.update({
+                "error_message": status_result.get("error"),
+                "error_code": "GENERATION_FAILED"
+            })
+
+        # Execute update
+        await db.execute(
+            "UPDATE video_generations SET "
+            "status = :status, progress = :progress, "
+            "video_url = :video_url, video_raw_url = :video_raw_url, "
+            "thumbnail_url = :thumbnail_url, last_frame_url = :last_frame_url, "
+            "video_width = :video_width, video_height = :video_height, "
+            "completed_at = :completed_at, error_message = :error_message, "
+            "error_code = :error_code "
+            "WHERE id = :id",
+            {**update_data, "id": video_id}
+        )
+        await db.commit()
+
+        logger.info(f"Updated video {video_id} status to {mapped_status}")
+
+    except Exception as e:
+        logger.error(f"Error updating video status: {str(e)}")
+        await db.rollback()
+
+
+async def update_video_status_hunyuan(
+    video_id: int,
+    db: AsyncSession,
+    video_service: HunyuanVideoService
+):
+    """
+    Background task to poll Hunyuan for video status and update database
+    """
+    try:
+        # Get video from database
+        result = await db.execute(
+            "SELECT task_id FROM video_generations WHERE id = :id",
+            {"id": video_id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            logger.error(f"Video record not found: {video_id}")
+            return
+
+        task_id = video_record[0]
+
+        # Poll Hunyuan for status
+        status_result = await video_service.get_generation_status(task_id)
+
+        # Map status to our format
+        status_mapping = {
+            "pending": "processing",
+            "processing": "processing",
+            "completed": "completed",
+            "failed": "failed"
+        }
+        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+
+        # Update database
+        update_data = {
+            "status": mapped_status,
+            "progress": status_result.get("progress", 0),
+        }
+
+        # If completed, add video URLs and metadata
+        if mapped_status == "completed":
+            update_data.update({
+                "video_url": status_result.get("video_url"),
+                "thumbnail_url": status_result.get("thumbnail_url"),
+                "completed_at": datetime.utcnow()
+            })
+
+        # If failed, add error info
+        if mapped_status == "failed":
+            update_data.update({
+                "error_message": status_result.get("error"),
+                "error_code": "GENERATION_FAILED"
+            })
+
+        # Execute update
+        await db.execute(
+            "UPDATE video_generations SET "
+            "status = :status, progress = :progress, "
+            "video_url = :video_url, thumbnail_url = :thumbnail_url, "
+            "completed_at = :completed_at, error_message = :error_message, "
+            "error_code = :error_code "
+            "WHERE id = :id",
+            {**update_data, "id": video_id}
+        )
+        await db.commit()
+
+        logger.info(f"Updated Hunyuan video {video_id} status to {mapped_status}")
+
+    except Exception as e:
+        logger.error(f"Error updating Hunyuan video status: {str(e)}")
+        await db.rollback()
+
+
+async def update_video_status_wanx(
+    video_id: int,
+    db: AsyncSession,
+    video_service: WanxVideoService
+):
+    """
+    Background task to poll WanX for video status and update database
+    """
+    try:
+        # Get video from database
+        result = await db.execute(
+            "SELECT task_id FROM video_generations WHERE id = :id",
+            {"id": video_id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            logger.error(f"Video record not found: {video_id}")
+            return
+
+        task_id = video_record[0]
+
+        # Poll WanX for status
+        status_result = await video_service.get_generation_status(task_id)
+
+        # Map status to our format
+        status_mapping = {
+            "pending": "processing",
+            "processing": "processing",
+            "completed": "completed",
+            "failed": "failed"
+        }
+        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+
+        # Update database
+        update_data = {
+            "status": mapped_status,
+            "progress": status_result.get("progress", 0),
+        }
+
+        # If completed, add video URLs and metadata
+        if mapped_status == "completed":
+            update_data.update({
+                "video_url": status_result.get("video_url"),
+                "thumbnail_url": status_result.get("thumbnail_url"),
+                "completed_at": datetime.utcnow()
+            })
+
+        # If failed, add error info
+        if mapped_status == "failed":
+            update_data.update({
+                "error_message": status_result.get("error"),
+                "error_code": "GENERATION_FAILED"
+            })
+
+        # Execute update
+        await db.execute(
+            "UPDATE video_generations SET "
+            "status = :status, progress = :progress, "
+            "video_url = :video_url, thumbnail_url = :thumbnail_url, "
+            "completed_at = :completed_at, error_message = :error_message, "
+            "error_code = :error_code "
+            "WHERE id = :id",
+            {**update_data, "id": video_id}
+        )
+        await db.commit()
+
+        logger.info(f"Updated WanX video {video_id} status to {mapped_status}")
+
+    except Exception as e:
+        logger.error(f"Error updating WanX video status: {str(e)}")
+        await db.rollback()

@@ -902,3 +902,66 @@ class TrackingCookie(Base):
     campaign = relationship("Campaign")
     shortened_link = relationship("ShortenedLink")
     click = relationship("LinkClick")
+
+
+# ============================================================================
+# VIDEO GENERATION MODELS
+# ============================================================================
+
+class VideoGeneration(Base):
+    """
+    Tracks AI-generated videos from PiAPI/Luma AI
+    """
+    __tablename__ = "video_generations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Generation details
+    task_id = Column(String(255), unique=True, nullable=False, index=True)  # PiAPI task ID
+    provider = Column(String(50), nullable=False)  # 'piapi_luma', 'replicate_veo', etc.
+    model_name = Column(String(100), nullable=False)  # 'ray-v1', 'ray2', 'veo', etc.
+
+    # Request parameters
+    generation_mode = Column(String(50), nullable=False)  # 'text_to_video', 'image_to_video', 'slide_video'
+    prompt = Column(Text, nullable=True)
+    script = Column(Text, nullable=True)
+    style = Column(String(50), nullable=True)
+    aspect_ratio = Column(String(10), nullable=True)
+    requested_duration = Column(Integer, nullable=True)
+    actual_duration = Column(Integer, nullable=True)
+
+    # Media URLs
+    video_url = Column(String(1000), nullable=True)
+    video_raw_url = Column(String(1000), nullable=True)
+    thumbnail_url = Column(String(1000), nullable=True)
+    last_frame_url = Column(String(1000), nullable=True)
+
+    # Video metadata
+    video_width = Column(Integer, nullable=True)
+    video_height = Column(Integer, nullable=True)
+
+    # Generation metadata
+    generation_mode_used = Column(String(50), nullable=True)  # text_to_video, image_to_video, slide_video
+    slides = Column(JSONB, nullable=True)  # For slide_video mode
+
+    # Status tracking
+    status = Column(String(50), nullable=False, index=True)  # 'processing', 'completed', 'failed'
+    progress = Column(Integer, nullable=True, default=0)  # 0-100
+
+    # Cost tracking
+    cost = Column(Float, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Error information
+    error_message = Column(Text, nullable=True)
+    error_code = Column(String(50), nullable=True)
+
+    # Relationships
+    user = relationship("User")
+    campaign = relationship("Campaign")
