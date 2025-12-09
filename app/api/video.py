@@ -17,6 +17,7 @@ from datetime import datetime
 from app.db.session import AsyncSessionLocal
 from app.db.models import User, VideoGeneration
 from app.core.config.settings import settings
+from app.services.storage_r2 import r2_storage
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,17 @@ class VideoStatusResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     progress: Optional[int] = None  # 0-100
     error_message: Optional[str] = None
+
+class VideoSaveRequest(BaseModel):
+    video_id: int
+    campaign_id: Optional[str] = None
+
+class VideoSaveResponse(BaseModel):
+    video_id: int
+    r2_key: str
+    video_url: str
+    thumbnail_url: Optional[str] = None
+    saved_at: datetime
 
 # ============================================================================
 # PROVIDER SELECTION & TIER CHECKING
@@ -1006,6 +1018,109 @@ async def get_video_status(
             detail=f"Failed to get video status: {str(e)}"
         )
 
+@router.post("/save-to-library", response_model=VideoSaveResponse, status_code=201)
+async def save_video_to_library(
+    request: VideoSaveRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Save a generated video to R2 storage by downloading from provider URL
+    """
+    # TODO: Get current user from auth token
+    user_id = 1  # TODO: Get from auth token
+
+    try:
+        # Get video from database
+        result = await db.execute(
+            "SELECT id, task_id, provider, model_name, video_url, video_raw_url, thumbnail_url, campaign_id, saved_to_r2, r2_key FROM video_generations WHERE id = :id AND user_id = :user_id",
+            {"id": request.video_id, "user_id": user_id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            raise HTTPException(
+                status_code=404,
+                detail="Video not found"
+            )
+
+        video_id, task_id, provider, model_name, video_url, video_raw_url, thumbnail_url, campaign_id, saved_to_r2, r2_key = video_record
+
+        # Check if already saved
+        if saved_to_r2 and r2_key:
+            logger.info(f"Video {video_id} already saved to R2 with key: {r2_key}")
+            return VideoSaveResponse(
+                video_id=video_id,
+                r2_key=r2_key,
+                video_url=video_url,
+                thumbnail_url=thumbnail_url,
+                saved_at=datetime.utcnow()
+            )
+
+        # Validate video URL exists
+        if not video_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Video URL not available. Video may still be processing."
+            )
+
+        # Download video from provider URL
+        logger.info(f"Downloading video {video_id} from {video_url[:100]}...")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(video_url)
+            response.raise_for_status()
+            video_data = response.content
+            logger.info(f"Downloaded {len(video_data)} bytes")
+
+        # Generate R2 key
+        campaign_id_str = campaign_id or "0"
+        unique_id = str(uuid.uuid4())
+        r2_key = f"campaigns/{campaign_id_str}/videos/{unique_id}.mp4"
+
+        # Upload to R2
+        logger.info(f"Uploading to R2 with key: {r2_key}")
+        r2_key_result, r2_url = await r2_storage.upload_file(
+            file_bytes=video_data,
+            key=r2_key,
+            content_type="video/mp4"
+        )
+
+        # Update database
+        await db.execute(
+            "UPDATE video_generations SET video_url = :video_url, video_raw_url = :video_raw_url, saved_to_r2 = TRUE, r2_key = :r2_key WHERE id = :id",
+            {
+                "id": video_id,
+                "video_url": r2_url,
+                "video_raw_url": r2_url,
+                "r2_key": r2_key
+            }
+        )
+        await db.commit()
+
+        logger.info(f"✅ Video {video_id} saved to R2: {r2_url}")
+
+        return VideoSaveResponse(
+            video_id=video_id,
+            r2_key=r2_key,
+            video_url=r2_url,
+            thumbnail_url=thumbnail_url,
+            saved_at=datetime.utcnow()
+        )
+
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error downloading video: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to download video from provider: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error saving video to library: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save video to library: {str(e)}"
+        )
+
+
 @router.get("/library", response_model=Dict[str, Any])
 async def get_video_library(
     page: int = 1,
@@ -1030,7 +1145,8 @@ async def get_video_library(
         SELECT id, task_id, provider, model_name, generation_mode, prompt, script,
                style, aspect_ratio, requested_duration, actual_duration, video_url,
                video_raw_url, thumbnail_url, last_frame_url, video_width, video_height,
-               status, progress, cost, created_at, started_at, completed_at, error_message
+               status, progress, cost, created_at, started_at, completed_at, error_message,
+               saved_to_r2, r2_key
         FROM video_generations
         WHERE user_id = :user_id
         ORDER BY created_at DESC
@@ -1078,7 +1194,9 @@ async def get_video_library(
             "created_at": video[20],
             "started_at": video[21],
             "completed_at": video[22],
-            "error_message": video[23]
+            "error_message": video[23],
+            "saved_to_r2": video[24],
+            "r2_key": video[25]
         })
 
     return {

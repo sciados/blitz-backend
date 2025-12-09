@@ -962,6 +962,10 @@ class VideoGeneration(Base):
     error_message = Column(Text, nullable=True)
     error_code = Column(String(50), nullable=True)
 
+    # R2 Storage tracking
+    saved_to_r2 = Column(Boolean, nullable=True, default=False, index=True)
+    r2_key = Column(String(255), nullable=True)
+
     # Relationships
     user = relationship("User")
     campaign = relationship("Campaign")
