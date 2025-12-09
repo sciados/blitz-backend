@@ -229,9 +229,20 @@ async def generate_content(
         )
     
     # Retrieve context from RAG (optional - returns empty list if no knowledge base exists)
+    # Use keywords to build a more targeted query if keywords are provided
+    query_text = f"{request.content_type} for {campaign.name}"
+    if request.keywords:
+        # Add selected keywords to the query for better context retrieval
+        all_keywords = []
+        for category, keywords in request.keywords.items():
+            if keywords:
+                all_keywords.extend(keywords)
+        if all_keywords:
+            query_text += f" - keywords: {', '.join(all_keywords)}"
+
     try:
         context = await rag_service.retrieve_context(
-            query=f"{request.content_type} for {campaign.name}",
+            query=query_text,
             user_id=current_user.id,
             top_k=5
         )
@@ -241,6 +252,18 @@ async def generate_content(
 
     # Build product info from campaign
     # Transform campaign fields to match prompt builder expectations
+    # Use selected keywords if provided, otherwise use campaign keywords
+    selected_features = []
+    selected_benefits = []
+    selected_pain_points = []
+    selected_ingredients = []
+
+    if request.keywords:
+        selected_features = request.keywords.get("features", [])
+        selected_benefits = request.keywords.get("benefits", [])
+        selected_pain_points = request.keywords.get("pain_points", [])
+        selected_ingredients = request.keywords.get("ingredients", [])
+
     product_info = {
         "title": campaign.name,
         "description": campaign.product_description,
@@ -248,12 +271,17 @@ async def generate_content(
         "target_audience": campaign.target_audience,
         "keywords": campaign.keywords,
         "url": campaign.product_url,
-        # Add more fields expected by prompt builder
-        "features": campaign.keywords or [],  # Use keywords as features
-        "benefits": [],  # Can be extracted from description if needed
-        "pain_points": [],  # Can be derived from target_audience
-        "price": None,  # Not always available in campaigns
+        # Add selected keywords from UI
+        "features": selected_features or campaign.keywords or [],
+        "benefits": selected_benefits,
+        "pain_points": selected_pain_points,
+        "ingredients": selected_ingredients,
     }
+
+    # Only include price for local businesses (e.g., restaurants, services, etc.)
+    # This is because local businesses often need to promote pricing
+    if campaign.product_type and "local" in campaign.product_type.lower():
+        product_info["price"] = None  # Can be added later if needed
 
     # Build prompt
     # Format context for additional_context parameter
@@ -474,7 +502,8 @@ async def generate_content(
                     "context_sources": [c.get("source") for c in context],
                     "generation_time": datetime.utcnow().isoformat(),
                     "sequence_type": request.sequence_type,
-                    "total_emails": request.num_emails
+                    "total_emails": request.num_emails,
+                    "keywords_used": request.keywords
                 }
             }
 
@@ -570,7 +599,8 @@ async def generate_content(
             "prompt": prompt,
             "model": ai_router.last_used_model,
             "context_sources": [c.get("source") for c in context],
-            "generation_time": datetime.utcnow().isoformat()
+            "generation_time": datetime.utcnow().isoformat(),
+            "keywords_used": request.keywords
         }
     }
 

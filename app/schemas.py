@@ -221,6 +221,11 @@ class ContentGenerateRequest(BaseModel):
     additional_context: Optional[str] = None
     tone: Optional[str] = "professional"
     length: Optional[Union[str, int]] = "medium"  # short/medium/long or custom word count (int)
+    # Keywords from campaign intelligence
+    keywords: Optional[Dict[str, List[str]]] = Field(
+        default_factory=dict,
+        description="Selected keywords organized by category (ingredients, features, benefits, pain_points)"
+    )
     # Email sequence configuration
     num_emails: Optional[int] = Field(default=5, ge=3, le=10)
     sequence_type: Optional[str] = Field(default="cold_to_hot")  # cold_to_hot, warm_to_hot, hot_close
