@@ -391,7 +391,10 @@ PRODUCT INFORMATION:
                 user_prompt += f"\nTotal word budget (including production notes): {word_count} words"
                 user_prompt += f"\nIMPORTANT: {spoken_words} words refers to SPOKEN content only"
                 user_prompt += f"\nProduction notes ([VISUAL:], [ANGLE:], etc.) use the remaining {word_count - spoken_words} words"
-                user_prompt += f"\n\n⚠️ CRITICAL: Complete ALL 5 sections (Hook, Disclosure, Problem, Solution, CTA)"
+                user_prompt += f"\n\n🚨 MANDATORY LENGTH REQUIREMENT 🚨"
+                user_prompt += f"\nYour video script MUST be AT LEAST {int(word_count * 0.9)} words"
+                user_prompt += f"\nTarget: {int(word_count * 0.9)}-{int(word_count * 1.1)} words"
+                user_prompt += f"\n⚠️ CRITICAL: Complete ALL 5 sections (Hook, Disclosure, Problem, Solution, CTA)"
                 user_prompt += f"\nDo NOT stop early - finish every section with full production notes"
             else:
                 user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
@@ -492,6 +495,14 @@ PRODUCT INFORMATION:
             else:
                 user_prompt += f"\nYou MUST complete ALL sections listed above (Hook, Disclosure, Problem, Solution/Demo, CTA)."
 
+            user_prompt += f"\n🚨 FINAL CHECKLIST BEFORE RESPONDING:"
+            user_prompt += f"\n□ Hook section is fully written with timestamp and visuals"
+            user_prompt += f"\n□ Disclosure section is included with proper wording"
+            user_prompt += f"\n□ Problem section clearly identifies the pain point"
+            user_prompt += f"\n□ Solution section explains the product benefits"
+            user_prompt += f"\n□ CTA section has a clear call-to-action with urgency"
+            user_prompt += f"\n□ Each section has production notes ([VISUAL:], [ANGLE:], etc.)"
+            user_prompt += f"\n"
             user_prompt += f"\nDO NOT stop mid-generation. Every section must be fully written out with timestamps."
             user_prompt += f"\nYour response will be cut off if incomplete, so finish all sections completely."
             user_prompt += f"\nEND YOUR RESPONSE ONLY AFTER completing the final CTA section."

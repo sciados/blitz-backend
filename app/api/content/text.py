@@ -325,7 +325,7 @@ async def generate_content(
         "article": {"short": 300, "medium": 600, "long": 1200},
         "email": {"short": 75, "medium": 150, "long": 300},
         "email_sequence": {"short": 75, "medium": 150, "long": 300},
-        "video_script": {"short": 50, "medium": 150, "long": 300},  # short: 15-20s, medium: 1 min, long: 2+ min
+        "video_script": {"short": 50, "medium": 150, "long": 300},  # Legacy mapping - deprecated
         "social_post": {"short": 30, "medium": 75, "long": 150},
         "landing_page": {"short": 400, "medium": 800, "long": 1500},
         "ad_copy": {"short": 25, "medium": 50, "long": 100},
@@ -333,29 +333,59 @@ async def generate_content(
 
     # Get content type specific mapping or use default
     content_type_key = request.content_type.value if hasattr(request.content_type, 'value') else str(request.content_type)
-    length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
 
     word_count = None
     if request.length:
-        if isinstance(request.length, str) and request.length in length_mapping:
-            word_count = length_mapping[request.length]
-        elif isinstance(request.length, int):
-            word_count = request.length
-        else:
-            # Try to parse as int if it's a numeric string
+        # Check if content type is video_script and length is a numeric string (seconds)
+        is_video_script = content_type_key == "video_script"
+
+        if is_video_script:
+            # For video scripts, handle numeric values as seconds
+            # Convert seconds to word count: seconds * 2.5 words/sec * 1.75 (for production notes)
             try:
-                word_count = int(request.length)
+                seconds = int(request.length)
+                # Calculate total word count including production notes
+                # Formula: seconds * 2.5 (spoken words per second) * 1.75 (production overhead)
+                word_count = int(seconds * 2.5 * 1.75)
+                logger.info(f"Converting {seconds} seconds to {word_count} words for video script")
             except (ValueError, TypeError):
-                word_count = length_mapping.get("medium", 300)  # Default to medium for content type
+                # Fall back to mapping if conversion fails
+                length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
+                word_count = length_mapping.get("medium", 300)
+                logger.warning(f"Failed to convert video script length '{request.length}' to seconds, using default {word_count} words")
+        else:
+            # For other content types, use the traditional mapping
+            length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
+
+            if isinstance(request.length, str) and request.length in length_mapping:
+                word_count = length_mapping[request.length]
+            elif isinstance(request.length, int):
+                word_count = request.length
+            else:
+                # Try to parse as int if it's a numeric string
+                try:
+                    word_count = int(request.length)
+                except (ValueError, TypeError):
+                    word_count = length_mapping.get("medium", 300)  # Default to medium for content type
 
     # Build prompt with email sequence support
+    # Extract all selected keywords for the prompt constraints
+    all_selected_keywords = []
+    if request.keywords:
+        for category, keywords in request.keywords.items():
+            if keywords:
+                all_selected_keywords.extend(keywords)
+
     prompt_params = {
         "content_type": request.content_type,
         "product_info": product_info,
         "marketing_angle": request.marketing_angle,
         "tone": request.tone or "professional",
         "additional_context": context_text or request.additional_context,
-        "constraints": {"word_count": word_count} if word_count else None
+        "constraints": {
+            "word_count": word_count,
+            "keywords": all_selected_keywords
+        } if word_count or all_selected_keywords else None
     }
 
     # Add email sequence parameters if needed
