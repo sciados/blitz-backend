@@ -1062,7 +1062,7 @@ async def save_video_to_library(
     try:
         # Get video from database
         result = await db.execute(
-            "SELECT id, task_id, provider, model_name, video_url, video_raw_url, thumbnail_url, campaign_id, saved_to_r2, r2_key FROM video_generations WHERE id = :id AND user_id = :user_id",
+            text("SELECT id, task_id, provider, model_name, video_url, video_raw_url, thumbnail_url, campaign_id, saved_to_r2, r2_key FROM video_generations WHERE id = :id AND user_id = :user_id"),
             {"id": request.video_id, "user_id": user_id}
         )
         video_record = result.fetchone()
@@ -1169,7 +1169,7 @@ async def save_video_to_library(
 
         # Update database
         await db.execute(
-            "UPDATE video_generations SET video_url = :video_url, video_raw_url = :video_raw_url, saved_to_r2 = TRUE, r2_key = :r2_key WHERE id = :id",
+            text("UPDATE video_generations SET video_url = :video_url, video_raw_url = :video_raw_url, saved_to_r2 = TRUE, r2_key = :r2_key WHERE id = :id"),
             {
                 "id": video_id,
                 "video_url": r2_url,
