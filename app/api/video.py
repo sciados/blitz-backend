@@ -1204,6 +1204,65 @@ async def save_video_to_library(
         )
 
 
+@router.delete("/{video_id}", status_code=204)
+async def delete_video(
+    video_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a video from R2 storage and database
+    """
+    # TODO: Get current user from auth token
+    user_id = 1  # TODO: Get from auth token
+
+    try:
+        # Get video from database
+        result = await db.execute(
+            text("SELECT id, r2_key, saved_to_r2 FROM video_generations WHERE id = :id AND user_id = :user_id"),
+            {"id": video_id, "user_id": user_id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            raise HTTPException(
+                status_code=404,
+                detail="Video not found"
+            )
+
+        video_id_db, r2_key, saved_to_r2 = video_record
+
+        # Delete from R2 if saved there
+        if saved_to_r2 and r2_key:
+            logger.info(f"Deleting video from R2: {r2_key}")
+            try:
+                from app.utils.r2_storage import r2_storage
+                await r2_storage.delete_file(r2_key)
+                logger.info(f"✅ Deleted video from R2: {r2_key}")
+            except Exception as e:
+                logger.error(f"Failed to delete from R2: {e}")
+                # Continue with database deletion even if R2 deletion fails
+
+        # Delete from database
+        await db.execute(
+            text("DELETE FROM video_generations WHERE id = :id AND user_id = :user_id"),
+            {"id": video_id, "user_id": user_id}
+        )
+        await db.commit()
+
+        logger.info(f"✅ Deleted video {video_id} from database")
+
+        return
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting video: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete video: {str(e)}"
+        )
+
+
 @router.get("/library", response_model=Dict[str, Any])
 async def get_video_library(
     page: int = 1,
