@@ -281,9 +281,9 @@ class LumaVideoService:
         """
         Prepare the video generation prompt for Luma AI
 
-        Converts production script format to flowing narrative format
+        Script is already in flowing narrative format (from prompt builder)
         """
-        # Convert production script to flowing narrative
+        # Script is already in flowing narrative format, no conversion needed
         narrative_prompt = self._convert_script_to_narrative(script)
 
         style_prompts = {

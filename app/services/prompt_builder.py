@@ -352,25 +352,16 @@ PRODUCT INFORMATION:
             # Extract word_count from constraints
             word_count = constraints.get('word_count') if constraints else None
 
-            # Generate BOTH: Production script AND AI platform prompt
-            user_prompt += f"\n\nWRITE A VIDEO SCRIPT:\n"
-            user_prompt += f"Create a production-ready video script with timestamps, visual cues, and voiceover.\n"
-            user_prompt += f"Format:\n"
-            user_prompt += f"[TIMESTAMP] [VISUAL: description] [VOICEOVER: spoken words]\n"
-            user_prompt += f"[TIMESTAMP] [TRANSITION: type] [VISUAL: description] [VOICEOVER: spoken words]\n\n"
+            # Generate FLOWING NARRATIVE directly (what AI video platforms expect)
+            user_prompt += f"\n\nCREATE A VIDEO PROMPT:\n"
+            user_prompt += f"Write a detailed, flowing narrative description for a {int(word_count / 1.75) if word_count else 10}-second video.\n"
             user_prompt += f"Requirements:\n"
-            user_prompt += f"- Include 2-3 segments for {int(word_count / 1.75) if word_count else 10}-second video\n"
-            user_prompt += f"- Add [VISUAL] cues for camera shots, product shots, scenes\n"
-            user_prompt += f"- Add [VOICEOVER] with the marketing message\n"
-            user_prompt += f"- Add [TRANSITION] between scenes\n"
-            user_prompt += f"- Target: {word_count if word_count else 25} total words of voiceover\n"
-            user_prompt += f"- Use present tense for voiceover\n"
-            user_prompt += f"- Make voiceover conversational and engaging\n\n"
-            user_prompt += f"THEN convert this script into a FLOWING NARRATIVE PROMPT for AI video platforms (Runway/Pika/Luma):\n"
-            user_prompt += f"- Write as a single flowing paragraph (NO timestamps, NO brackets)\n"
-            user_prompt += f"- Include: camera movement, lighting, mood, atmosphere\n"
+            user_prompt += f"- Single flowing paragraph (NO timestamps, NO bullet points, NO brackets)\n"
+            user_prompt += f"- Include: visual scenes, camera movements, lighting, atmosphere, mood\n"
             user_prompt += f"- Present tense, descriptive and engaging\n"
-            user_prompt += f"- Target: {word_count if word_count else 25} words minimum\n"
+            user_prompt += f"- Cover: product shots, transitions, transformations\n"
+            user_prompt += f"- Target: {word_count if word_count else 50} words minimum\n"
+            user_prompt += f"- Format: Natural paragraph that reads like a story\n"
         else:
             # Add structure requirements for non-video content
             user_prompt += f"\n\nCONTENT STRUCTURE:\n"
