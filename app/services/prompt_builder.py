@@ -107,9 +107,9 @@ You understand platform-specific best practices and audience engagement.""",
             ]
         },
         'video_script': {
-            'system': """You are an expert AI video prompt writer who creates concise, descriptive prompts for AI video generation platforms like Luma AI.
-Your prompts describe visual scenes, motion, transitions, and mood in a way AI video generators can understand.
-You write flowing narrative descriptions, NOT production scripts with timestamps or technical cues.""",
+            'system': """You are an expert AI video prompt writer who creates detailed, flowing narrative descriptions for AI video generation platforms.
+Your prompts must be detailed and descriptive (20+ words), covering visual scenes, camera movement, lighting, transitions, and mood.
+Write in flowing paragraphs that paint a complete picture for video generation.""",
             'structure': [
                 'opening_scene',
                 'main_content',
@@ -328,61 +328,49 @@ PRODUCT INFORMATION:
             if video_config.get('video_type'):
                 user_prompt += f"Video Type: {video_config['video_type'].replace('_', ' ').title()}\n"
 
-            user_prompt += "\n[AI VIDEO PROMPT FORMAT]\n"
-            user_prompt += "- Write a SINGLE flowing narrative description\n"
-            user_prompt += "- NO timestamps like [0-3s] or [5-10s]\n"
-            user_prompt += "- NO production cues like [VISUAL:], [B-ROLL:], [ANGLE:]\n"
-            user_prompt += "- Describe scenes visually in present tense\n"
-            user_prompt += "- Keep total prompt under 200 words\n\n"
+            # Skip video format sections for video_script - handled separately below
+            if content_type != 'video_script':
+                user_prompt += "\n[AI VIDEO PROMPT FORMAT]\n"
+                user_prompt += "- Write a SINGLE flowing narrative description\n"
+                user_prompt += "- NO timestamps like [0-3s] or [5-10s]\n"
+                user_prompt += "- NO production cues like [VISUAL:], [B-ROLL:], [ANGLE:]\n"
+                user_prompt += "- Describe scenes visually in present tense\n"
+                user_prompt += "- Keep total prompt under 200 words\n\n"
 
-            user_prompt += "[SCENE STRUCTURE FOR " + str(duration_seconds) + " SECOND VIDEO]\n"
-            user_prompt += "1. OPENING (hook the viewer immediately)\n"
-            user_prompt += "2. MAIN CONTENT (show product/benefit visually)\n"
-            user_prompt += "3. CLOSING (implied call-to-action)\n\n"
+                user_prompt += "[SCENE STRUCTURE FOR " + str(duration_seconds) + " SECOND VIDEO]\n"
+                user_prompt += "1. OPENING (hook the viewer immediately)\n"
+                user_prompt += "2. MAIN CONTENT (show product/benefit visually)\n"
+                user_prompt += "3. CLOSING (implied call-to-action)\n\n"
 
-            user_prompt += "[USE INTELLIGENCE DATA]\n"
-            user_prompt += "- Reference the product name and key benefits from intelligence\n"
-            user_prompt += "- Describe the transformation or problem being solved\n"
-            user_prompt += "- Include mood/atmosphere that matches the product\n\n"
+                user_prompt += "[USE INTELLIGENCE DATA]\n"
+                user_prompt += "- Reference the product name and key benefits from intelligence\n"
+                user_prompt += "- Describe the transformation or problem being solved\n"
+                user_prompt += "- Include mood/atmosphere that matches the product\n\n"
 
-        # Add structure requirements
-        user_prompt += f"\n\nCONTENT STRUCTURE:\n"
+        # Add specific instructions based on content type
         if content_type == 'video_script':
-            user_prompt += "Write a flowing narrative with three parts:\n"
-            user_prompt += "1. OPENING - Eye-catching opening that hooks the viewer\n"
-            user_prompt += "2. MAIN CONTENT - Visual storytelling showing the transformation/product\n"
-            user_prompt += "3. CLOSING - Strong ending with implied call-to-action\n"
-            user_prompt += "\nWrite in paragraph format with smooth transitions between scenes.\n"
+            # Simplified, direct video script prompt
+            user_prompt += f"\n\nWRITE AN AI VIDEO PROMPT:\n"
+            user_prompt += f"Create a flowing narrative description for a {int(word_count / 1.75) if word_count else 10}-second video.\n"
+            user_prompt += f"Write in present tense, describing visual scenes and transitions.\n"
+            user_prompt += f"Include: camera movement, lighting, mood, and atmosphere.\n"
+            user_prompt += f"Target: {word_count if word_count else 25} words of detailed description.\n"
+            user_prompt += f"Format: Single flowing paragraph (NO bullet points, NO timestamps).\n"
         else:
+            # Add structure requirements for non-video content
+            user_prompt += f"\n\nCONTENT STRUCTURE:\n"
             user_prompt += "Please organize the content with the following sections:\n"
             for i, section in enumerate(structure, 1):
                 section_name = section.replace('_', ' ').title()
                 user_prompt += f"{i}. {section_name}\n"
 
-        # Add specific instructions based on content type
-        user_prompt += self._get_content_type_instructions(content_type)
+            # Add specific instructions for non-video content
+            user_prompt += self._get_content_type_instructions(content_type)
+            user_prompt += self._get_marketing_angle_guidance(marketing_angle)
 
-        # Add marketing angle guidance
-        user_prompt += self._get_marketing_angle_guidance(marketing_angle)
-
-        # Enforce word count or duration constraint
-        if constraints and constraints.get('word_count'):
-            word_count = constraints['word_count']
-
-            if content_type == 'video_script':
-                # Calculate original spoken words from total (we overestimated by 75%)
-                spoken_words = int(word_count / 1.75)  # Reverse the 75% production estimate
-                user_prompt += f"\n\n🎬 VIDEO PROMPT REQUIREMENTS"
-                user_prompt += f"\nTarget word count: {word_count} words"
-                user_prompt += f"\nThis should be a flowing narrative description of approximately {word_count} words"
-                user_prompt += f"\n\n🚨 CRITICAL WORD COUNT REQUIREMENT 🚨"
-                user_prompt += f"\nYour video prompt MUST be at least {int(word_count * 0.9)} words"
-                user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words"
-                user_prompt += f"\n⚠️ DO NOT generate short, simple sentences"
-                user_prompt += f"\n✓ DO generate detailed, descriptive narrative"
-                user_prompt += f"\n✓ Include visual scenes, motion, and atmosphere"
-                user_prompt += f"\n✓ Write in flowing paragraph format"
-            else:
+            # Enforce word count for non-video content
+            if constraints and constraints.get('word_count'):
+                word_count = constraints['word_count']
                 user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
                 user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
                 user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words."
@@ -390,16 +378,7 @@ PRODUCT INFORMATION:
 
         # Final formatting reminder for video scripts
         if content_type == 'video_script':
-            user_prompt += f"\n\n" + "=" * 60
-            user_prompt += f"\n🎬 FINAL REMINDERS:"
-            user_prompt += f"\n✓ Write flowing narrative paragraphs (not bullet points)"
-            user_prompt += f"\n✓ Include visual descriptions and scene transitions"
-            user_prompt += f"\n✓ Mention mood, lighting, and camera movement"
-            user_prompt += f"\n✓ Focus on transformation and benefits"
-            user_prompt += f"\n✓ Use campaign intelligence and selected keywords"
-            user_prompt += f"\n✓ Write in present tense for video generation"
-            user_prompt += f"\n"
-            user_prompt += f"\n" + "=" * 60 + "\n"
+            user_prompt += f"\n\nWrite a detailed, descriptive paragraph now.\n"
 
         return user_prompt
 
