@@ -203,7 +203,7 @@ class VideoOverlayService:
 @router.post("/text-overlay")
 async def add_video_text_overlay(
     request: Dict[str, Any],
-    db: AsyncSession = Depends(get_db())
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Add text overlays to a video
