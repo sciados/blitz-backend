@@ -352,7 +352,7 @@ PRODUCT INFORMATION:
             # Extract word_count from constraints
             word_count = constraints.get('word_count') if constraints else None
 
-            # Video script with production notes and timestamps
+            # Generate BOTH: Production script AND AI platform prompt
             user_prompt += f"\n\nWRITE A VIDEO SCRIPT:\n"
             user_prompt += f"Create a production-ready video script with timestamps, visual cues, and voiceover.\n"
             user_prompt += f"Format:\n"
@@ -365,7 +365,12 @@ PRODUCT INFORMATION:
             user_prompt += f"- Add [TRANSITION] between scenes\n"
             user_prompt += f"- Target: {word_count if word_count else 25} total words of voiceover\n"
             user_prompt += f"- Use present tense for voiceover\n"
-            user_prompt += f"- Make voiceover conversational and engaging\n"
+            user_prompt += f"- Make voiceover conversational and engaging\n\n"
+            user_prompt += f"THEN convert this script into a FLOWING NARRATIVE PROMPT for AI video platforms (Runway/Pika/Luma):\n"
+            user_prompt += f"- Write as a single flowing paragraph (NO timestamps, NO brackets)\n"
+            user_prompt += f"- Include: camera movement, lighting, mood, atmosphere\n"
+            user_prompt += f"- Present tense, descriptive and engaging\n"
+            user_prompt += f"- Target: {word_count if word_count else 25} words minimum\n"
         else:
             # Add structure requirements for non-video content
             user_prompt += f"\n\nCONTENT STRUCTURE:\n"

@@ -497,12 +497,21 @@ async def generate_content(
             # Reconstruct with truncated voiceover
             if is_video_script:
                 import re
-                # Replace each VOICEOVER with truncated version
+                # Replace each VOICEOVER with truncated version (without "...")
                 def truncate_voiceover(match):
                     voiceover_text = match.group(1)
                     words = voiceover_text.split()
                     if len(words) > word_count:
-                        return f"[VOICEOVER: {' '.join(words[:word_count])}...]"
+                        # Truncate without adding "..." in the middle
+                        truncated = ' '.join(words[:word_count])
+                        # Try to end at punctuation
+                        last_period = truncated.rfind('.')
+                        last_exclamation = truncated.rfind('!')
+                        last_question = truncated.rfind('?')
+                        punctuation_pos = max(last_period, last_exclamation, last_question)
+                        if punctuation_pos > len(truncated) * 0.5:
+                            truncated = truncated[:punctuation_pos + 1]
+                        return f"[VOICEOVER: {truncated}]"
                     return match.group(0)
 
                 generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', truncate_voiceover, generated_text, flags=re.IGNORECASE)
@@ -533,27 +542,24 @@ async def generate_content(
             if is_video_script:
                 # Expand VOICEOVER text for video scripts
                 import re
-                # Add more descriptive voiceover
+                # Add 1-2 concise expansion phrases (not too many!)
                 expansion_phrases = [
-                    " and naturally",
-                    " with powerful antioxidants",
-                    " for daily wellness",
-                    " to support your goals",
-                    " effectively and safely",
-                    " backed by science",
-                    " for lasting results",
-                    " you can trust"
+                    " naturally",
+                    " effectively",
+                    " daily",
+                    " safely"
                 ]
 
                 # Replace each VOICEOVER with expanded version
                 def expand_voiceover(match):
                     voiceover_text = match.group(1)
                     words = voiceover_text.split()
-                    # Add 2-3 expansion phrases
-                    num_phrases = min(len(expansion_phrases), max(2, words_needed // 5))
+                    # Only add 1-2 phrases max, not all of them!
+                    num_phrases = min(2, max(1, words_needed // 10))
                     expanded_voiceover = voiceover_text
                     for i in range(num_phrases):
-                        expanded_voiceover += expansion_phrases[i]
+                        if i < len(expansion_phrases):
+                            expanded_voiceover += expansion_phrases[i]
                     return f"[VOICEOVER: {expanded_voiceover}]"
 
                 generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', expand_voiceover, generated_text, flags=re.IGNORECASE)

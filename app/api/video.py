@@ -281,8 +281,11 @@ class LumaVideoService:
         """
         Prepare the video generation prompt for Luma AI
 
-        Combines the script with style-specific guidance
+        Converts production script format to flowing narrative format
         """
+        # Convert production script to flowing narrative
+        narrative_prompt = self._convert_script_to_narrative(script)
+
         style_prompts = {
             "marketing": "Create a professional, engaging marketing video with smooth transitions and clear visuals that drive action.",
             "educational": "Create a clear, informative educational video with clean visuals and easy-to-read text overlays.",
@@ -292,7 +295,73 @@ class LumaVideoService:
         base_prompt = style_prompts.get(style, style_prompts["marketing"])
         duration_context = f"The video should be approximately {duration} seconds long with a clear beginning, middle, and end."
 
-        return f"{base_prompt} {duration_context}\n\nScript:\n{script}"
+        return f"{base_prompt} {duration_context}\n\n{narrative_prompt}"
+
+    def _convert_script_to_narrative(self, script: str) -> str:
+        """
+        Convert production script format to flowing narrative for AI video platforms
+
+        Input:  [0s] [VISUAL: product shot] [VOICEOVER: text here]
+                [2s] [TRANSITION: zoom] [VISUAL: close-up] [VOICEOVER: more text]
+
+        Output: A professional marketing video opens with product shot, then transitions
+                with zoom to close-up, showing text here and more text...
+        """
+        import re
+
+        # Check if script contains production format markers
+        if not re.search(r'\[(TIMESTAMP|VISUAL|VOICEOVER|TRANSITION):', script, re.IGNORECASE):
+            # Not in production format, return as-is
+            return script
+
+        # Extract all segments
+        segments = re.findall(r'\[([^\]]+)\]', script)
+
+        visual_elements = []
+        voiceover_elements = []
+        transitions = []
+
+        # Parse segments
+        i = 0
+        while i < len(segments):
+            segment = segments[i].strip()
+            if ':' in segment:
+                key, value = segment.split(':', 1)
+                key = key.strip().upper()
+                value = value.strip()
+
+                if key == 'VISUAL':
+                    visual_elements.append(value)
+                elif key == 'VOICEOVER':
+                    voiceover_elements.append(value)
+                elif key == 'TRANSITION':
+                    transitions.append(value)
+            i += 1
+
+        # Build flowing narrative
+        narrative_parts = []
+
+        if visual_elements:
+            # Start with the first visual
+            narrative_parts.append(f"A professional marketing video opens with {visual_elements[0]}")
+
+            # Add subsequent visuals with transitions
+            for i, visual in enumerate(visual_elements[1:], 1):
+                if i <= len(transitions):
+                    transition = transitions[i-1] if i-1 < len(transitions) else "smooth transition"
+                    narrative_parts.append(f"Scene transitions with {transition} to show {visual}")
+                else:
+                    narrative_parts.append(f"Visual shows {visual}")
+
+        # Add voiceover as flowing text
+        if voiceover_elements:
+            voiceover_text = " ".join(voiceover_elements)
+            narrative_parts.append(f"The narrative emphasizes {voiceover_text}")
+
+        if not narrative_parts:
+            return script
+
+        return ". ".join(narrative_parts) + "."
 
     async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
         """
