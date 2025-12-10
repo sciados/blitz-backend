@@ -479,6 +479,26 @@ async def generate_content(
     logger.info(f"[DEBUG] Generated text preview (first 200 chars):\n{generated_text[:200]}")
     logger.info(f"[DEBUG] Generated text preview (last 200 chars):\n{generated_text[-200:]}")
 
+    # Post-process to enforce word count limits (AI models can't accurately count words)
+    if word_count and word_count_actual > word_count:
+        logger.info(f"[DEBUG] Truncating from {word_count_actual} to {word_count} words")
+        words = generated_text.split()
+        truncated_words = words[:word_count]
+        # Try to end at a sentence boundary
+        truncated_text = ' '.join(truncated_words)
+        # Find the last sentence ending punctuation
+        last_period = truncated_text.rfind('.')
+        last_exclamation = truncated_text.rfind('!')
+        last_question = truncated_text.rfind('?')
+        # Use the latest punctuation mark as the endpoint
+        punctuation_pos = max(last_period, last_exclamation, last_question)
+        # If we found punctuation and it's not too early (>50% of text), use it
+        if punctuation_pos > len(truncated_text) * 0.5:
+            generated_text = truncated_text[:punctuation_pos + 1]
+        else:
+            generated_text = truncated_text
+        logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
+
     # Note: Affiliate URLs will be replaced with tracking after content is saved
     # (need content ID for tracking parameters)
 
