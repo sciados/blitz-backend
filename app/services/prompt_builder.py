@@ -352,16 +352,23 @@ PRODUCT INFORMATION:
             # Extract word_count from constraints
             word_count = constraints.get('word_count') if constraints else None
 
-            # Generate FLOWING NARRATIVE directly (what AI video platforms expect)
-            user_prompt += f"\n\nCREATE A VIDEO PROMPT:\n"
-            user_prompt += f"Write a detailed, flowing narrative description for a {int(word_count / 1.75) if word_count else 10}-second video.\n"
-            user_prompt += f"Requirements:\n"
-            user_prompt += f"- Single flowing paragraph (NO timestamps, NO bullet points, NO brackets)\n"
-            user_prompt += f"- Include: visual scenes, camera movements, lighting, atmosphere, mood\n"
-            user_prompt += f"- Present tense, descriptive and engaging\n"
-            user_prompt += f"- Cover: product shots, transitions, transformations\n"
+            # BASE SYSTEM PROMPT (from successful Claude/GPT testing)
+            user_prompt += f"\n\nBASE SYSTEM INSTRUCTION:\n"
+            user_prompt += f"You are an expert AI video prompt writer who creates detailed, flowing narrative descriptions for AI video generation platforms. Your prompts must be detailed and descriptive (20+ words), covering visual scenes, camera movement, lighting, transitions, and mood. Write in flowing paragraphs that paint a complete picture for video generation. DO NOT include timestamps, bullet points, or production notes.\n\n"
+
+            # ADDITIONAL CONTEXT FOR VIDEO SCRIPT
+            user_prompt += f"CREATE A VIDEO SCRIPT:\n"
+            user_prompt += f"Write a FLOWING NARRATIVE description for a {int(word_count / 1.75) if word_count else 10}-second marketing video about the product described below.\n"
+            user_prompt += f"Format: Single flowing paragraph (NO bullet points, NO timestamps, NO brackets)\n"
+            user_prompt += f"MUST INCLUDE:\n"
+            user_prompt += f"- Camera movements (push in, pull out, pan, tilt, orbit, dolly, zoom)\n"
+            user_prompt += f"- Visual scenes (product shots, environments, textures, colors)\n"
+            user_prompt += f"- Lighting (soft light, golden hour, professional studio, natural sunlight)\n"
+            user_prompt += f"- Atmosphere/mood (frustration to hope, professional, energetic, calm)\n"
+            user_prompt += f"- Transitions (dissolve, fade, cut, smooth transition)\n"
+            user_prompt += f"- Present tense, paint a complete cinematic picture\n"
             user_prompt += f"- Target: {word_count if word_count else 50} words minimum\n"
-            user_prompt += f"- Format: Natural paragraph that reads like a story\n"
+            user_prompt += f"- Write like a movie director describing a scene\n"
         else:
             # Add structure requirements for non-video content
             user_prompt += f"\n\nCONTENT STRUCTURE:\n"
