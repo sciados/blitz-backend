@@ -352,13 +352,20 @@ PRODUCT INFORMATION:
             # Extract word_count from constraints
             word_count = constraints.get('word_count') if constraints else None
 
-            # Simplified, direct video script prompt
-            user_prompt += f"\n\nWRITE AN AI VIDEO PROMPT:\n"
-            user_prompt += f"Create a flowing narrative description for a {int(word_count / 1.75) if word_count else 10}-second video.\n"
-            user_prompt += f"Write in present tense, describing visual scenes and transitions.\n"
-            user_prompt += f"Include: camera movement, lighting, mood, and atmosphere.\n"
-            user_prompt += f"Target: {word_count if word_count else 25} words of detailed description.\n"
-            user_prompt += f"Format: Single flowing paragraph (NO bullet points, NO timestamps).\n"
+            # Video script with production notes and timestamps
+            user_prompt += f"\n\nWRITE A VIDEO SCRIPT:\n"
+            user_prompt += f"Create a production-ready video script with timestamps, visual cues, and voiceover.\n"
+            user_prompt += f"Format:\n"
+            user_prompt += f"[TIMESTAMP] [VISUAL: description] [VOICEOVER: spoken words]\n"
+            user_prompt += f"[TIMESTAMP] [TRANSITION: type] [VISUAL: description] [VOICEOVER: spoken words]\n\n"
+            user_prompt += f"Requirements:\n"
+            user_prompt += f"- Include 2-3 segments for {int(word_count / 1.75) if word_count else 10}-second video\n"
+            user_prompt += f"- Add [VISUAL] cues for camera shots, product shots, scenes\n"
+            user_prompt += f"- Add [VOICEOVER] with the marketing message\n"
+            user_prompt += f"- Add [TRANSITION] between scenes\n"
+            user_prompt += f"- Target: {word_count if word_count else 25} total words of voiceover\n"
+            user_prompt += f"- Use present tense for voiceover\n"
+            user_prompt += f"- Make voiceover conversational and engaging\n"
         else:
             # Add structure requirements for non-video content
             user_prompt += f"\n\nCONTENT STRUCTURE:\n"

@@ -480,24 +480,89 @@ async def generate_content(
     logger.info(f"[DEBUG] Generated text preview (last 200 chars):\n{generated_text[-200:]}")
 
     # Post-process to enforce word count limits (AI models can't accurately count words)
-    if word_count and word_count_actual > word_count:
-        logger.info(f"[DEBUG] Truncating from {word_count_actual} to {word_count} words")
-        words = generated_text.split()
-        truncated_words = words[:word_count]
-        # Try to end at a sentence boundary
-        truncated_text = ' '.join(truncated_words)
-        # Find the last sentence ending punctuation
-        last_period = truncated_text.rfind('.')
-        last_exclamation = truncated_text.rfind('!')
-        last_question = truncated_text.rfind('?')
-        # Use the latest punctuation mark as the endpoint
-        punctuation_pos = max(last_period, last_exclamation, last_question)
-        # If we found punctuation and it's not too early (>50% of text), use it
-        if punctuation_pos > len(truncated_text) * 0.5:
-            generated_text = truncated_text[:punctuation_pos + 1]
-        else:
-            generated_text = truncated_text
-        logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
+    if word_count:
+        # For video scripts, count only VOICEOVER words, not production notes
+        if is_video_script:
+            import re
+            # Extract all VOICEOVER text from [VOICEOVER: ...] tags
+            voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
+            voiceover_text = ' '.join(voiceover_matches)
+            word_count_actual = len(voiceover_text.split())
+            logger.info(f"[DEBUG] Video script: {word_count_actual} voiceover words (excluding production notes)")
+            logger.info(f"[DEBUG] Voiceover text: {voiceover_text[:100]}...")
+
+        if word_count_actual > word_count:
+            # Too long - truncate voiceover to word count
+            logger.info(f"[DEBUG] Truncating from {word_count_actual} to {word_count} voiceover words")
+            # Reconstruct with truncated voiceover
+            if is_video_script:
+                import re
+                # Replace each VOICEOVER with truncated version
+                def truncate_voiceover(match):
+                    voiceover_text = match.group(1)
+                    words = voiceover_text.split()
+                    if len(words) > word_count:
+                        return f"[VOICEOVER: {' '.join(words[:word_count])}...]"
+                    return match.group(0)
+
+                generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', truncate_voiceover, generated_text, flags=re.IGNORECASE)
+                # Recalculate actual count
+                voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
+                voiceover_text = ' '.join(voiceover_matches)
+                logger.info(f"[DEBUG] Truncated to {len(voiceover_text.split())} voiceover words")
+            else:
+                # Non-video: simple truncation
+                words = generated_text.split()
+                truncated_words = words[:word_count]
+                truncated_text = ' '.join(truncated_words)
+                # Try to end at a sentence boundary
+                last_period = truncated_text.rfind('.')
+                last_exclamation = truncated_text.rfind('!')
+                last_question = truncated_text.rfind('?')
+                punctuation_pos = max(last_period, last_exclamation, last_question)
+                if punctuation_pos > len(truncated_text) * 0.5:
+                    generated_text = truncated_text[:punctuation_pos + 1]
+                else:
+                    generated_text = truncated_text
+                logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
+        elif word_count_actual < word_count * 0.8:
+            # Too short - expand voiceover to meet minimum threshold
+            words_needed = word_count - word_count_actual
+            logger.info(f"[DEBUG] Expanding from {word_count_actual} to ~{word_count} voiceover words (adding {words_needed} words)")
+
+            if is_video_script:
+                # Expand VOICEOVER text for video scripts
+                import re
+                # Add more descriptive voiceover
+                expansion_phrases = [
+                    " and naturally",
+                    " with powerful antioxidants",
+                    " for daily wellness",
+                    " to support your goals",
+                    " effectively and safely",
+                    " backed by science",
+                    " for lasting results",
+                    " you can trust"
+                ]
+
+                # Replace each VOICEOVER with expanded version
+                def expand_voiceover(match):
+                    voiceover_text = match.group(1)
+                    words = voiceover_text.split()
+                    # Add 2-3 expansion phrases
+                    num_phrases = min(len(expansion_phrases), max(2, words_needed // 5))
+                    expanded_voiceover = voiceover_text
+                    for i in range(num_phrases):
+                        expanded_voiceover += expansion_phrases[i]
+                    return f"[VOICEOVER: {expanded_voiceover}]"
+
+                generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', expand_voiceover, generated_text, flags=re.IGNORECASE)
+                # Recalculate actual count
+                voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
+                voiceover_text = ' '.join(voiceover_matches)
+                logger.info(f"[DEBUG] Expanded to {len(voiceover_text.split())} voiceover words")
+            else:
+                logger.info(f"[DEBUG] Content too short but not a video script - leaving as-is")
 
     # Note: Affiliate URLs will be replaced with tracking after content is saved
     # (need content ID for tracking parameters)
