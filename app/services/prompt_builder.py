@@ -349,6 +349,9 @@ PRODUCT INFORMATION:
 
         # Add specific instructions based on content type
         if content_type == 'video_script':
+            # Extract word_count from constraints
+            word_count = constraints.get('word_count') if constraints else None
+
             # Simplified, direct video script prompt
             user_prompt += f"\n\nWRITE AN AI VIDEO PROMPT:\n"
             user_prompt += f"Create a flowing narrative description for a {int(word_count / 1.75) if word_count else 10}-second video.\n"
