@@ -171,11 +171,11 @@ class VideoTemplateEngine:
 
         # Default values if keywords not provided
         replacements = {
-            'product': keywords.get('product_name', 'the product'),
-            'ingredient': self._select_random(keywords.get('ingredients', [])),
-            'feature': self._select_random(keywords.get('features', [])),
-            'benefit': self._select_random(keywords.get('benefits', [])),
-            'pain_point': self._select_random(keywords.get('pain_points', [])),
+            'product_name': keywords.get('product_name', 'the product'),
+            'ingredients': self._select_random(keywords.get('ingredients', [])),
+            'features': self._select_random(keywords.get('features', [])),
+            'benefits': self._select_random(keywords.get('benefits', [])),
+            'pain_points': self._select_random(keywords.get('pain_points', [])),
             'before_state': 'struggling with health challenges',
             'after_state': 'feeling energized and confident',
             'problem': 'health challenges',
