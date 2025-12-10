@@ -348,24 +348,11 @@ PRODUCT INFORMATION:
         # Add structure requirements
         user_prompt += f"\n\nCONTENT STRUCTURE:\n"
         if content_type == 'video_script':
-            user_prompt += "VIDEO SCRIPT FORMAT (MUST FOLLOW EXACTLY):\n"
-            user_prompt += "Each line MUST start with [TIMESTAMP] followed by content.\n"
-            user_prompt += "Include production notes in [BRACKETS] after the spoken words.\n\n"
-            for i, section in enumerate(structure, 1):
-                section_name = section.replace('_', ' ').title()
-                user_prompt += f"{i}. {section_name} (include [TIMESTAMP])\n"
-            user_prompt += "\nExample format:\n"
-            user_prompt += "[0-3s] Are you tired of struggling with stubborn belly fat?\n"
-            user_prompt += "[VISUAL: Close-up on speaker, direct eye contact]\n"
-            user_prompt += "[ANGLE: Medium shot]\n"
-            user_prompt += "[LIGHTING: Bright, professional setup]\n"
-            user_prompt += "\n"
-            user_prompt += "[3-5s] This video contains affiliate links. I may earn a commission if you purchase through my link at no extra cost to you.\n"
-            user_prompt += "[VISUAL: Text overlay on screen - 'This video contains affiliate links']\n"
-            user_prompt += "[TRANSITION: Quick fade in]\n"
-            user_prompt += "\n"
-            user_prompt += "[5-8s] I tried everything - diets, workouts, supplements - nothing worked until I discovered AquaSculpt.\n"
-            user_prompt += "[B-ROLL: Frustrated person looking in mirror]\n\n"
+            user_prompt += "Write a flowing narrative with three parts:\n"
+            user_prompt += "1. OPENING - Eye-catching opening that hooks the viewer\n"
+            user_prompt += "2. MAIN CONTENT - Visual storytelling showing the transformation/product\n"
+            user_prompt += "3. CLOSING - Strong ending with implied call-to-action\n"
+            user_prompt += "\nWrite in paragraph format with smooth transitions between scenes.\n"
         else:
             user_prompt += "Please organize the content with the following sections:\n"
             for i, section in enumerate(structure, 1):
@@ -385,17 +372,16 @@ PRODUCT INFORMATION:
             if content_type == 'video_script':
                 # Calculate original spoken words from total (we overestimated by 75%)
                 spoken_words = int(word_count / 1.75)  # Reverse the 75% production estimate
-                user_prompt += f"\n\n🎬 VIDEO DURATION GUIDANCE"
-                user_prompt += f"\nTarget spoken words: ~{spoken_words} words (average 2.5 words/second)"
-                user_prompt += f"\nEstimated speaking time: {int(spoken_words / 2.5)} seconds"
-                user_prompt += f"\nTotal word budget (including production notes): {word_count} words"
-                user_prompt += f"\nIMPORTANT: {spoken_words} words refers to SPOKEN content only"
-                user_prompt += f"\nProduction notes ([VISUAL:], [ANGLE:], etc.) use the remaining {word_count - spoken_words} words"
-                user_prompt += f"\n\n🚨 MANDATORY LENGTH REQUIREMENT 🚨"
-                user_prompt += f"\nYour video script MUST be AT LEAST {int(word_count * 0.9)} words"
-                user_prompt += f"\nTarget: {int(word_count * 0.9)}-{int(word_count * 1.1)} words"
-                user_prompt += f"\n⚠️ CRITICAL: Complete ALL 5 sections (Hook, Disclosure, Problem, Solution, CTA)"
-                user_prompt += f"\nDo NOT stop early - finish every section with full production notes"
+                user_prompt += f"\n\n🎬 VIDEO PROMPT REQUIREMENTS"
+                user_prompt += f"\nTarget word count: {word_count} words"
+                user_prompt += f"\nThis should be a flowing narrative description of approximately {word_count} words"
+                user_prompt += f"\n\n🚨 CRITICAL WORD COUNT REQUIREMENT 🚨"
+                user_prompt += f"\nYour video prompt MUST be at least {int(word_count * 0.9)} words"
+                user_prompt += f"\nTarget range: {int(word_count * 0.9)}-{int(word_count * 1.1)} words"
+                user_prompt += f"\n⚠️ DO NOT generate short, simple sentences"
+                user_prompt += f"\n✓ DO generate detailed, descriptive narrative"
+                user_prompt += f"\n✓ Include visual scenes, motion, and atmosphere"
+                user_prompt += f"\n✓ Write in flowing paragraph format"
             else:
                 user_prompt += f"\n\n⚠️ CRITICAL WORD COUNT REQUIREMENT ⚠️"
                 user_prompt += f"\nYour response MUST be approximately {word_count} words (±10% is acceptable)."
@@ -404,112 +390,15 @@ PRODUCT INFORMATION:
 
         # Final formatting reminder for video scripts
         if content_type == 'video_script':
-            # Determine video format and set appropriate timestamps
-            video_format = video_config.get('video_format', 'short_form') if video_config else 'short_form'
-            # Handle both enum objects and string values
-            if hasattr(video_format, 'value'):
-                format_str = video_format.value
-            else:
-                format_str = str(video_format)
-            # Normalize to lowercase for comparison
-            format_str = format_str.lower().replace('videoformat.', '')
-            logger.info(f"[PromptBuilder] video_format raw={video_format}, format_str={format_str}")
-
-            # Set timestamps based on video format (format_str is already normalized to lowercase)
-            if format_str == 'long_form':
-                # Long-form video (1+ minute = 60-90 seconds)
-                timestamp_ranges = {
-                    'hook': '[0-10s]',
-                    'disclosure': '[10-15s]',
-                    'problem': '[15-30s]',
-                    'solution': '[30-50s]',
-                    'benefits': '[50-70s]',
-                    'social_proof': '[70-80s]',
-                    'cta': '[80-90s]'
-                }
-                user_prompt += f"\n\n🎬 VIDEO FORMAT: LONG-FORM (60-90 seconds)"
-                user_prompt += f"\n⚠️ CRITICAL: This is a LONG-FORM video. Your script MUST include timestamps up to 80-90 seconds."
-                user_prompt += f"\nTimestamp structure: {timestamp_ranges}"
-                user_prompt += f"\nYou MUST generate content for ALL timestamps: [0-10s], [10-15s], [15-30s], [30-50s], [50-70s], [70-80s], [80-90s]"
-                logger.info(f"[PromptBuilder] Long-form video detected, using timestamps: {timestamp_ranges}")
-            elif format_str == 'story':
-                # Story format (15 seconds)
-                timestamp_ranges = {
-                    'hook': '[0-3s]',
-                    'disclosure': '[3-5s]',
-                    'problem': '[5-8s]',
-                    'solution': '[8-12s]',
-                    'cta': '[12-15s]'
-                }
-                user_prompt += f"\n\n🎬 VIDEO FORMAT: STORY (15 seconds) - Using timestamps: {timestamp_ranges}"
-                logger.info(f"[PromptBuilder] Story format video detected, using timestamps: {timestamp_ranges}")
-            else:
-                # Default: Short-form video (5-20 seconds)
-                timestamp_ranges = {
-                    'hook': '[0-3s]',
-                    'disclosure': '[3-5s]',
-                    'problem': '[5-8s]',
-                    'solution': '[8-15s]',
-                    'cta': '[15-20s]'
-                }
-                user_prompt += f"\n\n🎬 VIDEO FORMAT: SHORT-FORM (5-20 seconds) - Using timestamps: {timestamp_ranges}"
-                logger.info(f"[PromptBuilder] Short-form video detected, using timestamps: {timestamp_ranges}")
-
             user_prompt += f"\n\n" + "=" * 60
-            user_prompt += f"\n🎬 FINAL CHECKLIST - Your script MUST include:"
-            user_prompt += f"\n✓ [TIMESTAMP] at the start of EVERY line"
-            user_prompt += f"\n✓ [VISUAL:] cues for what to show"
-            user_prompt += f"\n✓ [ANGLE:] camera direction (if enabled)"
-            user_prompt += f"\n✓ [LIGHTING:] style notes (if required)"
-            user_prompt += f"\n✓ EXACT disclosure text in {timestamp_ranges['disclosure']} section:"
-            user_prompt += f"\n  'This video contains affiliate links. I may earn a commission"
-            user_prompt += f"\n  if you purchase through my link at no extra cost to you.'"
-            user_prompt += f"\n✓ [VISUAL: Text overlay on screen] AFTER disclosure"
-            user_prompt += f"\n✓ Hook in {timestamp_ranges['hook']} BEFORE disclosure"
-            user_prompt += f"\n✓ Problem in {timestamp_ranges['problem']} AFTER disclosure"
-            user_prompt += f"\n✓ Solution/Demo in {timestamp_ranges['solution']}"
-
-            # Add additional sections for long-form videos
-            if format_str == 'long_form':
-                user_prompt += f"\n✓ Benefits showcase in {timestamp_ranges.get('benefits', '[50-70s]')}"
-                user_prompt += f"\n✓ Social proof/testimonials in {timestamp_ranges.get('social_proof', '[70-80s]')}"
-
-            user_prompt += f"\n✓ CTA in {timestamp_ranges['cta']} with urgency"
-            user_prompt += f"\n✓ Use campaign intelligence data from above"
-            user_prompt += f"\n✓ NO landing page formatting (**headlines**, paragraphs)"
-            user_prompt += f"\n✓ YES to screenplay format (timestamps + visuals)"
+            user_prompt += f"\n🎬 FINAL REMINDERS:"
+            user_prompt += f"\n✓ Write flowing narrative paragraphs (not bullet points)"
+            user_prompt += f"\n✓ Include visual descriptions and scene transitions"
+            user_prompt += f"\n✓ Mention mood, lighting, and camera movement"
+            user_prompt += f"\n✓ Focus on transformation and benefits"
+            user_prompt += f"\n✓ Use campaign intelligence and selected keywords"
+            user_prompt += f"\n✓ Write in present tense for video generation"
             user_prompt += f"\n"
-            user_prompt += f"\n" + "=" * 60
-            user_prompt += f"\n⚠️ CRITICAL COMPLETION REQUIREMENT ⚠️"
-
-            if format_str == 'long_form':
-                user_prompt += f"\nYou MUST complete ALL 7 sections for LONG-FORM video:"
-                user_prompt += f"\n1. Hook {timestamp_ranges['hook']}"
-                user_prompt += f"\n2. Disclosure {timestamp_ranges['disclosure']}"
-                user_prompt += f"\n3. Problem {timestamp_ranges['problem']}"
-                user_prompt += f"\n4. Solution/Demo {timestamp_ranges['solution']}"
-                user_prompt += f"\n5. Benefits {timestamp_ranges.get('benefits', '[50-70s]')}"
-                user_prompt += f"\n6. Social Proof {timestamp_ranges.get('social_proof', '[70-80s]')}"
-                user_prompt += f"\n7. CTA {timestamp_ranges['cta']}"
-                user_prompt += f"\n\n⚠️ DO NOT STOP AT 15-20 SECONDS. This is a 60-90 second video!"
-            else:
-                user_prompt += f"\nYou MUST complete ALL sections listed above (Hook, Disclosure, Problem, Solution/Demo, CTA)."
-
-            user_prompt += f"\n🚨 FINAL CHECKLIST BEFORE RESPONDING:"
-            user_prompt += f"\n□ Hook section is fully written with timestamp and visuals"
-            user_prompt += f"\n□ Disclosure section is included with proper wording"
-            user_prompt += f"\n□ Problem section clearly identifies the pain point"
-            user_prompt += f"\n□ Solution section explains the product benefits"
-            user_prompt += f"\n□ CTA section has a clear call-to-action with urgency"
-            user_prompt += f"\n□ Each section has production notes ([VISUAL:], [ANGLE:], etc.)"
-            user_prompt += f"\n"
-            user_prompt += f"\nDO NOT stop mid-generation. Every section must be fully written out with timestamps."
-            user_prompt += f"\nYour response will be cut off if incomplete, so finish all sections completely."
-            user_prompt += f"\nEND YOUR RESPONSE ONLY AFTER completing the final CTA section."
-            user_prompt += f"\n"
-            user_prompt += f"\nIMPORTANT: The word limit is for SPOKEN content only."
-            user_prompt += f"\nYou MUST include production notes ([VISUAL:], [ANGLE:], etc.) even if it exceeds the word count."
-            user_prompt += f"\nThe word count is a GUIDELINE, not a hard stop. Completeness is more important."
             user_prompt += f"\n" + "=" * 60 + "\n"
 
         return user_prompt
@@ -733,10 +622,8 @@ WRITING STYLE:
 - Include motion and transitions: "Camera slowly zooms in...", "Scene transitions to..."
 - Mention mood and atmosphere: "warm, inviting atmosphere", "professional studio setting"
 - Be specific about subjects: people, products, environments
-- Keep total prompt under 200 words for best AI results
-
-EXAMPLE FORMAT:
-"A professional marketing video opens with a close-up of [product name] on a clean white surface, sunlight streaming in. The camera slowly pulls back to reveal a confident person holding the product, smiling directly at camera. Scene transitions smoothly to lifestyle footage showing the transformation - before and after moments. Warm, aspirational lighting throughout. Video closes with the product prominently displayed alongside a subtle call-to-action moment, inviting viewers to learn more."
+- Keep prompt concise but detailed enough for video generation
+- Focus on transformation and benefits
 
 PROHIBITED:
 - NO timestamps or time markers

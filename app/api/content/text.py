@@ -335,9 +335,13 @@ async def generate_content(
     content_type_key = request.content_type.value if hasattr(request.content_type, 'value') else str(request.content_type)
 
     word_count = None
+    logger.info(f"[VIDEO DEBUG] request.length = {request.length}, type = {type(request.length)}")
+    logger.info(f"[VIDEO DEBUG] content_type_key = {content_type_key}")
+
     if request.length:
         # Check if content type is video_script and length is a numeric string (seconds)
         is_video_script = content_type_key == "video_script"
+        logger.info(f"[VIDEO DEBUG] is_video_script = {is_video_script}")
 
         if is_video_script:
             # For video scripts, handle numeric values as seconds
@@ -347,13 +351,14 @@ async def generate_content(
                 # Calculate total word count including production notes
                 # Formula: seconds * 2.5 (spoken words per second) * 1.75 (production overhead)
                 word_count = int(seconds * 2.5 * 1.75)
-                logger.info(f"Converting {seconds} seconds to {word_count} words for video script")
-            except (ValueError, TypeError):
+                logger.info(f"[VIDEO DEBUG] ✅ Converting {seconds} seconds to {word_count} words for video script")
+            except (ValueError, TypeError) as e:
                 # Fall back to mapping if conversion fails
                 length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
                 word_count = length_mapping.get("medium", 300)
-                logger.warning(f"Failed to convert video script length '{request.length}' to seconds, using default {word_count} words")
+                logger.error(f"[VIDEO DEBUG] ❌ Failed to convert video script length '{request.length}' to seconds: {e}, using default {word_count} words")
         else:
+            logger.info(f"[VIDEO DEBUG] Not a video script, using traditional mapping")
             # For other content types, use the traditional mapping
             length_mapping = length_to_words_by_type.get(content_type_key, {"short": 100, "medium": 300, "long": 600})
 
@@ -367,6 +372,8 @@ async def generate_content(
                     word_count = int(request.length)
                 except (ValueError, TypeError):
                     word_count = length_mapping.get("medium", 300)  # Default to medium for content type
+
+    logger.info(f"[VIDEO DEBUG] Final word_count = {word_count}")
 
     # Build prompt with email sequence support
     # Extract all selected keywords for the prompt constraints
