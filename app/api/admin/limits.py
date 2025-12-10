@@ -1,272 +1,327 @@
 """
 Admin Limits Management API
 Manage tier-based usage limits and monitor platform consumption
+Now backed by database tables: tier_limits and user_usage
 """
 
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
-from app.db.session import AsyncSessionLocal
+from app.db.session import get_db
+from app.db.models import User
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/limits", tags=["admin-limits"])
 
-# Dependency to get DB session
-async def get_db() -> AsyncSession:
-    """Get database session"""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+
+def require_admin(current_user: User):
+    """Raise 403 if user is not admin"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
 
 # ============================================================================
 # PYDANTIC SCHEMAS
 # ============================================================================
 
 class TierLimit(BaseModel):
+    id: int
     tier_name: str
-    display_name: str
-    videos_per_month: int = -1
-    images_per_month: int = -1
-    video_scripts_per_month: int = -1
-    articles_per_month: int = -1
-    emails_per_month: int = -1
-    social_posts_per_month: int = -1
-    campaigns_per_month: int = -1
-    is_active: bool = True
+    monthly_ai_video_scripts: Optional[int] = None  # NULL = unlimited
+    monthly_ai_text_generations: Optional[int] = None
+    monthly_ai_image_generations: Optional[int] = None
+    monthly_campaigns: Optional[int] = None
+    max_tokens_per_request: int = 4000
+    can_use_premium_ai: bool = False
+    can_use_templates: bool = True
+    description: Optional[str] = None
 
 class TierLimitUpdate(BaseModel):
-    videos_per_month: Optional[int] = None
-    images_per_month: Optional[int] = None
-    video_scripts_per_month: Optional[int] = None
-    articles_per_month: Optional[int] = None
-    emails_per_month: Optional[int] = None
-    social_posts_per_month: Optional[int] = None
-    campaigns_per_month: Optional[int] = None
-    is_active: Optional[bool] = None
+    monthly_ai_video_scripts: Optional[int] = None
+    monthly_ai_text_generations: Optional[int] = None
+    monthly_ai_image_generations: Optional[int] = None
+    monthly_campaigns: Optional[int] = None
+    max_tokens_per_request: Optional[int] = None
+    can_use_premium_ai: Optional[bool] = None
+    can_use_templates: Optional[bool] = None
+    description: Optional[str] = None
 
-class UsageMetric(BaseModel):
-    tier_name: str
+class UserUsageResponse(BaseModel):
+    user_id: int
+    email: str
+    tier: str
+    usage_month: str
+    ai_video_scripts_used: int
+    ai_text_generations_used: int
+    ai_image_generations_used: int
+    campaigns_created: int
+    estimated_cost_usd: float
+
+class UsageSummaryResponse(BaseModel):
     total_users: int
-    videos_generated: int
-    images_generated: int
-    video_scripts_generated: int
-    articles_generated: int
-    revenue: float
-    avg_usage_percentage: float
+    total_cost_this_month: float
+    usage_by_tier: dict
 
-class BulkUpdateRequest(BaseModel):
-    tier_name: str
-    field: str
-    value: int
-    reason: Optional[str] = None
-
-class BulkUpdateResponse(BaseModel):
-    count: int
-    updates: List[BulkUpdateRequest]
 
 # ============================================================================
-# DEFAULT TIER LIMITS DATA
+# API ENDPOINTS - Database-backed
 # ============================================================================
 
-DEFAULT_TIER_LIMITS = {
-    "trial": TierLimit(
-        tier_name="trial",
-        display_name="Trial",
-        videos_per_month=4,
-        images_per_month=5,
-        video_scripts_per_month=10,
-        articles_per_month=10,
-        emails_per_month=3,
-        social_posts_per_month=20,
-        campaigns_per_month=3,
-        is_active=True
-    ),
-    "starter": TierLimit(
-        tier_name="starter",
-        display_name="Starter",
-        videos_per_month=8,
-        images_per_month=30,
-        video_scripts_per_month=50,
-        articles_per_month=25,
-        emails_per_month=10,
-        social_posts_per_month=100,
-        campaigns_per_month=10,
-        is_active=True
-    ),
-    "pro": TierLimit(
-        tier_name="pro",
-        display_name="Pro",
-        videos_per_month=40,
-        images_per_month=100,
-        video_scripts_per_month=200,
-        articles_per_month=-1,  # Unlimited
-        emails_per_month=50,
-        social_posts_per_month=-1,  # Unlimited
-        campaigns_per_month=-1,  # Unlimited
-        is_active=True
-    ),
-    "business": TierLimit(
-        tier_name="business",
-        display_name="Business",
-        videos_per_month=40,
-        images_per_month=300,
-        video_scripts_per_month=500,
-        articles_per_month=-1,  # Unlimited
-        emails_per_month=-1,  # Unlimited
-        social_posts_per_month=-1,  # Unlimited
-        campaigns_per_month=-1,  # Unlimited
-        is_active=True
-    ),
-    "enterprise": TierLimit(
-        tier_name="enterprise",
-        display_name="Enterprise",
-        videos_per_month=160,
-        images_per_month=1000,
-        video_scripts_per_month=1500,
-        articles_per_month=-1,  # Unlimited
-        emails_per_month=-1,  # Unlimited
-        social_posts_per_month=-1,  # Unlimited
-        campaigns_per_month=-1,  # Unlimited
-        is_active=True
-    ),
-}
+@router.get("/tiers", response_model=List[TierLimit])
+async def get_tier_limits(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all tier limit configurations from database"""
+    require_admin(current_user)
 
-# Mock usage metrics (replace with actual database queries)
-MOCK_USAGE_METRICS = {
-    "free": UsageMetric(
-        tier_name="free",
-        total_users=1250,
-        videos_generated=124,
-        images_generated=1245,
-        video_scripts_generated=2341,
-        articles_generated=8934,
-        revenue=0,
-        avg_usage_percentage=45.2
-    ),
-    "starter": UsageMetric(
-        tier_name="starter",
-        total_users=580,
-        videos_generated=156,
-        images_generated=3891,
-        video_scripts_generated=4821,
-        articles_generated=15234,
-        revenue=16820,
-        avg_usage_percentage=67.3
-    ),
-    "pro": UsageMetric(
-        tier_name="pro",
-        total_users=235,
-        videos_generated=987,
-        images_generated=8923,
-        video_scripts_generated=12456,
-        articles_generated=45678,
-        revenue=23265,
-        avg_usage_percentage=78.9
-    ),
-    "business": UsageMetric(
-        tier_name="business",
-        total_users=89,
-        videos_generated=456,
-        images_generated=6789,
-        video_scripts_generated=8923,
-        articles_generated=23456,
-        revenue=17711,
-        avg_usage_percentage=82.4
-    ),
-    "enterprise": UsageMetric(
-        tier_name="enterprise",
-        total_users=23,
-        videos_generated=523,
-        images_generated=3456,
-        video_scripts_generated=4567,
-        articles_generated=12345,
-        revenue=11477,
-        avg_usage_percentage=91.2
-    ),
-}
+    query = text("""
+        SELECT id, tier_name, monthly_ai_video_scripts, monthly_ai_text_generations,
+               monthly_ai_image_generations, monthly_campaigns, max_tokens_per_request,
+               can_use_premium_ai, can_use_templates, description
+        FROM tier_limits
+        ORDER BY id
+    """)
+    result = await db.execute(query)
+    rows = result.fetchall()
 
-# ============================================================================
-# API ENDPOINTS
-# ============================================================================
+    return [
+        TierLimit(
+            id=row[0],
+            tier_name=row[1],
+            monthly_ai_video_scripts=row[2],
+            monthly_ai_text_generations=row[3],
+            monthly_ai_image_generations=row[4],
+            monthly_campaigns=row[5],
+            max_tokens_per_request=row[6],
+            can_use_premium_ai=row[7],
+            can_use_templates=row[8],
+            description=row[9]
+        )
+        for row in rows
+    ]
 
-@router.get("/tiers", response_model=Dict[str, List[TierLimit]])
-async def get_tier_limits():
-    """
-    Get all tier limits configuration
-    """
-    return {"tiers": list(DEFAULT_TIER_LIMITS.values())}
 
 @router.put("/tiers/{tier_name}", response_model=TierLimit)
 async def update_tier_limit(
     tier_name: str,
-    updates: TierLimitUpdate
+    updates: TierLimitUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Update limits for a specific tier
-    """
-    if tier_name not in DEFAULT_TIER_LIMITS:
+    """Update limits for a specific tier"""
+    require_admin(current_user)
+
+    # Build dynamic update query
+    update_fields = []
+    params = {"tier_name": tier_name}
+
+    if updates.monthly_ai_video_scripts is not None:
+        update_fields.append("monthly_ai_video_scripts = :video_scripts")
+        params["video_scripts"] = updates.monthly_ai_video_scripts if updates.monthly_ai_video_scripts != -1 else None
+
+    if updates.monthly_ai_text_generations is not None:
+        update_fields.append("monthly_ai_text_generations = :text_gens")
+        params["text_gens"] = updates.monthly_ai_text_generations if updates.monthly_ai_text_generations != -1 else None
+
+    if updates.monthly_ai_image_generations is not None:
+        update_fields.append("monthly_ai_image_generations = :image_gens")
+        params["image_gens"] = updates.monthly_ai_image_generations if updates.monthly_ai_image_generations != -1 else None
+
+    if updates.monthly_campaigns is not None:
+        update_fields.append("monthly_campaigns = :campaigns")
+        params["campaigns"] = updates.monthly_campaigns if updates.monthly_campaigns != -1 else None
+
+    if updates.max_tokens_per_request is not None:
+        update_fields.append("max_tokens_per_request = :max_tokens")
+        params["max_tokens"] = updates.max_tokens_per_request
+
+    if updates.can_use_premium_ai is not None:
+        update_fields.append("can_use_premium_ai = :premium_ai")
+        params["premium_ai"] = updates.can_use_premium_ai
+
+    if updates.can_use_templates is not None:
+        update_fields.append("can_use_templates = :templates")
+        params["templates"] = updates.can_use_templates
+
+    if updates.description is not None:
+        update_fields.append("description = :description")
+        params["description"] = updates.description
+
+    if not update_fields:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update"
+        )
+
+    update_fields.append("updated_at = CURRENT_TIMESTAMP")
+
+    query = text(f"""
+        UPDATE tier_limits
+        SET {', '.join(update_fields)}
+        WHERE tier_name = :tier_name
+        RETURNING id, tier_name, monthly_ai_video_scripts, monthly_ai_text_generations,
+                  monthly_ai_image_generations, monthly_campaigns, max_tokens_per_request,
+                  can_use_premium_ai, can_use_templates, description
+    """)
+
+    result = await db.execute(query, params)
+    row = result.fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tier '{tier_name}' not found"
         )
 
-    # Get current tier data
-    current_tier = DEFAULT_TIER_LIMITS[tier_name]
-    tier_dict = current_tier.model_dump()
+    await db.commit()
 
-    # Apply updates
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        tier_dict[field] = value
-
-    # Create updated tier
-    updated_tier = TierLimit(**tier_dict)
-    DEFAULT_TIER_LIMITS[tier_name] = updated_tier
-
-    return updated_tier
-
-@router.get("/usage", response_model=Dict[str, List[UsageMetric]])
-async def get_usage_analytics():
-    """
-    Get usage analytics for all tiers
-    """
-    return {"metrics": list(MOCK_USAGE_METRICS.values())}
-
-@router.post("/bulk-update", response_model=BulkUpdateResponse)
-async def bulk_update_limits(
-    updates: List[BulkUpdateRequest]
-):
-    """
-    Bulk update multiple tier limits
-    """
-    updated_count = 0
-
-    for update in updates:
-        if update.tier_name not in DEFAULT_TIER_LIMITS:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Tier '{update.tier_name}' not found"
-            )
-
-        # Get current tier
-        current_tier = DEFAULT_TIER_LIMITS[update.tier_name]
-        tier_dict = current_tier.model_dump()
-
-        # Update the specified field
-        if hasattr(current_tier, update.field):
-            setattr(current_tier, update.field, update.value)
-            updated_count += 1
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid field '{update.field}' for tier '{update.tier_name}'"
-            )
-
-    return BulkUpdateResponse(
-        count=updated_count,
-        updates=updates
+    return TierLimit(
+        id=row[0],
+        tier_name=row[1],
+        monthly_ai_video_scripts=row[2],
+        monthly_ai_text_generations=row[3],
+        monthly_ai_image_generations=row[4],
+        monthly_campaigns=row[5],
+        max_tokens_per_request=row[6],
+        can_use_premium_ai=row[7],
+        can_use_templates=row[8],
+        description=row[9]
     )
+
+
+@router.get("/usage", response_model=List[UserUsageResponse])
+async def get_all_user_usage(
+    month: Optional[str] = None,  # Format: YYYY-MM
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get usage for all users for a specific month (default: current month)"""
+    require_admin(current_user)
+
+    # Default to current month
+    if month:
+        year, mon = month.split("-")
+        usage_month = date(int(year), int(mon), 1)
+    else:
+        today = date.today()
+        usage_month = date(today.year, today.month, 1)
+
+    query = text("""
+        SELECT u.id, u.email, COALESCE(u.affiliate_tier, 'standard') as tier,
+               COALESCE(uu.ai_video_scripts_used, 0),
+               COALESCE(uu.ai_text_generations_used, 0),
+               COALESCE(uu.ai_image_generations_used, 0),
+               COALESCE(uu.campaigns_created, 0),
+               COALESCE(uu.estimated_cost_usd, 0)
+        FROM users u
+        LEFT JOIN user_usage uu ON u.id = uu.user_id AND uu.usage_month = :month
+        WHERE u.role != 'admin'
+        ORDER BY COALESCE(uu.estimated_cost_usd, 0) DESC
+    """)
+
+    result = await db.execute(query, {"month": usage_month})
+    rows = result.fetchall()
+
+    return [
+        UserUsageResponse(
+            user_id=row[0],
+            email=row[1],
+            tier=row[2],
+            usage_month=usage_month.strftime("%Y-%m"),
+            ai_video_scripts_used=row[3],
+            ai_text_generations_used=row[4],
+            ai_image_generations_used=row[5],
+            campaigns_created=row[6],
+            estimated_cost_usd=float(row[7])
+        )
+        for row in rows
+    ]
+
+
+@router.get("/usage/summary", response_model=UsageSummaryResponse)
+async def get_usage_summary(
+    month: Optional[str] = None,  # Format: YYYY-MM
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get aggregated usage summary by tier"""
+    require_admin(current_user)
+
+    # Default to current month
+    if month:
+        year, mon = month.split("-")
+        usage_month = date(int(year), int(mon), 1)
+    else:
+        today = date.today()
+        usage_month = date(today.year, today.month, 1)
+
+    # Get total users and cost
+    total_query = text("""
+        SELECT COUNT(DISTINCT u.id), COALESCE(SUM(uu.estimated_cost_usd), 0)
+        FROM users u
+        LEFT JOIN user_usage uu ON u.id = uu.user_id AND uu.usage_month = :month
+        WHERE u.role != 'admin'
+    """)
+    total_result = await db.execute(total_query, {"month": usage_month})
+    total_row = total_result.fetchone()
+
+    # Get usage by tier
+    tier_query = text("""
+        SELECT COALESCE(u.affiliate_tier, 'standard') as tier,
+               COUNT(DISTINCT u.id) as user_count,
+               COALESCE(SUM(uu.ai_video_scripts_used), 0) as video_scripts,
+               COALESCE(SUM(uu.ai_text_generations_used), 0) as text_gens,
+               COALESCE(SUM(uu.ai_image_generations_used), 0) as image_gens,
+               COALESCE(SUM(uu.estimated_cost_usd), 0) as total_cost
+        FROM users u
+        LEFT JOIN user_usage uu ON u.id = uu.user_id AND uu.usage_month = :month
+        WHERE u.role != 'admin'
+        GROUP BY COALESCE(u.affiliate_tier, 'standard')
+    """)
+    tier_result = await db.execute(tier_query, {"month": usage_month})
+    tier_rows = tier_result.fetchall()
+
+    usage_by_tier = {}
+    for row in tier_rows:
+        usage_by_tier[row[0]] = {
+            "user_count": row[1],
+            "ai_video_scripts": row[2],
+            "ai_text_generations": row[3],
+            "ai_image_generations": row[4],
+            "total_cost": float(row[5])
+        }
+
+    return UsageSummaryResponse(
+        total_users=total_row[0],
+        total_cost_this_month=float(total_row[1]),
+        usage_by_tier=usage_by_tier
+    )
+
+
+@router.delete("/usage/{user_id}")
+async def reset_user_usage(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Reset a user's usage for the current month (admin only)"""
+    require_admin(current_user)
+
+    today = date.today()
+    usage_month = date(today.year, today.month, 1)
+
+    query = text("""
+        DELETE FROM user_usage
+        WHERE user_id = :user_id AND usage_month = :month
+    """)
+    await db.execute(query, {"user_id": user_id, "month": usage_month})
+    await db.commit()
+
+    return {"message": f"Usage reset for user {user_id}"}

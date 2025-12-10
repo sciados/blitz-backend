@@ -24,6 +24,7 @@ from app.services.rag import RAGService
 from app.services.ai_router import AIRouter
 from app.services.prompt_builder import PromptBuilder
 from app.services.compliance_checker import ComplianceChecker
+from app.services.video_template_engine import generate_video_script
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 logger = logging.getLogger(__name__)
@@ -465,12 +466,71 @@ async def generate_content(
     else:
         max_tokens = 1500  # Default for unspecified length
 
-    # Generate content using AI router
-    generated_text = await ai_router.generate_text(
-        prompt=prompt,
-        max_tokens=max_tokens,
-        temperature=0.7
-    )
+    # ========================================================================
+    # TIER-BASED VIDEO SCRIPT GENERATION
+    # Standard tier users get template-based scripts (cost-effective)
+    # Pro tier users get premium AI generation (Claude/GPT-4o quality)
+    # ========================================================================
+    use_template_engine = False
+
+    if is_video_script:
+        # Check user's affiliate tier - "standard" uses templates, "pro" uses AI
+        user_tier = current_user.affiliate_tier or "standard"
+        logger.info(f"[TEMPLATE] User tier: {user_tier}, content_type: video_script")
+
+        if user_tier == "standard":
+            # Use template engine for standard tier users
+            use_template_engine = True
+            logger.info(f"[TEMPLATE] Using template engine for standard tier user")
+        else:
+            logger.info(f"[TEMPLATE] Using AI generation for {user_tier} tier user")
+
+    generated_text = None
+
+    if use_template_engine:
+        # Generate video script from template
+        try:
+            # Get duration from request.length (e.g., "5" or "10")
+            duration = int(request.length) if request.length else 5
+
+            # Get marketing angle from request
+            marketing_angle_str = str(request.marketing_angle.value) if hasattr(request.marketing_angle, 'value') else str(request.marketing_angle)
+
+            # Prepare keywords for template engine
+            template_keywords = {
+                "product_name": campaign.name,
+                "ingredients": request.keywords.get("ingredients", []) if request.keywords else [],
+                "features": request.keywords.get("features", []) if request.keywords else [],
+                "benefits": request.keywords.get("benefits", []) if request.keywords else [],
+                "pain_points": request.keywords.get("pain_points", []) if request.keywords else []
+            }
+
+            logger.info(f"[TEMPLATE] Generating script: campaign={campaign.id}, angle={marketing_angle_str}, duration={duration}s")
+            logger.info(f"[TEMPLATE] Keywords: {template_keywords}")
+
+            generated_text = await generate_video_script(
+                db=db,
+                campaign_id=campaign.id,
+                marketing_angle=marketing_angle_str,
+                duration=duration,
+                keywords=template_keywords
+            )
+
+            logger.info(f"[TEMPLATE] Generated template-based script: {generated_text[:100]}...")
+
+        except Exception as e:
+            # Fallback to AI generation if template fails
+            logger.warning(f"[TEMPLATE] Template generation failed, falling back to AI: {str(e)}")
+            use_template_engine = False
+            generated_text = None
+
+    # Generate content using AI router (if not using template or template failed)
+    if generated_text is None:
+        generated_text = await ai_router.generate_text(
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
 
     # Log generation details for debugging
     text_length = len(generated_text)
@@ -520,20 +580,34 @@ async def generate_content(
                 voiceover_text = ' '.join(voiceover_matches)
                 logger.info(f"[DEBUG] Truncated to {len(voiceover_text.split())} voiceover words")
             else:
-                # Non-video: simple truncation
+                # Non-video: simple truncation - NEVER cut mid-word
                 words = generated_text.split()
-                truncated_words = words[:word_count]
-                truncated_text = ' '.join(truncated_words)
-                # Try to end at a sentence boundary
-                last_period = truncated_text.rfind('.')
-                last_exclamation = truncated_text.rfind('!')
-                last_question = truncated_text.rfind('?')
-                punctuation_pos = max(last_period, last_exclamation, last_question)
-                if punctuation_pos > len(truncated_text) * 0.5:
-                    generated_text = truncated_text[:punctuation_pos + 1]
-                else:
+                if len(words) > word_count:
+                    # Get exact number of words (no more, no less)
+                    truncated_words = words[:word_count]
+                    truncated_text = ' '.join(truncated_words)
+                    # Try to end at punctuation for natural ending
+                    last_period = truncated_text.rfind('.')
+                    last_exclamation = truncated_text.rfind('!')
+                    last_question = truncated_text.rfind('?')
+                    punctuation_pos = max(last_period, last_exclamation, last_question)
+                    # Only use punctuation if it's not too early (>30% of text) and not cutting off words
+                    if punctuation_pos > len(truncated_text) * 0.3:
+                        # Make sure punctuation doesn't cut off the last word
+                        punct_index = punctuation_pos + 1
+                        if punct_index < len(truncated_text):
+                            # Find last space before punctuation
+                            last_space = truncated_text.rfind(' ', 0, punct_index)
+                            if last_space > 0:
+                                truncated_text = truncated_text[:last_space] + truncated_text[punct_index-1:]
+                            else:
+                                truncated_text = truncated_text[:punct_index]
+                        else:
+                            truncated_text = truncated_text[:punct_index]
                     generated_text = truncated_text
-                logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
+                    logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
+                else:
+                    logger.info(f"[DEBUG] No truncation needed ({len(words)} words, target: {word_count})")
         elif word_count_actual < word_count * 0.8:
             # Too short - expand voiceover to meet minimum threshold
             words_needed = word_count - word_count_actual
