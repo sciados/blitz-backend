@@ -36,6 +36,7 @@ from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
 from app.services.storage_r2 import r2_storage
 from app.services.text_renderer import TkinterTextRenderer
+from app.services.usage_limits import get_effective_tier, check_usage_limit, increment_usage
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,38 @@ async def generate_image(
     db.add(image_record)
     await db.commit()
     await db.refresh(image_record)
+
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL IMAGE GENERATION
+    # ========================================================================
+    # Check trial/subscription status
+    effective_tier = await get_effective_tier(db, current_user.id)
+
+    if effective_tier == "expired":
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Your trial has expired. Please upgrade to continue generating images."
+        )
+
+    # Check usage limits for image generation
+    allowed, message, current_usage, limit = await check_usage_limit(
+        db, current_user.id, effective_tier, "ai_image_generations"
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Monthly limit reached for image generation: {message}. Upgrade your plan for higher limits."
+        )
+
+    # Increment usage (use the actual cost from generation result)
+    await increment_usage(
+        db,
+        current_user.id,
+        "ai_image_generations",
+        estimated_cost=result.cost
+    )
+    logger.info(f"[USAGE] Incremented ai_image_generations for user {current_user.id}, cost: ${result.cost:.4f}")
 
     return ImageResponse(
         id=image_record.id,
@@ -608,6 +641,18 @@ async def upgrade_image(
     await db.commit()
     await db.refresh(image_record)
 
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL IMAGE UPGRADE/ENHANCEMENT
+    # ========================================================================
+    # Increment usage for the enhanced image
+    await increment_usage(
+        db,
+        current_user.id,
+        "ai_image_generations",
+        estimated_cost=result.cost
+    )
+    logger.info(f"[USAGE] Incremented ai_image_generations for user {current_user.id} (upgrade), cost: ${result.cost:.4f}")
+
     return ImageResponse(
         id=image_record.id,
         campaign_id=image_record.campaign_id,
@@ -721,6 +766,31 @@ async def batch_generate_images(
     # Refresh all records
     for record in image_records:
         await db.refresh(record)
+
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL BATCH IMAGE GENERATION
+    # ========================================================================
+    # Check trial/subscription status
+    effective_tier = await get_effective_tier(db, current_user.id)
+
+    if effective_tier == "expired":
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Your trial has expired. Please upgrade to continue generating images."
+        )
+
+    # Calculate total cost for all images
+    total_cost = sum(result.cost for result in results)
+
+    # Increment usage by number of images generated
+    # (each image counts as one generation)
+    await increment_usage(
+        db,
+        current_user.id,
+        "ai_image_generations",
+        estimated_cost=total_cost
+    )
+    logger.info(f"[USAGE] Incremented ai_image_generations for user {current_user.id} ({len(results)} images), cost: ${total_cost:.4f}")
 
     return [
         ImageResponse(
@@ -1040,6 +1110,21 @@ async def create_variations(
     # Refresh all records
     for record in variation_records:
         await db.refresh(record)
+
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL IMAGE VARIATIONS
+    # ========================================================================
+    # Calculate total cost for all variations
+    total_cost = sum(result.cost for result in results)
+
+    # Increment usage by number of variations created
+    await increment_usage(
+        db,
+        current_user.id,
+        "ai_image_generations",
+        estimated_cost=total_cost
+    )
+    logger.info(f"[USAGE] Incremented ai_image_generations for user {current_user.id} ({len(results)} variations), cost: ${total_cost:.4f}")
 
     return [
         ImageResponse(

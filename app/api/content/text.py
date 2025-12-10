@@ -25,6 +25,7 @@ from app.services.ai_router import AIRouter
 from app.services.prompt_builder import PromptBuilder
 from app.services.compliance_checker import ComplianceChecker
 from app.services.video_template_engine import generate_video_script
+from app.services.usage_limits import get_effective_tier, check_usage_limit, increment_usage
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 logger = logging.getLogger(__name__)
@@ -212,6 +213,36 @@ async def generate_content(
     compliance_checker: ComplianceChecker = Depends(get_compliance_checker)
 ):
     """Generate new content for a campaign."""
+
+    # ========================================================================
+    # CHECK TRIAL/SUBSCRIPTION STATUS
+    # ========================================================================
+    effective_tier = await get_effective_tier(db, current_user.id)
+
+    if effective_tier == "expired":
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Your trial has expired. Please upgrade to continue generating content."
+        )
+
+    # Determine usage type for limit checking
+    content_type_key = request.content_type.value if hasattr(request.content_type, 'value') else str(request.content_type)
+    if content_type_key == "video_script":
+        usage_type = "ai_video_scripts"
+    else:
+        usage_type = "ai_text_generations"
+
+    # Check usage limits
+    allowed, message, current_usage, limit = await check_usage_limit(
+        db, current_user.id, effective_tier, usage_type
+    )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Monthly limit reached for {usage_type.replace('_', ' ')}: {message}. Upgrade your plan for higher limits."
+        )
+
     # Verify campaign ownership and eager load product intelligence
     result = await db.execute(
         select(Campaign)
@@ -750,6 +781,24 @@ async def generate_content(
             for email_content in email_contents:
                 await db.refresh(email_content)
 
+            # ========================================================================
+            # INCREMENT USAGE AFTER SUCCESSFUL GENERATION (Email Sequences)
+            # ========================================================================
+            # Email sequences count as ONE text generation (not num_emails)
+            # Calculate estimated cost based on token usage
+            estimated_cost = 0.0
+            if not use_template_engine:
+                # AI generation cost: $0.002 per 1K tokens (rough estimate)
+                estimated_cost = max_tokens * 0.002 / 1000
+
+            await increment_usage(
+                db,
+                current_user.id,
+                usage_type,
+                estimated_cost=estimated_cost
+            )
+            logger.info(f"[USAGE] Incremented {usage_type} for user {current_user.id}, cost: ${estimated_cost:.4f}")
+
         # Return list of content responses
         return [
             ContentResponse(
@@ -837,6 +886,23 @@ async def generate_content(
         flag_modified(content, "content_data")
         await db.commit()
         await db.refresh(content)
+
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL GENERATION (Standard Content)
+    # ========================================================================
+    # Calculate estimated cost based on token usage
+    estimated_cost = 0.0
+    if not use_template_engine:
+        # AI generation cost: $0.002 per 1K tokens (rough estimate)
+        estimated_cost = max_tokens * 0.002 / 1000
+
+    await increment_usage(
+        db,
+        current_user.id,
+        usage_type,
+        estimated_cost=estimated_cost
+    )
+    logger.info(f"[USAGE] Incremented {usage_type} for user {current_user.id}, cost: ${estimated_cost:.4f}")
 
     return ContentResponse(
         id=content.id,
@@ -1090,6 +1156,26 @@ Provide the refined {content_type} version:"""
 
     await db.commit()
     await db.refresh(content)
+
+    # ========================================================================
+    # INCREMENT USAGE AFTER SUCCESSFUL REFINEMENT
+    # ========================================================================
+    # Determine usage type based on content type
+    if content.content_type == "video_script":
+        usage_type = "ai_video_scripts"
+    else:
+        usage_type = "ai_text_generations"
+
+    # Refinement uses AI generation, so it has a cost
+    estimated_cost = 2000 * 0.002 / 1000  # Rough estimate for 2000 tokens
+
+    await increment_usage(
+        db,
+        current_user.id,
+        usage_type,
+        estimated_cost=estimated_cost
+    )
+    logger.info(f"[USAGE] Incremented {usage_type} for user {current_user.id} (refinement), cost: ${estimated_cost:.4f}")
 
     return ContentResponse(
         id=content.id,
@@ -1372,6 +1458,27 @@ Variation {i+1} (maintain {content_type} format):"""
         await db.commit()
         for variation in variations:
             await db.refresh(variation)
+
+        # ========================================================================
+        # INCREMENT USAGE AFTER SUCCESSFUL VARIATIONS CREATION
+        # ========================================================================
+        # Each variation counts as a text generation
+        # Determine usage type based on content type
+        if content.content_type == "video_script":
+            usage_type = "ai_video_scripts"
+        else:
+            usage_type = "ai_text_generations"
+
+        # Variations use AI generation, so they have a cost
+        estimated_cost = (2000 * 0.002 / 1000) * len(variations)  # Cost per variation
+
+        await increment_usage(
+            db,
+            current_user.id,
+            usage_type,
+            estimated_cost=estimated_cost
+        )
+        logger.info(f"[USAGE] Incremented {usage_type} for user {current_user.id} ({len(variations)} variations), cost: ${estimated_cost:.4f}")
 
     return [
         ContentResponse(

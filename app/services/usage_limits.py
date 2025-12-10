@@ -1,10 +1,11 @@
 """
 Usage Limits Service
 Checks and tracks user usage against tier limits
+Includes trial period management
 """
 
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -277,3 +278,156 @@ async def get_usage_summary(
     """Get user's usage summary"""
     service = UsageLimitsService(db)
     return await service.get_user_usage_summary(user_id, tier_name)
+
+
+# ============================================================================
+# TRIAL MANAGEMENT
+# ============================================================================
+
+async def check_trial_status(
+    db: AsyncSession,
+    user_id: int
+) -> Dict[str, Any]:
+    """
+    Check if user's trial has expired
+
+    Returns:
+        {
+            "is_trial": bool,
+            "trial_expired": bool,
+            "trial_ends_at": datetime or None,
+            "days_remaining": int or None,
+            "subscription_tier": str
+        }
+    """
+    query = text("""
+        SELECT subscription_tier, trial_ends_at
+        FROM users
+        WHERE id = :user_id
+    """)
+    result = await db.execute(query, {"user_id": user_id})
+    row = result.fetchone()
+
+    if not row:
+        return {
+            "is_trial": False,
+            "trial_expired": False,
+            "trial_ends_at": None,
+            "days_remaining": None,
+            "subscription_tier": "standard"
+        }
+
+    subscription_tier = row[0] or "trial"
+    trial_ends_at = row[1]
+
+    is_trial = subscription_tier == "trial"
+    trial_expired = False
+    days_remaining = None
+
+    if is_trial and trial_ends_at:
+        now = datetime.now(timezone.utc)
+        # Make trial_ends_at timezone-aware if it isn't
+        if trial_ends_at.tzinfo is None:
+            trial_ends_at = trial_ends_at.replace(tzinfo=timezone.utc)
+
+        trial_expired = now > trial_ends_at
+        if not trial_expired:
+            delta = trial_ends_at - now
+            days_remaining = max(0, delta.days)
+
+    return {
+        "is_trial": is_trial,
+        "trial_expired": trial_expired,
+        "trial_ends_at": trial_ends_at.isoformat() if trial_ends_at else None,
+        "days_remaining": days_remaining,
+        "subscription_tier": subscription_tier
+    }
+
+
+async def start_trial(
+    db: AsyncSession,
+    user_id: int,
+    trial_days: int = 7
+) -> bool:
+    """
+    Start a trial for a new user
+
+    Args:
+        user_id: User ID
+        trial_days: Number of days for trial (default 7)
+
+    Returns:
+        True if successful
+    """
+    from datetime import timedelta
+
+    trial_ends_at = datetime.now(timezone.utc) + timedelta(days=trial_days)
+
+    query = text("""
+        UPDATE users
+        SET subscription_tier = 'trial',
+            trial_ends_at = :trial_ends_at,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :user_id
+    """)
+
+    await db.execute(query, {
+        "user_id": user_id,
+        "trial_ends_at": trial_ends_at
+    })
+    await db.commit()
+
+    logger.info(f"[TRIAL] Started 7-day trial for user {user_id}, ends at {trial_ends_at}")
+    return True
+
+
+async def upgrade_from_trial(
+    db: AsyncSession,
+    user_id: int,
+    new_tier: str = "standard"
+) -> bool:
+    """
+    Upgrade user from trial to a paid tier
+
+    Args:
+        user_id: User ID
+        new_tier: New subscription tier (standard, pro, business)
+
+    Returns:
+        True if successful
+    """
+    query = text("""
+        UPDATE users
+        SET subscription_tier = :new_tier,
+            trial_ends_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = :user_id
+    """)
+
+    await db.execute(query, {
+        "user_id": user_id,
+        "new_tier": new_tier
+    })
+    await db.commit()
+
+    logger.info(f"[TRIAL] User {user_id} upgraded from trial to {new_tier}")
+    return True
+
+
+async def get_effective_tier(
+    db: AsyncSession,
+    user_id: int
+) -> str:
+    """
+    Get user's effective tier, checking trial expiration
+
+    If trial has expired, returns 'expired' to trigger upgrade prompt
+    Otherwise returns the subscription_tier
+    """
+    status = await check_trial_status(db, user_id)
+
+    if status["is_trial"] and status["trial_expired"]:
+        return "expired"
+
+    return status["subscription_tier"]
+

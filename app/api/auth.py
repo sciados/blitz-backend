@@ -16,6 +16,7 @@ from app.auth import (
 )
 from app.core.config.settings import settings
 from app.utils.r2_storage import R2Storage
+from app.services.usage_limits import start_trial, check_trial_status
 
 # Profile update schema
 class ProfileUpdate(BaseModel):
@@ -85,7 +86,11 @@ async def register_user(
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
-    
+
+    # Start 7-day free trial for new user
+    await start_trial(db, new_user.id, trial_days=7)
+    await db.refresh(new_user)
+
     return new_user
 
 # ====
@@ -127,6 +132,29 @@ async def get_me(
 ):
     """Get current user information."""
     return current_user
+
+
+@router.get("/subscription")
+async def get_subscription_status(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get current user's subscription/trial status.
+    Returns tier, trial info, and days remaining.
+    """
+    status = await check_trial_status(db, current_user.id)
+
+    return {
+        "user_id": current_user.id,
+        "email": current_user.email,
+        **status,
+        "pricing": {
+            "standard": {"price": 7, "name": "Standard"},
+            "pro": {"price": 47, "name": "Pro"},
+            "business": {"price": 97, "name": "Business"}
+        }
+    }
 
 # ====
 # UPDATE PROFILE
