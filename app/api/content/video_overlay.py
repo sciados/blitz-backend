@@ -308,11 +308,11 @@ class VideoOverlayService:
         import hashlib
 
         # Generate R2 key following the same pattern as images
-        # Format: campaigns/{campaign_id}/videos/overlays/text_overlay_{timestamp}_{hash}.mp4
+        # Format: campaigns/{campaign_id}/videos/overlay/text_overlay_{timestamp}_{hash}.mp4
         timestamp = int(time.time())
         # Create hash from original URL to link versions
         url_hash = hashlib.md5(original_url.encode()).hexdigest()[:8]
-        key = f"campaigns/{campaign_id}/videos/overlays/text_overlay_{timestamp}_{url_hash}.mp4"
+        key = f"campaigns/{campaign_id}/videos/overlay/text_overlay_{timestamp}_{url_hash}.mp4"
 
         # Read file bytes
         with open(video_path, "rb") as f:
