@@ -439,17 +439,25 @@ class LumaVideoService:
 
                 # Check different possible output structures
                 if isinstance(output, dict):
-                    # Try common video URL fields
-                    video_url = (
-                        output.get("video_url")
-                        or output.get("video")
-                        or (output.get("files", [{}])[0].get("url") if output.get("files") else None)
-                    )
-                    thumbnail_url = (
-                        output.get("thumbnail_url")
-                        or output.get("thumbnail")
-                        or (output.get("images", [{}])[0].get("url") if output.get("images") else None)
-                    )
+                    # Try common video URL fields (check nested objects first)
+                    video_data = output.get("video")
+                    if isinstance(video_data, dict):
+                        video_url = video_data.get("url")
+                    else:
+                        video_url = output.get("video_url") or output.get("video")
+
+                    # Try thumbnail URL (check nested objects first)
+                    thumbnail_data = output.get("thumbnail")
+                    if isinstance(thumbnail_data, dict):
+                        thumbnail_url = thumbnail_data.get("url")
+                    else:
+                        thumbnail_url = output.get("thumbnail_url") or output.get("thumbnail")
+
+                    # Also check files array as fallback
+                    if not video_url:
+                        video_url = (output.get("files", [{}])[0].get("url") if output.get("files") else None)
+                    if not thumbnail_url:
+                        thumbnail_url = (output.get("images", [{}])[0].get("url") if output.get("images") else None)
 
                 return {
                     "status": mapped_status,
@@ -615,9 +623,19 @@ class HunyuanVideoService:
                 thumbnail_url = None
 
                 if isinstance(output, dict):
-                    if "video_url" in output:
+                    # Try nested object structure first (output["video"]["url"])
+                    video_data = output.get("video")
+                    if isinstance(video_data, dict):
+                        video_url = video_data.get("url")
+                    else:
                         video_url = output.get("video_url")
-                    # Hunyuan may not provide thumbnail separately
+
+                    # Try thumbnail
+                    thumbnail_data = output.get("thumbnail")
+                    if isinstance(thumbnail_data, dict):
+                        thumbnail_url = thumbnail_data.get("url")
+                    else:
+                        thumbnail_url = output.get("thumbnail_url")
 
                 return {
                     "status": mapped_status,
@@ -1535,7 +1553,10 @@ async def update_video_status(
 ):
     """
     Background task to poll PiAPI for video status and update database
+    Polls every 5 seconds until video is complete or failed
     """
+    import asyncio
+
     try:
         # Get video from database
         result = await db.execute(
@@ -1549,67 +1570,88 @@ async def update_video_status(
             return
 
         task_id = video_record[0]
+        logger.info(f"Starting status polling for video {video_id}, task {task_id}")
 
-        # Poll PiAPI for status
-        status_result = await video_service.get_generation_status(task_id)
+        # Poll PiAPI for status (with retry logic)
+        max_attempts = 60  # Poll for up to 5 minutes
+        attempt = 0
 
-        # Map status to our format
-        status_mapping = {
-            "pending": "processing",
-            "processing": "processing",
-            "completed": "completed",
-            "failed": "failed"
-        }
-        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+        while attempt < max_attempts:
+            attempt += 1
+            logger.info(f"Polling attempt {attempt}/{max_attempts} for video {video_id}")
 
-        # Update database
-        update_data = {
-            "status": mapped_status,
-            "progress": status_result.get("progress", 0),
-        }
+            status_result = await video_service.get_generation_status(task_id)
 
-        # If completed, add video URLs and metadata
-        if mapped_status == "completed":
-            output = status_result.get("output", {})
-            if isinstance(output, dict):
-                video_data = output.get("video", {})
-                thumbnail_data = output.get("thumbnail", {})
-                last_frame_data = output.get("last_frame", {})
+            # Map status to our format
+            status_mapping = {
+                "pending": "processing",
+                "processing": "processing",
+                "completed": "completed",
+                "failed": "failed"
+            }
+            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
 
+            logger.info(f"Video {video_id} status: {mapped_status}")
+
+            # Update database with current status
+            update_data = {
+                "status": mapped_status,
+                "progress": status_result.get("progress", 0),
+            }
+
+            # If completed, add video URLs and metadata
+            if mapped_status == "completed":
+                output = status_result.get("output", {})
+                if isinstance(output, dict):
+                    video_data = output.get("video", {})
+                    thumbnail_data = output.get("thumbnail", {})
+                    last_frame_data = output.get("last_frame", {})
+
+                    update_data.update({
+                        "video_url": video_data.get("url") if isinstance(video_data, dict) else None,
+                        "video_raw_url": status_result.get("video_raw_url"),
+                        "thumbnail_url": thumbnail_data.get("url") if isinstance(thumbnail_data, dict) else None,
+                        "last_frame_url": last_frame_data.get("url") if isinstance(last_frame_data, dict) else None,
+                        "video_width": video_data.get("width") if isinstance(video_data, dict) else None,
+                        "video_height": video_data.get("height") if isinstance(video_data, dict) else None,
+                        "completed_at": datetime.utcnow()
+                    })
+
+            # If failed, add error info
+            if mapped_status == "failed":
                 update_data.update({
-                    "video_url": video_data.get("url") if isinstance(video_data, dict) else None,
-                    "video_raw_url": status_result.get("video_raw_url"),
-                    "thumbnail_url": thumbnail_data.get("url") if isinstance(thumbnail_data, dict) else None,
-                    "last_frame_url": last_frame_data.get("url") if isinstance(last_frame_data, dict) else None,
-                    "video_width": video_data.get("width") if isinstance(video_data, dict) else None,
-                    "video_height": video_data.get("height") if isinstance(video_data, dict) else None,
-                    "completed_at": datetime.utcnow()
+                    "error_message": status_result.get("error"),
+                    "error_code": "GENERATION_FAILED"
                 })
 
-        # If failed, add error info
-        if mapped_status == "failed":
-            update_data.update({
-                "error_message": status_result.get("error"),
-                "error_code": "GENERATION_FAILED"
-            })
+            # Build dynamic UPDATE query based on available fields
+            set_clauses = []
+            params = {"id": video_id}
 
-        # Build dynamic UPDATE query based on available fields
-        set_clauses = []
-        params = {"id": video_id}
+            for field, value in update_data.items():
+                set_clauses.append(f"{field} = :{field}")
+                params[field] = value
 
-        for field, value in update_data.items():
-            set_clauses.append(f"{field} = :{field}")
-            params[field] = value
+            # Always include id in params
+            set_clauses.append("id = :id")
 
-        # Always include id in params
-        set_clauses.append("id = :id")
+            # Execute update with only the fields that have values
+            update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+            await db.execute(text(update_sql), params)
+            await db.commit()
 
-        # Execute update with only the fields that have values
-        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
-        await db.execute(text(update_sql), params)
-        await db.commit()
+            logger.info(f"Updated video {video_id} status to {mapped_status}")
 
-        logger.info(f"Updated video {video_id} status to {mapped_status}")
+            # If video is complete or failed, stop polling
+            if mapped_status in ["completed", "failed"]:
+                logger.info(f"Video {video_id} polling complete: {mapped_status}")
+                break
+
+            # Wait 5 seconds before next poll
+            await asyncio.sleep(5)
+
+        if attempt >= max_attempts:
+            logger.warning(f"Video {video_id} polling timeout after {max_attempts} attempts")
 
     except Exception as e:
         logger.error(f"Error updating video status: {str(e)}")
@@ -1623,7 +1665,10 @@ async def update_video_status_hunyuan(
 ):
     """
     Background task to poll Hunyuan for video status and update database
+    Polls every 5 seconds until video is complete or failed
     """
+    import asyncio
+
     try:
         # Get video from database
         result = await db.execute(
@@ -1637,82 +1682,103 @@ async def update_video_status_hunyuan(
             return
 
         task_id = video_record[0]
+        logger.info(f"Starting Hunyuan status polling for video {video_id}, task {task_id}")
 
-        # Poll Hunyuan for status
-        status_result = await video_service.get_generation_status(task_id)
+        # Poll Hunyuan for status (with retry logic)
+        max_attempts = 60  # Poll for up to 5 minutes
+        attempt = 0
 
-        # Map status to our format
-        status_mapping = {
-            "pending": "processing",
-            "processing": "processing",
-            "completed": "completed",
-            "failed": "failed"
-        }
-        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+        while attempt < max_attempts:
+            attempt += 1
+            logger.info(f"Hunyuan polling attempt {attempt}/{max_attempts} for video {video_id}")
 
-        # Update database
-        update_data = {
-            "status": mapped_status,
-            "progress": status_result.get("progress", 0),
-        }
+            status_result = await video_service.get_generation_status(task_id)
 
-        # If completed, add video URLs and metadata
-        if mapped_status == "completed":
-            video_url = status_result.get("video_url")
-            thumbnail_url = status_result.get("thumbnail_url")
+            # Map status to our format
+            status_mapping = {
+                "pending": "processing",
+                "processing": "processing",
+                "completed": "completed",
+                "failed": "failed"
+            }
+            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
 
-            # Extend video if needed (Hunyuan always generates 5s)
-            # We need to check the requested duration from the prompt
-            try:
-                # Extract duration from prompt metadata
-                import json
-                prompt_data = json.loads(video_record[1]) if video_record[1] else {}
-                requested_duration = prompt_data.get("duration", 5)
-                actual_duration = 5  # Hunyuan always generates 5s
+            logger.info(f"Hunyuan video {video_id} status: {mapped_status}")
 
-                # Extend video if actual < requested
-                if requested_duration > actual_duration and video_url:
-                    logger.info(f"Extending video {video_id} from {actual_duration}s to {requested_duration}s")
-                    extended_url = await video_extension_service.extend_video_duration(
-                        video_url=video_url,
-                        requested_duration=requested_duration,
-                        actual_duration=actual_duration,
-                        campaign_id=1  # Get from database if needed
-                    )
-                    if extended_url:
-                        video_url = extended_url
-                        logger.info(f"Successfully extended video {video_id}")
-            except Exception as e:
-                logger.warning(f"Could not extend video {video_id}: {str(e)}")
-                # Continue with original URL
+            # Update database
+            update_data = {
+                "status": mapped_status,
+                "progress": status_result.get("progress", 0),
+            }
 
-            update_data.update({
-                "video_url": video_url,
-                "thumbnail_url": thumbnail_url,
-                "completed_at": datetime.utcnow()
-            })
+            # If completed, add video URLs and metadata
+            if mapped_status == "completed":
+                video_url = status_result.get("video_url")
+                thumbnail_url = status_result.get("thumbnail_url")
 
-        # If failed, add error info
-        if mapped_status == "failed":
-            update_data.update({
-                "error_message": status_result.get("error"),
-                "error_code": "GENERATION_FAILED"
-            })
+                # Extend video if needed (Hunyuan always generates 5s)
+                # We need to check the requested duration from the prompt
+                try:
+                    # Extract duration from prompt metadata
+                    import json
+                    prompt_data = json.loads(video_record[1]) if video_record[1] else {}
+                    requested_duration = prompt_data.get("duration", 5)
+                    actual_duration = 5  # Hunyuan always generates 5s
 
-        # Build dynamic UPDATE query based on available fields
-        set_clauses = []
-        params = {"id": video_id}
+                    # Extend video if actual < requested
+                    if requested_duration > actual_duration and video_url:
+                        logger.info(f"Extending video {video_id} from {actual_duration}s to {requested_duration}s")
+                        extended_url = await video_extension_service.extend_video_duration(
+                            video_url=video_url,
+                            requested_duration=requested_duration,
+                            actual_duration=actual_duration,
+                            campaign_id=1  # Get from database if needed
+                        )
+                        if extended_url:
+                            video_url = extended_url
+                            logger.info(f"Successfully extended video {video_id}")
+                except Exception as e:
+                    logger.warning(f"Could not extend video {video_id}: {str(e)}")
+                    # Continue with original URL
 
-        for field, value in update_data.items():
-            set_clauses.append(f"{field} = :{field}")
-            params[field] = value
+                update_data.update({
+                    "video_url": video_url,
+                    "thumbnail_url": thumbnail_url,
+                    "completed_at": datetime.utcnow()
+                })
 
-        # Execute update with only the fields that have values
-        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
-        await db.execute(text(update_sql), params)
-        await db.commit()
+            # If failed, add error info
+            if mapped_status == "failed":
+                update_data.update({
+                    "error_message": status_result.get("error"),
+                    "error_code": "GENERATION_FAILED"
+                })
 
-        logger.info(f"Updated Hunyuan video {video_id} status to {mapped_status}")
+            # Build dynamic UPDATE query based on available fields
+            set_clauses = []
+            params = {"id": video_id}
+
+            for field, value in update_data.items():
+                set_clauses.append(f"{field} = :{field}")
+                params[field] = value
+
+            # Execute update with only the fields that have values
+            update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+            await db.execute(text(update_sql), params)
+            await db.commit()
+
+            logger.info(f"Updated Hunyuan video {video_id} status to {mapped_status}")
+
+            # If video is complete or failed, stop polling
+            if mapped_status in ["completed", "failed"]:
+                logger.info(f"Hunyuan video {video_id} polling complete: {mapped_status}")
+                break
+
+            # Wait 5 seconds before next poll
+            await asyncio.sleep(5)
+
+        if attempt >= max_attempts:
+            logger.warning(f"Hunyuan video {video_id} polling timeout after {max_attempts} attempts")
 
     except Exception as e:
         logger.error(f"Error updating Hunyuan video status: {str(e)}")
@@ -1726,7 +1792,10 @@ async def update_video_status_wanx(
 ):
     """
     Background task to poll WanX for video status and update database
+    Polls every 5 seconds until video is complete or failed
     """
+    import asyncio
+
     try:
         # Get video from database
         result = await db.execute(
@@ -1740,54 +1809,75 @@ async def update_video_status_wanx(
             return
 
         task_id = video_record[0]
+        logger.info(f"Starting WanX status polling for video {video_id}, task {task_id}")
 
-        # Poll WanX for status
-        status_result = await video_service.get_generation_status(task_id)
+        # Poll WanX for status (with retry logic)
+        max_attempts = 60  # Poll for up to 5 minutes
+        attempt = 0
 
-        # Map status to our format
-        status_mapping = {
-            "pending": "processing",
-            "processing": "processing",
-            "completed": "completed",
-            "failed": "failed"
-        }
-        mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+        while attempt < max_attempts:
+            attempt += 1
+            logger.info(f"WanX polling attempt {attempt}/{max_attempts} for video {video_id}")
 
-        # Update database
-        update_data = {
-            "status": mapped_status,
-            "progress": status_result.get("progress", 0),
-        }
+            status_result = await video_service.get_generation_status(task_id)
 
-        # If completed, add video URLs and metadata
-        if mapped_status == "completed":
-            update_data.update({
-                "video_url": status_result.get("video_url"),
-                "thumbnail_url": status_result.get("thumbnail_url"),
-                "completed_at": datetime.utcnow()
-            })
+            # Map status to our format
+            status_mapping = {
+                "pending": "processing",
+                "processing": "processing",
+                "completed": "completed",
+                "failed": "failed"
+            }
+            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
 
-        # If failed, add error info
-        if mapped_status == "failed":
-            update_data.update({
-                "error_message": status_result.get("error"),
-                "error_code": "GENERATION_FAILED"
-            })
+            logger.info(f"WanX video {video_id} status: {mapped_status}")
 
-        # Build dynamic UPDATE query based on available fields
-        set_clauses = []
-        params = {"id": video_id}
+            # Update database
+            update_data = {
+                "status": mapped_status,
+                "progress": status_result.get("progress", 0),
+            }
 
-        for field, value in update_data.items():
-            set_clauses.append(f"{field} = :{field}")
-            params[field] = value
+            # If completed, add video URLs and metadata
+            if mapped_status == "completed":
+                update_data.update({
+                    "video_url": status_result.get("video_url"),
+                    "thumbnail_url": status_result.get("thumbnail_url"),
+                    "completed_at": datetime.utcnow()
+                })
 
-        # Execute update with only the fields that have values
-        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
-        await db.execute(text(update_sql), params)
-        await db.commit()
+            # If failed, add error info
+            if mapped_status == "failed":
+                update_data.update({
+                    "error_message": status_result.get("error"),
+                    "error_code": "GENERATION_FAILED"
+                })
 
-        logger.info(f"Updated WanX video {video_id} status to {mapped_status}")
+            # Build dynamic UPDATE query based on available fields
+            set_clauses = []
+            params = {"id": video_id}
+
+            for field, value in update_data.items():
+                set_clauses.append(f"{field} = :{field}")
+                params[field] = value
+
+            # Execute update with only the fields that have values
+            update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+            await db.execute(text(update_sql), params)
+            await db.commit()
+
+            logger.info(f"Updated WanX video {video_id} status to {mapped_status}")
+
+            # If video is complete or failed, stop polling
+            if mapped_status in ["completed", "failed"]:
+                logger.info(f"WanX video {video_id} polling complete: {mapped_status}")
+                break
+
+            # Wait 5 seconds before next poll
+            await asyncio.sleep(5)
+
+        if attempt >= max_attempts:
+            logger.warning(f"WanX video {video_id} polling timeout after {max_attempts} attempts")
 
     except Exception as e:
         logger.error(f"Error updating WanX video status: {str(e)}")
