@@ -608,16 +608,7 @@ class HunyuanVideoService:
                 data = result.get("data", {})
                 status = data.get("status", "unknown")
 
-                # Map Hunyuan status to our format
-                status_mapping = {
-                    "pending": "processing",
-                    "processing": "processing",
-                    "completed": "completed",
-                    "failed": "failed"
-                }
-                mapped_status = status_mapping.get(status.lower(), "unknown")
-
-                # Extract video URLs
+                # Extract video URLs first (before checking status)
                 output = data.get("output", {})
                 video_url = None
                 thumbnail_url = None
@@ -636,6 +627,21 @@ class HunyuanVideoService:
                         thumbnail_url = thumbnail_data.get("url")
                     else:
                         thumbnail_url = output.get("thumbnail_url")
+
+                # Map Hunyuan status to our format
+                status_mapping = {
+                    "pending": "processing",
+                    "processing": "processing",
+                    "completed": "completed",
+                    "success": "completed",
+                    "failed": "failed"
+                }
+                mapped_status = status_mapping.get(status.lower(), "unknown")
+
+                # Workaround for Hunyuan API bug: if video URL exists, video is complete
+                if mapped_status == "processing" and video_url:
+                    logger.info(f"Hunyuan API shows 'processing' but video URL exists. Marking as completed.")
+                    mapped_status = "completed"
 
                 return {
                     "status": mapped_status,
@@ -1699,9 +1705,15 @@ async def update_video_status_hunyuan(
                 "pending": "processing",
                 "processing": "processing",
                 "completed": "completed",
+                "success": "completed",
                 "failed": "failed"
             }
             mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+
+            # Workaround for Hunyuan API bug: if video URL exists, video is complete
+            if mapped_status == "processing" and status_result.get("video_url"):
+                logger.info(f"Hunyuan video {video_id} shows 'processing' but video URL exists. Marking as completed.")
+                mapped_status = "completed"
 
             logger.info(f"Hunyuan video {video_id} status: {mapped_status}")
 
