@@ -13,6 +13,8 @@ import asyncio
 import uuid
 import json
 import logging
+import tempfile
+import os
 from datetime import datetime
 
 from app.db.session import AsyncSessionLocal
@@ -42,7 +44,7 @@ class VideoGenerateRequest(BaseModel):
     generation_mode: str = Field(default="text_to_video", description="Generation mode: text_to_video, image_to_video, slide_video")
     script: Optional[str] = Field(None, description="Full video script with timestamps (required for text_to_video and slide_video)")
     style: str = Field(default="marketing", description="Video style: marketing, educational, social")
-    duration: int = Field(default=10, ge=5, le=20, description="Video duration in seconds (5-20s for short-form)")
+    duration: int = Field(default=10, ge=5, le=60, description="Video duration in seconds (5s or 10s supported, other values use closest match)")
     aspect_ratio: str = Field(default="16:9", description="Aspect ratio: 16:9, 9:16, 1:1")
     # For image_to_video mode
     image_url: Optional[str] = Field(None, description="URL of the source image (required for image_to_video)")
@@ -113,9 +115,18 @@ def select_video_provider(duration: int, user_tier: str = "starter", forced_prov
         )
 
     # Auto-select provider based on duration and tier
-    # ≤60s: Use Hunyuan (respects duration parameter, best value)
-    if duration <= 60:
-        return "piapi_hunyuan_fast"  # $0.03 - Respects duration up to 60s
+    # For 10s videos: Use Luma ray-v2 (txt2video) or extend 5s to 10s (img2video/slide)
+    if duration == 10:
+        return "piapi_luma"  # Luma for txt2video, extended to 10s for img2video/slide
+
+    # 5s videos: Use Hunyuan (best value)
+    elif duration == 5:
+        return "piapi_hunyuan_fast"  # $0.03 - Best value for 5s videos
+
+    # Starter tier: max 60 seconds
+    # Use Hunyuan for 6-60s (will generate 5s, then extend to requested duration)
+    elif duration > 5 and duration <= 60:
+        return "piapi_hunyuan_fast"  # Will generate 5s, extend to requested duration
 
     # Enterprise tier >60s: Use WanX 14B (premium quality)
     elif duration > 60 and user_tier == 'enterprise':
@@ -170,9 +181,9 @@ class LumaVideoService:
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Prepare the input parameters
             # PiAPI Luma supports:
-            # - ray-v1: 5s duration
-            # - ray-v2: 5s or 10s duration
-            if duration >= 10:
+            # - ray-v1: 5s duration (all modes)
+            # - ray-v2: 10s duration (txt2video only, img2video uses ray-v1)
+            if duration >= 10 and generation_mode == "text_to_video":
                 model_name = "ray-v2"
                 actual_duration = 10
             else:
@@ -1586,7 +1597,7 @@ async def update_video_status_hunyuan(
     try:
         # Get video from database
         result = await db.execute(
-            text("SELECT task_id FROM video_generations WHERE id = :id"),
+            text("SELECT task_id, prompt, cost FROM video_generations WHERE id = :id"),
             {"id": video_id}
         )
         video_record = result.fetchone()
@@ -1617,9 +1628,37 @@ async def update_video_status_hunyuan(
 
         # If completed, add video URLs and metadata
         if mapped_status == "completed":
+            video_url = status_result.get("video_url")
+            thumbnail_url = status_result.get("thumbnail_url")
+
+            # Extend video if needed (Hunyuan always generates 5s)
+            # We need to check the requested duration from the prompt
+            try:
+                # Extract duration from prompt metadata
+                import json
+                prompt_data = json.loads(video_record[1]) if video_record[1] else {}
+                requested_duration = prompt_data.get("duration", 5)
+                actual_duration = 5  # Hunyuan always generates 5s
+
+                # Extend video if actual < requested
+                if requested_duration > actual_duration and video_url:
+                    logger.info(f"Extending video {video_id} from {actual_duration}s to {requested_duration}s")
+                    extended_url = await video_extension_service.extend_video_duration(
+                        video_url=video_url,
+                        requested_duration=requested_duration,
+                        actual_duration=actual_duration,
+                        campaign_id=1  # Get from database if needed
+                    )
+                    if extended_url:
+                        video_url = extended_url
+                        logger.info(f"Successfully extended video {video_id}")
+            except Exception as e:
+                logger.warning(f"Could not extend video {video_id}: {str(e)}")
+                # Continue with original URL
+
             update_data.update({
-                "video_url": status_result.get("video_url"),
-                "thumbnail_url": status_result.get("thumbnail_url"),
+                "video_url": video_url,
+                "thumbnail_url": thumbnail_url,
                 "completed_at": datetime.utcnow()
             })
 
@@ -1721,3 +1760,168 @@ async def update_video_status_wanx(
     except Exception as e:
         logger.error(f"Error updating WanX video status: {str(e)}")
         await db.rollback()
+
+
+# ============================================================================
+# VIDEO EXTENSION SERVICE
+# ============================================================================
+
+class VideoExtensionService:
+    """Service for extending videos to requested duration using ffmpeg"""
+
+    def __init__(self):
+        self.temp_dir = tempfile.gettempdir()
+
+    async def extend_video_duration(
+        self,
+        video_url: str,
+        requested_duration: int,
+        actual_duration: int,
+        campaign_id: int
+    ) -> Optional[str]:
+        """
+        Extend video to requested duration using ffmpeg
+
+        Args:
+            video_url: URL of the source video
+            requested_duration: Duration user requested
+            actual_duration: Actual duration of generated video
+            campaign_id: Campaign ID for storage path
+
+        Returns:
+            URL of extended video, or None if extension not needed/possible
+        """
+        # Only extend if actual < requested
+        if actual_duration >= requested_duration:
+            return None
+
+        try:
+            # Download video
+            video_path = await self._download_video(video_url)
+
+            # Create extended video
+            output_path = await self._extend_video_ffmpeg(
+                video_path,
+                actual_duration,
+                requested_duration
+            )
+
+            # Upload to R2
+            final_url = await self._upload_to_r2(
+                output_path,
+                campaign_id,
+                requested_duration
+            )
+
+            # Cleanup
+            self._cleanup_temp_files([video_path, output_path])
+
+            logger.info(f"Extended video from {actual_duration}s to {requested_duration}s")
+            return final_url
+
+        except Exception as e:
+            logger.error(f"Failed to extend video: {str(e)}")
+            # Don't raise - just return original URL
+            return None
+
+    async def _download_video(self, video_url: str) -> str:
+        """Download video from URL to temp file"""
+        import aiohttp
+        import aiofiles
+
+        filename = f"video_{uuid.uuid4().hex[:8]}.mp4"
+        filepath = os.path.join(self.temp_dir, filename)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(video_url) as response:
+                response.raise_for_status()
+
+                async with aiofiles.open(filepath, "wb") as f:
+                    async for chunk in response.content.iter_chunked(8192):
+                        await f.write(chunk)
+
+        return filepath
+
+    async def _extend_video_ffmpeg(
+        self,
+        input_path: str,
+        actual_duration: int,
+        requested_duration: int
+    ) -> str:
+        """Extend video using ffmpeg loop filter"""
+        import subprocess
+        import asyncio
+
+        output_filename = f"extended_{uuid.uuid4().hex[:8]}.mp4"
+        output_path = os.path.join(self.temp_dir, output_filename)
+
+        # Calculate loop count to reach requested duration
+        # Loop the video enough times to cover requested duration
+        loop_count = int(requested_duration / actual_duration) + 1
+
+        # Use ffmpeg to loop the video
+        cmd = [
+            "ffmpeg",
+            "-stream_loop", str(loop_count),
+            "-i", input_path,
+            "-t", str(requested_duration),  # Trim to exact duration
+            "-c", "copy",  # Copy streams without re-encoding
+            "-y",
+            output_path
+        ]
+
+        # Run ffmpeg
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_msg = stderr.decode() if stderr else "Unknown ffmpeg error"
+            raise Exception(f"ffmpeg failed: {error_msg}")
+
+        return output_path
+
+    async def _upload_to_r2(
+        self,
+        video_path: str,
+        campaign_id: int,
+        duration: int
+    ) -> str:
+        """Upload extended video to R2 storage"""
+        import time
+        import hashlib
+
+        # Generate R2 key
+        timestamp = int(time.time())
+        url_hash = hashlib.md5(str(campaign_id).encode()).hexdigest()[:8]
+        key = f"campaigns/{campaign_id}/videos/extended/extended_{duration}s_{timestamp}_{url_hash}.mp4"
+
+        # Read file bytes
+        with open(video_path, "rb") as f:
+            file_bytes = f.read()
+
+        # Upload to R2
+        _, public_url = await r2_storage.upload_file(
+            file_bytes=file_bytes,
+            key=key,
+            content_type="video/mp4"
+        )
+
+        return public_url
+
+    def _cleanup_temp_files(self, filepaths: list[str]) -> None:
+        """Clean up temporary files"""
+        for filepath in filepaths:
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception as e:
+                logger.warning(f"Failed to remove temp file {filepath}: {e}")
+
+
+# Create global instance
+video_extension_service = VideoExtensionService()
