@@ -8,16 +8,19 @@ import subprocess
 import tempfile
 import uuid
 import asyncio
+import logging
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models import VideoGeneration, Campaign
 from app.auth import get_current_user
 from app.db.models import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
@@ -338,9 +341,10 @@ class VideoOverlayService:
                 print(f"Warning: Failed to remove temp file {filepath}: {e}")
 
     def _escape_text(self, text: str) -> str:
-        """Escape text for ffmpeg"""
-        # Escape special characters for ffmpeg
-        return text.replace("'", "\\'").replace(":", "\\:")
+        """Escape text for ffmpeg drawtext filter"""
+        # Escape single quotes by doubling them (FFmpeg syntax)
+        # Don't escape colons - they're fine inside quoted strings
+        return text.replace("'", "'\\''")
 
     def _hex_to_ffmpeg_color(self, hex_color: str) -> str:
         """Convert hex color to ffmpeg format (white@1.0)"""
@@ -400,6 +404,77 @@ async def add_video_text_overlay(
     )
 
     return result
+
+
+@router.post("/save-thumbnail")
+async def save_selected_thumbnail(
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Save a selected thumbnail for a video
+
+    Expected payload:
+    {
+        "video_id": 123,
+        "thumbnail_timestamp": 2.5
+    }
+    """
+    try:
+        from app.services.video_thumbnail_generator import video_thumbnail_generator
+
+        # Get video from database
+        result = await db.execute(
+            text("SELECT video_url, campaign_id FROM video_generations WHERE id = :id AND user_id = :user_id"),
+            {"id": request["video_id"], "user_id": current_user.id}
+        )
+        video_record = result.fetchone()
+
+        if not video_record:
+            raise HTTPException(
+                status_code=404,
+                detail="Video not found"
+            )
+
+        video_url = video_record[0]
+        campaign_id = video_record[1]
+
+        # Download video to temp file
+        service = VideoOverlayService(db, current_user)
+        video_path = await service._download_video(video_url)
+
+        # Generate thumbnail at selected timestamp
+        thumbnail_url = await video_thumbnail_generator.generate_thumbnail_from_file(
+            video_path=video_path,
+            campaign_id=campaign_id,
+            timestamp=request["thumbnail_timestamp"],
+            width=320,
+            height=180
+        )
+
+        # Update video record with new thumbnail
+        await db.execute(
+            text("UPDATE video_generations SET thumbnail_url = :thumbnail_url WHERE id = :id"),
+            {"thumbnail_url": thumbnail_url, "id": request["video_id"]}
+        )
+        await db.commit()
+
+        # Cleanup
+        if os.path.exists(video_path):
+            os.remove(video_path)
+
+        return {
+            "success": True,
+            "thumbnail_url": thumbnail_url
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to save thumbnail: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save thumbnail: {str(e)}"
+        )
 
 
 @router.post("/thumbnail-options")
