@@ -290,15 +290,7 @@ class VideoThumbnailGenerator:
                     base64_data = base64.b64encode(file_bytes).decode("utf-8")
                     data_url = f"data:image/jpeg;base64,{base64_data}"
 
-                thumbnail_urls.append({
-                    "timestamp": round(timestamp, 2),
-                    "data_url": data_url,
-                    "file_path": output_path
-                })
-
-                # Clean up file after adding to list
-                if os.path.exists(output_path):
-                    os.remove(output_path)
+                thumbnail_urls.append(data_url)
 
             return thumbnail_urls
 
