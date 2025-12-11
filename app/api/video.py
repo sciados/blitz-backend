@@ -100,26 +100,22 @@ def select_video_provider(duration: int, user_tier: str = "starter", forced_prov
     if forced_provider in ['piapi_luma', 'piapi_hunyuan_fast', 'piapi_hunyuan_standard', 'piapi_wanx_1.3b', 'piapi_wanx_14b', 'replicate_veo']:
         return forced_provider
 
-    # Starter tier: max 10 seconds
-    if user_tier == 'starter' and duration > 10:
+    # Starter tier: max 60 seconds
+    if user_tier == 'starter' and duration > 60:
         raise HTTPException(
             status_code=403,
             detail={
                 "error": "TIER_LIMIT_EXCEEDED",
-                "message": f"Your Starter plan ($7/month) supports videos up to 10 seconds. Upgrade to Pro or Enterprise for longer videos.",
-                "current_limit": 10,
-                "required_tier": "pro"
+                "message": f"Your Starter plan ($7/month) supports videos up to 60 seconds. Upgrade to Enterprise for longer videos.",
+                "current_limit": 60,
+                "required_tier": "enterprise"
             }
         )
 
     # Auto-select provider based on duration and tier
-    # Starter/Pro tiers with ≤10s: Use Hunyuan (cheapest)
-    if duration <= 10:
-        return "piapi_hunyuan_fast"  # $0.03 - Most cost-effective
-
-    # Pro tier with 10-60s: Use WanX 1.3B (good quality, competitive price)
-    elif duration <= 60:
-        return "piapi_wanx_1.3b"  # $0.12 - Best value for longer videos
+    # ≤60s: Use Hunyuan (respects duration parameter, best value)
+    if duration <= 60:
+        return "piapi_hunyuan_fast"  # $0.03 - Respects duration up to 60s
 
     # Enterprise tier >60s: Use WanX 14B (premium quality)
     elif duration > 60 and user_tier == 'enterprise':
@@ -127,7 +123,7 @@ def select_video_provider(duration: int, user_tier: str = "starter", forced_prov
 
     # Default fallback for edge cases
     else:
-        return "piapi_wanx_1.3b"  # Use WanX 1.3B as fallback
+        return "piapi_hunyuan_fast"  # Use Hunyuan as fallback
 
 # ============================================================================
 # VIDEO GENERATION SERVICES
@@ -173,12 +169,18 @@ class LumaVideoService:
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Prepare the input parameters
-            # PiAPI Luma supports ray-v1 (5s) and ray-v2 (5s, 10s)
-            # However, ray-v2 may not be available yet, so we use ray-v1
-            actual_duration = 5  # Only 5s is supported by ray-v1
+            # PiAPI Luma supports:
+            # - ray-v1: 5s duration
+            # - ray-v2: 5s or 10s duration
+            if duration >= 10:
+                model_name = "ray-v2"
+                actual_duration = 10
+            else:
+                model_name = "ray-v1"
+                actual_duration = 5
 
             input_params = {
-                "model_name": "ray-v1",  # Using ray-v1 which is confirmed to work
+                "model_name": model_name,
                 "duration": actual_duration,
                 "aspect_ratio": aspect_ratio
             }
@@ -481,7 +483,8 @@ class HunyuanVideoService:
             # Hunyuan uses standard /api/v1/task endpoint
             input_params = {
                 "prompt": self._prepare_prompt(script, style, duration),
-                "aspect_ratio": aspect_ratio
+                "aspect_ratio": aspect_ratio,
+                "duration": duration  # Add duration parameter
             }
 
             # Determine task type
