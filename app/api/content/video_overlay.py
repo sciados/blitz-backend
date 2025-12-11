@@ -9,6 +9,7 @@ import tempfile
 import uuid
 import asyncio
 import logging
+import traceback
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -406,139 +407,6 @@ async def add_video_text_overlay(
     return result
 
 
-@router.post("/save-thumbnail")
-async def save_selected_thumbnail(
-    request: Dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Save a selected thumbnail for a video
-
-    Expected payload:
-    {
-        "video_id": 123,
-        "thumbnail_timestamp": 2.5
-    }
-    """
-    try:
-        from app.services.video_thumbnail_generator import video_thumbnail_generator
-
-        # Get video from database
-        result = await db.execute(
-            text("SELECT video_url, campaign_id FROM video_generations WHERE id = :id AND user_id = :user_id"),
-            {"id": request["video_id"], "user_id": current_user.id}
-        )
-        video_record = result.fetchone()
-
-        if not video_record:
-            raise HTTPException(
-                status_code=404,
-                detail="Video not found"
-            )
-
-        video_url = video_record[0]
-        campaign_id = video_record[1]
-
-        # Download video to temp file
-        service = VideoOverlayService(db, current_user)
-        video_path = await service._download_video(video_url)
-
-        # Generate thumbnail at selected timestamp
-        thumbnail_url = await video_thumbnail_generator.generate_thumbnail_from_file(
-            video_path=video_path,
-            campaign_id=campaign_id,
-            timestamp=request["thumbnail_timestamp"],
-            width=320,
-            height=180
-        )
-
-        # Update video record with new thumbnail
-        await db.execute(
-            text("UPDATE video_generations SET thumbnail_url = :thumbnail_url WHERE id = :id"),
-            {"thumbnail_url": thumbnail_url, "id": request["video_id"]}
-        )
-        await db.commit()
-
-        # Cleanup
-        if os.path.exists(video_path):
-            os.remove(video_path)
-
-        return {
-            "success": True,
-            "thumbnail_url": thumbnail_url
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to save thumbnail: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to save thumbnail: {str(e)}"
-        )
-
-
-@router.post("/thumbnail-options")
-async def get_thumbnail_options(
-    request: Dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get thumbnail preview options from a video URL
-
-    Expected payload:
-    {
-        "video_url": "https://...",
-        "video_duration": 5.0,
-        "campaign_id": 123
-    }
-    """
-    try:
-        from app.services.video_thumbnail_generator import video_thumbnail_generator
-
-        # Verify campaign ownership
-        result = await db.execute(
-            select(Campaign).where(
-                Campaign.id == request["campaign_id"],
-                Campaign.user_id == current_user.id
-            )
-        )
-        campaign = result.scalar_one_or_none()
-
-        if not campaign:
-            raise HTTPException(
-                status_code=404,
-                detail="Campaign not found"
-            )
-
-        # Download video to temp file
-        service = VideoOverlayService(db, current_user)
-        video_path = await service._download_video(request["video_url"])
-
-        # Extract thumbnail options
-        thumbnail_options = await video_thumbnail_generator.extract_thumbnail_options(
-            video_path=video_path,
-            video_duration=request["video_duration"],
-            campaign_id=request["campaign_id"],
-            num_options=5
-        )
-
-        # Cleanup
-        if os.path.exists(video_path):
-            os.remove(video_path)
-
-        return {
-            "thumbnail_options": thumbnail_options
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to get thumbnail options: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get thumbnail options: {str(e)}"
-        )
-
-
 @router.post("/get-duration")
 async def get_video_duration(
     request: Dict[str, Any],
@@ -565,3 +433,30 @@ async def get_video_duration(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+@router.post("/save-thumbnail")
+async def save_selected_thumbnail(request: Dict[str, Any], current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    from app.services.video_thumbnail_generator import video_thumbnail_generator
+    
+    result = await db.execute(text("SELECT video_url, campaign_id FROM video_generations WHERE id = :id AND user_id = :user_id"), {"id": request["video_id"], "user_id": current_user.id})
+    video_record = result.fetchone()
+    
+    if not video_record:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    video_url = video_record[0]
+    campaign_id = video_record[1]
+    
+    service = VideoOverlayService(db, current_user)
+    video_path = await service._download_video(video_url)
+    
+    thumbnail_url = await video_thumbnail_generator.generate_thumbnail_from_file(video_path=video_path, campaign_id=campaign_id, timestamp=request["thumbnail_timestamp"], width=320, height=180)
+    
+    await db.execute(text("UPDATE video_generations SET thumbnail_url = :thumbnail_url WHERE id = :id"), {"thumbnail_url": thumbnail_url, "id": request["video_id"]})
+    await db.commit()
+    
+    if os.path.exists(video_path):
+        os.remove(video_path)
+    
+    return {"success": True, "thumbnail_url": thumbnail_url}
