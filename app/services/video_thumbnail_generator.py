@@ -89,7 +89,7 @@ class VideoThumbnailGenerator:
                 raise Exception("Thumbnail file was not created")
 
             # Upload to R2
-            r2_key = f"campaigns/{campaign_id}/videos/thumbnails/{output_filename}"
+            r2_key = f"campaigns/{campaign_id}/generated_images/overlay/{output_filename}"
 
             with open(output_path, "rb") as f:
                 file_bytes = f.read()
@@ -189,7 +189,7 @@ class VideoThumbnailGenerator:
                 raise Exception(f"ffmpeg failed: {error_msg}")
 
             # Upload to R2
-            r2_key = f"campaigns/{campaign_id}/videos/thumbnails/{output_filename}"
+            r2_key = f"campaigns/{campaign_id}/generated_images/overlay/{output_filename}"
 
             with open(output_path, "rb") as f:
                 file_bytes = f.read()
