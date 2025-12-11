@@ -443,16 +443,16 @@ class LumaVideoService:
                     else:
                         thumbnail_url = output.get("thumbnail_url") or output.get("thumbnail")
 
-                # Map PiAPI status to our status format (handle both cases)
+                # Map PiAPI status to our status format (match PiAPI's capitalization)
                 status_mapping = {
-                    "pending": "processing",
-                    "processing": "processing",
-                    "completed": "completed",
-                    "success": "completed",  # PiAPI sometimes returns lowercase
-                    "failed": "failed",
-                    "staged": "processing"
+                    "Pending": "processing",
+                    "Processing": "processing",
+                    "Completed": "completed",
+                    "Success": "completed",  # PiAPI returns "Success"
+                    "Failed": "failed",
+                    "Staged": "processing"
                 }
-                mapped_status = status_mapping.get(status.lower(), "unknown")
+                mapped_status = status_mapping.get(status, "unknown")
 
                 # Workaround: if video URL exists, video is complete
                 if mapped_status in ["processing", "unknown"] and video_url:
@@ -634,15 +634,15 @@ class HunyuanVideoService:
                     else:
                         thumbnail_url = output.get("thumbnail_url")
 
-                # Map Hunyuan status to our format
+                # Map Hunyuan status to our format (match API's capitalization)
                 status_mapping = {
-                    "pending": "processing",
-                    "processing": "processing",
-                    "completed": "completed",
-                    "success": "completed",
-                    "failed": "failed"
+                    "Pending": "processing",
+                    "Processing": "processing",
+                    "Completed": "completed",
+                    "Success": "completed",
+                    "Failed": "failed"
                 }
-                mapped_status = status_mapping.get(status.lower(), "unknown")
+                mapped_status = status_mapping.get(status, "unknown")
 
                 # Workaround for Hunyuan API bug: if video URL exists, video is complete
                 if mapped_status == "processing" and video_url:
@@ -1634,15 +1634,15 @@ async def update_video_status(
 
             status_result = await video_service.get_generation_status(task_id)
 
-            # Map status to our format (handle both cases)
+            # Map status to our format (match PiAPI's capitalization)
             status_mapping = {
-                "pending": "processing",
-                "processing": "processing",
-                "completed": "completed",
-                "success": "completed",  # PiAPI sometimes returns lowercase
-                "failed": "failed"
+                "Pending": "processing",
+                "Processing": "processing",
+                "Completed": "completed",
+                "Success": "completed",  # PiAPI returns "Success"
+                "Failed": "failed"
             }
-            mapped_status = status_mapping.get(status_result.get("status", "unknown").lower(), "unknown")
+            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
 
             # Workaround: if video URL exists, video is complete
             if mapped_status in ["processing", "unknown"] and status_result.get("video_url"):
@@ -1743,13 +1743,13 @@ async def update_video_status_hunyuan(
 
             status_result = await video_service.get_generation_status(task_id)
 
-            # Map status to our format
+            # Map status to our format (match API's capitalization)
             status_mapping = {
-                "pending": "processing",
-                "processing": "processing",
-                "completed": "completed",
-                "success": "completed",
-                "failed": "failed"
+                "Pending": "processing",
+                "Processing": "processing",
+                "Completed": "completed",
+                "Success": "completed",
+                "Failed": "failed"
             }
             mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
 
