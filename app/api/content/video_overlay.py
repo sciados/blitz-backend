@@ -147,26 +147,16 @@ class VideoOverlayService:
         # Detect video resolution first
         video_width, video_height = self._get_video_resolution(input_path)
 
-        # Start with basic command
-        cmd = [
-            "ffmpeg",
-            "-i", input_path,
-            "-vf", "",  # Will be filled with filter_complex
-            "-c:a", "copy",  # Copy audio without re-encoding
-            "-y",  # Overwrite output file
-            output_path
-        ]
-
         # Build filter_complex for text overlays
         filters = []
 
         for layer in text_layers:
             text = self._escape_text(layer["text"])
             # Use actual video dimensions instead of hard-coded 1920x1080
-            x = int((layer["x"] / 100) * video_width)
-            y = int((layer["y"] / 100) * video_height)
+            x = int((float(layer["x"]) / 100) * video_width)
+            y = int((float(layer["y"]) / 100) * video_height)
 
-            font_size = layer["font_size"]
+            font_size = int(layer["font_size"])
             font_family = layer.get("font_family", "Arial")
             font_color = self._hex_to_ffmpeg_color(layer["color"])
 
@@ -174,8 +164,8 @@ class VideoOverlayService:
             font_path = self._find_font_file(font_family)
 
             # Build text filter with timing
-            start_time = layer["start_time"]
-            duration = layer["duration"]
+            start_time = float(layer["start_time"])
+            end_time = float(layer["start_time"]) + float(layer["duration"])
 
             # Basic text overlay with timing
             text_filter = (
@@ -183,7 +173,7 @@ class VideoOverlayService:
                 f"x={x}:y={y}:"
                 f"fontsize={font_size}:"
                 f"fontcolor={font_color}:"
-                f"enable='between(t,{start_time},{start_time + duration})'"
+                f"enable='between(t,{start_time:.2f},{end_time:.2f})'"
             )
 
             # Add font if found
@@ -193,13 +183,33 @@ class VideoOverlayService:
             # Add stroke if specified
             if layer.get("stroke_width", 0) > 0:
                 stroke_color = self._hex_to_ffmpeg_color(layer.get("stroke_color", "#000000"))
-                text_filter += f":borderw={layer['stroke_width']}:bordercolor={stroke_color}"
+                text_filter += f":borderw={int(layer['stroke_width'])}:bordercolor={stroke_color}"
 
             filters.append(text_filter)
 
-        # Join all filters
-        filter_complex = ",".join(filters)
-        cmd[4] = filter_complex  # Replace empty -vf with filter_complex
+        # Join all filters with semicolon to avoid conflicts with commas in parameters
+        filter_complex = ";".join(filters)
+
+        # Build complete command
+        cmd = [
+            "ffmpeg",
+            "-i", input_path,
+            "-vf", filter_complex,
+            "-c:a", "copy",  # Copy audio without re-encoding
+            "-y",  # Overwrite output file
+            output_path
+        ]
+
+        # Debug logging
+        print(f"\n=== FFmpeg Command ===")
+        print(f"Video: {input_path}")
+        print(f"Output: {output_path}")
+        print(f"Number of filters: {len(filters)}")
+        for i, f in enumerate(filters):
+            print(f"Filter {i+1}: {f}")
+        print(f"\nCombined filter_complex: {filter_complex}")
+        print(f"\nFull Command: {' '.join(cmd)}")
+        print(f"===================\n")
 
         return cmd
 
