@@ -78,7 +78,7 @@ class VideoOverlayService:
             await self._execute_ffmpeg(ffmpeg_cmd)
 
             # Upload to R2
-            final_url = await self._upload_to_r2(output_path)
+            final_url = await self._upload_to_r2(output_path, campaign_id, video_url)
 
             # Save to database
             video_record = GeneratedVideo(
@@ -209,12 +209,18 @@ class VideoOverlayService:
             error_msg = stderr.decode() if stderr else "Unknown ffmpeg error"
             raise Exception(f"ffmpeg failed: {error_msg}")
 
-    async def _upload_to_r2(self, video_path: str) -> str:
+    async def _upload_to_r2(self, video_path: str, campaign_id: int, original_url: str) -> str:
         """Upload processed video to R2 storage"""
         from app.services.storage_r2 import r2_storage
+        import time
+        import hashlib
 
-        # Generate R2 key
-        key = f"videos/overlays/{uuid.uuid4().hex[:8]}.mp4"
+        # Generate R2 key following the same pattern as images
+        # Format: campaigns/{campaign_id}/videos/overlays/text_overlay_{timestamp}_{hash}.mp4
+        timestamp = int(time.time())
+        # Create hash from original URL to link versions
+        url_hash = hashlib.md5(original_url.encode()).hexdigest()[:8]
+        key = f"campaigns/{campaign_id}/videos/overlays/text_overlay_{timestamp}_{url_hash}.mp4"
 
         # Read file bytes
         with open(video_path, "rb") as f:
