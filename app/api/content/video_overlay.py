@@ -11,8 +11,13 @@ import asyncio
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from datetime import datetime
 
 from app.db.session import get_db
+from app.db.models import GeneratedVideo, Campaign
+from app.auth import get_current_user
+from app.db.models import User
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
 
@@ -20,8 +25,9 @@ router = APIRouter(prefix="/api/videos", tags=["videos"])
 class VideoOverlayService:
     """Service for adding text overlays to videos"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, current_user: User):
         self.db = db
+        self.current_user = current_user
         self.temp_dir = tempfile.gettempdir()
 
     async def add_text_overlays(
@@ -29,7 +35,7 @@ class VideoOverlayService:
         video_url: str,
         text_layers: List[Dict[str, Any]],
         campaign_id: int
-    ) -> Dict[str, str]:
+    ) -> Dict[str, Any]:
         """
         Add text overlays to video using ffmpeg
 
@@ -39,10 +45,25 @@ class VideoOverlayService:
             campaign_id: Campaign ID for tracking
 
         Returns:
-            Dict with video_url of processed video
+            Dict with video_url and id of saved video
         """
 
         try:
+            # Verify campaign ownership
+            result = await self.db.execute(
+                select(Campaign).where(
+                    Campaign.id == campaign_id,
+                    Campaign.user_id == self.current_user.id
+                )
+            )
+            campaign = result.scalar_one_or_none()
+
+            if not campaign:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Campaign not found"
+                )
+
             # Download video from URL
             video_path = await self._download_video(video_url)
 
@@ -59,15 +80,43 @@ class VideoOverlayService:
             # Upload to R2
             final_url = await self._upload_to_r2(output_path)
 
+            # Save to database
+            video_record = GeneratedVideo(
+                campaign_id=campaign_id,
+                video_type="text_overlay",
+                video_url=final_url,
+                provider="ffmpeg",
+                model="text_overlay",
+                generation_mode="text_overlay",
+                prompt="Text overlay applied",
+                duration=0,  # Will be updated if needed
+                meta_data={
+                    "text_overlay": True,
+                    "original_video_url": video_url,
+                    "text_layers": text_layers
+                },
+                ai_generation_cost=0.0,
+                status="completed",
+                completed_at=datetime.utcnow()
+            )
+
+            self.db.add(video_record)
+            await self.db.commit()
+            await self.db.refresh(video_record)
+
             # Cleanup temp files
             self._cleanup_temp_files([video_path, output_path])
 
             return {
+                "id": video_record.id,
                 "video_url": final_url,
                 "status": "success"
             }
 
+        except HTTPException:
+            raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to add text overlays: {str(e)}"
@@ -75,16 +124,19 @@ class VideoOverlayService:
 
     async def _download_video(self, video_url: str) -> str:
         """Download video from URL to temp file"""
-        import requests
-
-        response = requests.get(video_url)
-        response.raise_for_status()
+        import aiohttp
+        import aiofiles
 
         filename = f"video_{uuid.uuid4().hex[:8]}.mp4"
         filepath = os.path.join(self.temp_dir, filename)
 
-        with open(filepath, "wb") as f:
-            f.write(response.content)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(video_url) as response:
+                response.raise_for_status()
+
+                async with aiofiles.open(filepath, "wb") as f:
+                    async for chunk in response.content.iter_chunked(8192):
+                        await f.write(chunk)
 
         return filepath
 
@@ -202,6 +254,7 @@ class VideoOverlayService:
 @router.post("/text-overlay")
 async def add_video_text_overlay(
     request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -232,7 +285,7 @@ async def add_video_text_overlay(
     }
     """
 
-    service = VideoOverlayService(db)
+    service = VideoOverlayService(db, current_user)
     result = await service.add_text_overlays(
         video_url=request["video_url"],
         text_layers=request["text_layers"],
