@@ -947,12 +947,14 @@ async def generate_video(
             )
 
             # Start background task to poll PiAPI for status
+            logger.info(f"Adding background task for video {video_gen.id}")
             background_tasks.add_task(
                 update_video_status,
                 video_id=video_gen.id,
                 db=db,
                 video_service=video_service
             )
+            logger.info(f"Background task added for video {video_gen.id}")
 
         elif selected_provider == "piapi_hunyuan_fast":
             # Use Hunyuan Fast (cheapest, 5s)
@@ -983,12 +985,14 @@ async def generate_video(
             )
 
             # Start background task to poll for status
+            logger.info(f"Adding Hunyuan background task for video {video_gen.id}")
             background_tasks.add_task(
                 update_video_status_hunyuan,
                 video_id=video_gen.id,
                 db=db,
                 video_service=hunyuan_service
             )
+            logger.info(f"Hunyuan background task added for video {video_gen.id}")
 
         elif selected_provider == "piapi_hunyuan_standard":
             # Use Hunyuan Standard (higher quality, 5s)
@@ -1019,12 +1023,14 @@ async def generate_video(
             )
 
             # Start background task to poll for status
+            logger.info(f"Adding Hunyuan background task for video {video_gen.id}")
             background_tasks.add_task(
                 update_video_status_hunyuan,
                 video_id=video_gen.id,
                 db=db,
                 video_service=hunyuan_service
             )
+            logger.info(f"Hunyuan background task added for video {video_gen.id}")
 
         elif selected_provider == "piapi_wanx_1.3b":
             # Use WanX 1.3B (5s or 60s)
@@ -1583,6 +1589,7 @@ async def update_video_status(
 
         task_id = video_record[0]
         logger.info(f"Starting status polling for video {video_id}, task {task_id}")
+        logger.info(f"Background task started - video_id: {video_id}, task_id: {task_id}")
 
         # Poll PiAPI for status (with retry logic)
         max_attempts = 60  # Poll for up to 5 minutes
@@ -1619,21 +1626,12 @@ async def update_video_status(
 
             # If completed, add video URLs and metadata
             if mapped_status == "completed":
-                output = status_result.get("output", {})
-                if isinstance(output, dict):
-                    video_data = output.get("video", {})
-                    thumbnail_data = output.get("thumbnail", {})
-                    last_frame_data = output.get("last_frame", {})
-
-                    update_data.update({
-                        "video_url": video_data.get("url") if isinstance(video_data, dict) else None,
-                        "video_raw_url": status_result.get("video_raw_url"),
-                        "thumbnail_url": thumbnail_data.get("url") if isinstance(thumbnail_data, dict) else None,
-                        "last_frame_url": last_frame_data.get("url") if isinstance(last_frame_data, dict) else None,
-                        "video_width": video_data.get("width") if isinstance(video_data, dict) else None,
-                        "video_height": video_data.get("height") if isinstance(video_data, dict) else None,
-                        "completed_at": datetime.utcnow()
-                    })
+                update_data.update({
+                    "video_url": status_result.get("video_url"),
+                    "video_raw_url": status_result.get("video_raw_url"),
+                    "thumbnail_url": status_result.get("thumbnail_url"),
+                    "completed_at": datetime.utcnow()
+                })
 
             # If failed, add error info
             if mapped_status == "failed":
@@ -1662,7 +1660,7 @@ async def update_video_status(
 
             # If video is complete or failed, stop polling
             if mapped_status in ["completed", "failed"]:
-                logger.info(f"Video {video_id} polling complete: {mapped_status}")
+                logger.info(f"Video {video_id} polling complete: {mapped_status}. Final video_url: {update_data.get('video_url', 'NONE')}")
                 break
 
             # Wait 5 seconds before next poll
