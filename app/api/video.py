@@ -1738,15 +1738,15 @@ async def update_video_status_hunyuan(
 
             status_result = await video_service.get_generation_status(task_id)
 
-            # Map status to our format (match API's capitalization)
+            # Map status to our format (handle lowercase from PiAPI)
             status_mapping = {
-                "Pending": "processing",
-                "Processing": "processing",
-                "Completed": "completed",
-                "Success": "completed",
-                "Failed": "failed"
+                "pending": "processing",
+                "processing": "processing",
+                "completed": "completed",  # PiAPI returns lowercase
+                "success": "completed",
+                "failed": "failed"
             }
-            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+            mapped_status = status_mapping.get(status_result.get("status", "unknown").lower(), "unknown")
 
             # Workaround for Hunyuan API bug: if video URL exists, video is complete
             if mapped_status == "processing" and status_result.get("video_url"):
