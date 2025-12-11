@@ -217,7 +217,9 @@ class VideoOverlayService:
         cmd = [
             "ffmpeg",
             "-i", input_path,
-            "-vf", filter_complex,
+            "-filter_complex", filter_complex,  # Use -filter_complex for multiple streams
+            "-map", "0:v",  # Map video from input 0
+            "-map", "0:a",  # Map audio from input 0
             "-c:a", "copy",  # Copy audio without re-encoding
             "-y",  # Overwrite output file
             output_path
