@@ -551,6 +551,7 @@ class HunyuanVideoService:
             task_id = result.get("data", {}).get("task_id")
 
             if not task_id:
+                logger.error(f"No task ID in Hunyuan response. Full response: {result}")
                 raise HTTPException(
                     status_code=500,
                     detail="No task ID returned from Hunyuan video generation"
