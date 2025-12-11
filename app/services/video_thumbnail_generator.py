@@ -196,7 +196,7 @@ class VideoThumbnailGenerator:
 
             _, public_url = await r2_storage.upload_file(
                 file_bytes=file_bytes,
-                key=r2_path,
+                key=r2_key,
                 content_type="image/jpeg"
             )
 
@@ -206,6 +206,109 @@ class VideoThumbnailGenerator:
         finally:
             if os.path.exists(output_path):
                 os.remove(output_path)
+
+    async def extract_thumbnail_options(
+        self,
+        video_path: str,
+        video_duration: float,
+        campaign_id: int,
+        num_options: int = 5,
+        width: int = 320,
+        height: int = 180
+    ) -> list[dict]:
+        """
+        Extract multiple thumbnail options from a video
+
+        Args:
+            video_path: Path to local video file
+            video_duration: Duration of the video in seconds
+            campaign_id: Campaign ID for R2 storage path
+            num_options: Number of thumbnail options to generate
+            width: Thumbnail width
+            height: Thumbnail height
+
+        Returns:
+            List of dicts with {timestamp, url, file_path}
+        """
+        import time
+        import uuid
+        import base64
+
+        temp_dir = tempfile.gettempdir()
+        thumbnail_urls = []
+
+        try:
+            # Calculate timestamps to sample (avoiding very beginning and end)
+            # Start at 1 second or 10% of duration, whichever is smaller
+            start_time = min(1.0, video_duration * 0.1)
+            # End at 90% of duration
+            end_time = video_duration * 0.9
+
+            # Generate evenly spaced timestamps
+            timestamps = []
+            for i in range(num_options):
+                if num_options == 1:
+                    timestamp = start_time
+                else:
+                    timestamp = start_time + (i * (end_time - start_time) / (num_options - 1))
+                timestamps.append(timestamp)
+
+            # Generate thumbnails at each timestamp
+            for i, timestamp in enumerate(timestamps):
+                output_filename = f"thumb_preview_{int(time.time())}_{i}_{uuid.uuid4().hex[:8]}.jpg"
+                output_path = os.path.join(temp_dir, output_filename)
+
+                # Build ffmpeg command
+                cmd = [
+                    "ffmpeg",
+                    "-i", video_path,
+                    "-ss", str(timestamp),
+                    "-vframes", "1",
+                    "-vf", f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2",
+                    "-q:v", "2",
+                    "-y",
+                    output_path
+                ]
+
+                # Execute ffmpeg
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+
+                stdout, stderr = await process.communicate()
+
+                if process.returncode != 0:
+                    error_msg = stderr.decode() if stderr else "Unknown ffmpeg error"
+                    logger.warning(f"Failed to generate thumbnail at {timestamp}s: {error_msg}")
+                    continue
+
+                # Read file and encode as base64 for preview (don't upload yet)
+                with open(output_path, "rb") as f:
+                    file_bytes = f.read()
+                    base64_data = base64.b64encode(file_bytes).decode("utf-8")
+                    data_url = f"data:image/jpeg;base64,{base64_data}"
+
+                thumbnail_urls.append({
+                    "timestamp": round(timestamp, 2),
+                    "data_url": data_url,
+                    "file_path": output_path
+                })
+
+                # Clean up file after adding to list
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+
+            return thumbnail_urls
+
+        except Exception as e:
+            logger.error(f"Failed to extract thumbnail options: {e}")
+            # Clean up any remaining files
+            for thumb in thumbnail_urls:
+                if os.path.exists(thumb.get("file_path")):
+                    os.remove(thumb.get("file_path"))
+            raise
 
 
 # Global instance
