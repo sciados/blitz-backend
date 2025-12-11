@@ -407,6 +407,68 @@ async def add_video_text_overlay(
     return result
 
 
+@router.post("/thumbnail-options")
+async def get_thumbnail_options(
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get thumbnail preview options from a video URL
+
+    Expected payload:
+    {
+        "video_url": "https://...",
+        "video_duration": 5.0,
+        "campaign_id": 123
+    }
+    """
+    try:
+        from app.services.video_thumbnail_generator import video_thumbnail_generator
+
+        # Verify campaign ownership
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == request["campaign_id"],
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+
+        if not campaign:
+            raise HTTPException(
+                status_code=404,
+                detail="Campaign not found"
+            )
+
+        # Download video to temp file
+        service = VideoOverlayService(db, current_user)
+        video_path = await service._download_video(request["video_url"])
+
+        # Extract thumbnail options
+        thumbnail_options = await video_thumbnail_generator.extract_thumbnail_options(
+            video_path=video_path,
+            video_duration=request["video_duration"],
+            campaign_id=request["campaign_id"],
+            num_options=5
+        )
+
+        # Cleanup
+        if os.path.exists(video_path):
+            os.remove(video_path)
+
+        return {
+            "thumbnail_options": thumbnail_options
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get thumbnail options: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get thumbnail options: {str(e)}"
+        )
+
+
 @router.post("/get-duration")
 async def get_video_duration(
     request: Dict[str, Any],
