@@ -170,10 +170,11 @@ class VideoOverlayService:
         # Detect video resolution first
         video_width, video_height = self._get_video_resolution(input_path)
 
-        # Build filter_complex for text overlays
+        # Build filter_complex for text overlays with stream labels
         filters = []
+        input_label = "[0:v]"  # Start with input video stream
 
-        for layer in text_layers:
+        for i, layer in enumerate(text_layers):
             text = self._escape_text(layer["text"])
             # Use actual video dimensions instead of hard-coded 1920x1080
             x = int((float(layer["x"]) / 100) * video_width)
@@ -190,9 +191,12 @@ class VideoOverlayService:
             start_time = float(layer["start_time"])
             end_time = float(layer["start_time"]) + float(layer["duration"])
 
-            # Basic text overlay with timing
+            # Create output label for this filter
+            output_label = f"[v{i}]"
+
+            # Basic text overlay with timing, using input label
             text_filter = (
-                f"drawtext=text='{text}':"
+                f"{input_label}drawtext=text='{text}':"
                 f"x={x}:y={y}:"
                 f"fontsize={font_size}:"
                 f"fontcolor={font_color}:"
@@ -208,17 +212,24 @@ class VideoOverlayService:
                 stroke_color = self._hex_to_ffmpeg_color(layer.get("stroke_color", "#000000"))
                 text_filter += f":borderw={int(layer['stroke_width'])}:bordercolor={stroke_color}"
 
+            # Add output label
+            text_filter += output_label
+
             filters.append(text_filter)
+            input_label = output_label  # Use this filter's output as next filter's input
 
         # Join all filters with semicolon to avoid conflicts with commas in parameters
         filter_complex = ";".join(filters)
+
+        # Get the final output label (last filter's output)
+        final_video_label = f"[v{len(text_layers) - 1}]" if text_layers else "[0:v]"
 
         # Build complete command
         cmd = [
             "ffmpeg",
             "-i", input_path,
             "-filter_complex", filter_complex,  # Use -filter_complex for multiple streams
-            "-map", "0:v",  # Map video from input 0
+            "-map", final_video_label,  # Map video from final filter output
             "-map", "0:a",  # Map audio from input 0
             "-c:a", "copy",  # Copy audio without re-encoding
             "-y",  # Overwrite output file

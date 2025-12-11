@@ -290,16 +290,25 @@ class VideoThumbnailGenerator:
                     base64_data = base64.b64encode(file_bytes).decode("utf-8")
                     data_url = f"data:image/jpeg;base64,{base64_data}"
 
-                thumbnail_urls.append(data_url)
+                thumbnail_urls.append({
+                    "timestamp": round(timestamp, 1),
+                    "data_url": data_url
+                })
+
+                # Clean up temp file
+                if os.path.exists(output_path):
+                    os.remove(output_path)
 
             return thumbnail_urls
 
         except Exception as e:
             logger.error(f"Failed to extract thumbnail options: {e}")
-            # Clean up any remaining files
-            for thumb in thumbnail_urls:
-                if os.path.exists(thumb.get("file_path")):
-                    os.remove(thumb.get("file_path"))
+            # Clean up any remaining temp files
+            for i in range(num_options):
+                temp_filename = f"thumb_preview_{int(time.time())}_{i}_{uuid.uuid4().hex[:8]}.jpg"
+                temp_path = os.path.join(temp_dir, temp_filename)
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
             raise
 
 
