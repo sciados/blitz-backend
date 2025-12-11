@@ -15,7 +15,7 @@ from sqlalchemy import select
 from datetime import datetime
 
 from app.db.session import get_db
-from app.db.models import GeneratedVideo, Campaign
+from app.db.models import VideoGeneration, Campaign
 from app.auth import get_current_user
 from app.db.models import User
 
@@ -81,22 +81,18 @@ class VideoOverlayService:
             final_url = await self._upload_to_r2(output_path, campaign_id, video_url)
 
             # Save to database
-            video_record = GeneratedVideo(
+            video_record = VideoGeneration(
+                user_id=self.current_user.id,
                 campaign_id=campaign_id,
-                video_type="text_overlay",
-                video_url=final_url,
+                task_id=f"overlay_{uuid.uuid4().hex[:16]}",  # Generate unique task ID
                 provider="ffmpeg",
-                model="text_overlay",
+                model_name="text_overlay",
                 generation_mode="text_overlay",
                 prompt="Text overlay applied",
-                duration=0,  # Will be updated if needed
-                meta_data={
-                    "text_overlay": True,
-                    "original_video_url": video_url,
-                    "text_layers": text_layers
-                },
-                ai_generation_cost=0.0,
+                video_url=final_url,
                 status="completed",
+                progress=100,
+                cost=0.0,
                 completed_at=datetime.utcnow()
             )
 

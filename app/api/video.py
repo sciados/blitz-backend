@@ -1337,15 +1337,17 @@ async def get_video_library(
     page: int = 1,
     per_page: int = 20,
     campaign_id: Optional[int] = None,
+    video_type: Optional[str] = Query(None, description="Filter by type: 'generated' or 'overlays'"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get user's generated videos, optionally filtered by campaign
+    Get user's generated videos, optionally filtered by campaign and type
 
     Args:
         page: Page number (default: 1)
         per_page: Videos per page (default: 20)
         campaign_id: Optional campaign ID to filter videos
+        video_type: Optional filter - 'generated' (AI videos) or 'overlays' (edited videos)
 
     Returns:
         Paginated list of generated videos
@@ -1368,6 +1370,15 @@ async def get_video_library(
     if campaign_id:
         where_conditions.append("campaign_id = :campaign_id")
         query_params["campaign_id"] = campaign_id
+
+    # Add video type filter
+    if video_type:
+        if video_type == "generated":
+            # Show AI-generated videos (not overlays)
+            where_conditions.append("generation_mode != 'text_overlay'")
+        elif video_type == "overlays":
+            # Show only overlay videos
+            where_conditions.append("generation_mode = 'text_overlay'")
 
     # Query database for user's videos
     result = await db.execute(
