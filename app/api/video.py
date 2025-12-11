@@ -276,9 +276,19 @@ class LumaVideoService:
 
                 result = response.json()
 
-                # Extract task ID from response
+                # Extract task ID from response (PiAPI returns it in nested data object)
+                task_id = result.get("data", {}).get("task_id")
+
+                if not task_id:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="No task ID returned from PiAPI video generation"
+                    )
+
+                logger.info(f"PiAPI Luma video generation started: {task_id}")
+
                 return {
-                    "id": result.get("task_id", str(uuid.uuid4())),
+                    "id": task_id,
                     "status": "processing",
                     "video_url": None,  # Will be available when status is checked
                     "thumbnail_url": None,
@@ -807,7 +817,8 @@ class WanxVideoService:
 async def generate_video(
     request: VideoGenerateRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Generate a video from a script
@@ -819,9 +830,7 @@ async def generate_video(
     4. Returns generation details
     5. Tracks usage in background
     """
-    # TODO: Get current user from auth token
-    # For now, using a mock user and tier
-    user_id = 1  # TODO: Get from auth token
+    user_id = current_user.id
     user_tier = "starter"  # TODO: Get from user profile
 
     # Validate request parameters
@@ -1481,6 +1490,8 @@ async def save_video_generation_to_db(
     """
     Save video generation record to database
     """
+    logger.info(f"Saving video generation - task_id: {task_id}, user_id: {user_id}, provider: {provider}")
+
     video_gen = VideoGeneration(
         user_id=user_id,
         campaign_id=campaign_id,
@@ -1503,6 +1514,8 @@ async def save_video_generation_to_db(
     db.add(video_gen)
     await db.commit()
     await db.refresh(video_gen)
+
+    logger.info(f"Video generation saved - ID: {video_gen.id}, task_id: {task_id}")
 
     return video_gen
 
