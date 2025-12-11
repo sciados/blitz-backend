@@ -211,17 +211,24 @@ class VideoOverlayService:
 
     async def _upload_to_r2(self, video_path: str) -> str:
         """Upload processed video to R2 storage"""
-        from app.utils.r2_storage import r2_client
+        from app.services.storage_r2 import r2_storage
 
         # Generate R2 key
         key = f"videos/overlays/{uuid.uuid4().hex[:8]}.mp4"
 
-        # Upload to R2
+        # Read file bytes
         with open(video_path, "rb") as f:
-            await r2_client.upload_file(key, f, "video/mp4")
+            file_bytes = f.read()
+
+        # Upload to R2
+        _, public_url = await r2_storage.upload_file(
+            file_bytes=file_bytes,
+            key=key,
+            content_type="video/mp4"
+        )
 
         # Return public URL
-        return r2_client.get_public_url(key)
+        return public_url
 
     def _cleanup_temp_files(self, filepaths: List[str]) -> None:
         """Clean up temporary files"""
