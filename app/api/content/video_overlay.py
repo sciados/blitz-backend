@@ -148,6 +148,9 @@ class VideoOverlayService:
     ) -> List[str]:
         """Build ffmpeg command with text overlay filters"""
 
+        # Detect video resolution first
+        video_width, video_height = self._get_video_resolution(input_path)
+
         # Start with basic command
         cmd = [
             "ffmpeg",
@@ -163,11 +166,16 @@ class VideoOverlayService:
 
         for layer in text_layers:
             text = self._escape_text(layer["text"])
-            x = int((layer["x"] / 100) * 1920)  # Assuming 1920px width, adjust as needed
-            y = int((layer["y"] / 100) * 1080)  # Assuming 1080px height
+            # Use actual video dimensions instead of hard-coded 1920x1080
+            x = int((layer["x"] / 100) * video_width)
+            y = int((layer["y"] / 100) * video_height)
 
             font_size = layer["font_size"]
+            font_family = layer.get("font_family", "Arial")
             font_color = self._hex_to_ffmpeg_color(layer["color"])
+
+            # Find font path
+            font_path = self._find_font_file(font_family)
 
             # Build text filter with timing
             start_time = layer["start_time"]
@@ -182,6 +190,10 @@ class VideoOverlayService:
                 f"enable='between(t,{start_time},{start_time + duration})'"
             )
 
+            # Add font if found
+            if font_path:
+                text_filter += f":fontfile='{font_path}'"
+
             # Add stroke if specified
             if layer.get("stroke_width", 0) > 0:
                 stroke_color = self._hex_to_ffmpeg_color(layer.get("stroke_color", "#000000"))
@@ -194,6 +206,61 @@ class VideoOverlayService:
         cmd[4] = filter_complex  # Replace empty -vf with filter_complex
 
         return cmd
+
+    def _get_video_resolution(self, video_path: str) -> tuple[int, int]:
+        """Get video resolution using ffprobe"""
+        import subprocess
+
+        try:
+            cmd = [
+                "ffprobe",
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "csv=p=0",
+                video_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            width, height = map(int, result.stdout.strip().split(","))
+            return width, height
+        except Exception as e:
+            # Fallback to default if detection fails
+            print(f"Warning: Could not detect video resolution, using 1920x1080: {e}")
+            return 1920, 1080
+
+    def _find_font_file(self, font_family: str) -> str:
+        """Find TTF font file for given font family"""
+        import glob
+
+        font_name = font_family.lower().strip()
+        font_dirs = ["/app/app/fonts", "/tmp/fonts"]
+
+        # Common font file patterns
+        possible_names = [
+            f"{font_name}.ttf",
+            f"{font_name.replace(' ', '')}.ttf",
+            f"{font_name.replace(' ', '-').lower()}.ttf",
+        ]
+
+        for font_dir in font_dirs:
+            if not os.path.exists(font_dir):
+                continue
+
+            # Search for font files
+            for pattern in possible_names:
+                for font_file in glob.glob(os.path.join(font_dir, "**", pattern), recursive=True):
+                    return font_file
+
+        # Fallback: use a default font if available
+        for font_dir in font_dirs:
+            if os.path.exists(font_dir):
+                # Try to find any TTF file as fallback
+                for font_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+                    if "arial" in os.path.basename(font_file).lower():
+                        return font_file
+
+        return ""  # Return empty string if no font found
 
     async def _execute_ffmpeg(self, cmd: List[str]) -> None:
         """Execute ffmpeg command"""
