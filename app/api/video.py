@@ -611,8 +611,11 @@ class HunyuanVideoService:
                     )
 
                 result = response.json()
+                logger.info(f"Hunyuan get_generation_status raw response: {result}")
+
                 data = result.get("data", {})
                 status = data.get("status", "unknown")
+                logger.info(f"Hunyuan extracted status: {status}")
 
                 # Extract video URLs first (before checking status)
                 output = data.get("output", {})
@@ -643,6 +646,7 @@ class HunyuanVideoService:
                     "Failed": "failed"
                 }
                 mapped_status = status_mapping.get(status, "unknown")
+                logger.info(f"Hunyuan mapped status: {mapped_status}")
 
                 # Workaround for Hunyuan API bug: if video URL exists, video is complete
                 if mapped_status == "processing" and video_url:
