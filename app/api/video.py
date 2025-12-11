@@ -422,17 +422,7 @@ class LumaVideoService:
                 data = result.get("data", {})
                 status = data.get("status", "unknown")
 
-                # Map PiAPI status to our status format
-                status_mapping = {
-                    "Pending": "processing",
-                    "Processing": "processing",
-                    "Completed": "completed",
-                    "Failed": "failed",
-                    "Staged": "processing"
-                }
-                mapped_status = status_mapping.get(status, "unknown")
-
-                # Extract output data if available
+                # Extract output data if available (before checking status)
                 output = data.get("output", {})
                 video_url = None
                 thumbnail_url = None
@@ -452,6 +442,22 @@ class LumaVideoService:
                         thumbnail_url = thumbnail_data.get("url")
                     else:
                         thumbnail_url = output.get("thumbnail_url") or output.get("thumbnail")
+
+                # Map PiAPI status to our status format (handle both cases)
+                status_mapping = {
+                    "pending": "processing",
+                    "processing": "processing",
+                    "completed": "completed",
+                    "success": "completed",  # PiAPI sometimes returns lowercase
+                    "failed": "failed",
+                    "staged": "processing"
+                }
+                mapped_status = status_mapping.get(status.lower(), "unknown")
+
+                # Workaround: if video URL exists, video is complete
+                if mapped_status in ["processing", "unknown"] and video_url:
+                    logger.info(f"Luma video shows '{mapped_status}' but video URL exists. Marking as completed.")
+                    mapped_status = "completed"
 
                     # Also check files array as fallback
                     if not video_url:
@@ -1588,14 +1594,20 @@ async def update_video_status(
 
             status_result = await video_service.get_generation_status(task_id)
 
-            # Map status to our format
+            # Map status to our format (handle both cases)
             status_mapping = {
                 "pending": "processing",
                 "processing": "processing",
                 "completed": "completed",
+                "success": "completed",  # PiAPI sometimes returns lowercase
                 "failed": "failed"
             }
-            mapped_status = status_mapping.get(status_result.get("status", "unknown"), "unknown")
+            mapped_status = status_mapping.get(status_result.get("status", "unknown").lower(), "unknown")
+
+            # Workaround: if video URL exists, video is complete
+            if mapped_status in ["processing", "unknown"] and status_result.get("video_url"):
+                logger.info(f"Luma video {video_id} shows '{mapped_status}' but video URL exists. Marking as completed.")
+                mapped_status = "completed"
 
             logger.info(f"Video {video_id} status: {mapped_status}")
 
