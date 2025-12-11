@@ -275,14 +275,20 @@ class LumaVideoService:
                     )
 
                 result = response.json()
+                logger.info(f"PiAPI Luma response: {result}")
 
                 # Extract task ID from response (PiAPI returns it in nested data object)
                 task_id = result.get("data", {}).get("task_id")
 
+                # If not in data, check top level (PiAPI might have different response structure)
                 if not task_id:
+                    task_id = result.get("task_id")
+
+                if not task_id:
+                    logger.error(f"No task ID in PiAPI response. Full response: {result}")
                     raise HTTPException(
                         status_code=500,
-                        detail="No task ID returned from PiAPI video generation"
+                        detail=f"No task ID returned from PiAPI video generation. Response: {result}"
                     )
 
                 logger.info(f"PiAPI Luma video generation started: {task_id}")
@@ -878,6 +884,7 @@ async def generate_video(
             user_tier=user_tier,
             forced_provider=request.provider
         )
+        logger.info(f"Selected provider for duration {request.duration}s: {selected_provider}")
 
         # Route to appropriate service
         if selected_provider == "piapi_luma":
