@@ -148,8 +148,7 @@ class VideoOverlayService:
         process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            loop=asyncio.get_event_loop()
+            stderr=subprocess.PIPE
         )
 
         stdout, stderr = await process.communicate()
