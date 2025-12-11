@@ -145,7 +145,7 @@ class VideoOverlayService:
 
     async def _execute_ffmpeg(self, cmd: List[str]) -> None:
         """Execute ffmpeg command"""
-        process = await subprocess.create_subprocess_exec(
+        process = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
