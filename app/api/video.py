@@ -5,7 +5,7 @@ Generate videos using Luma AI via PiAPI
 
 from typing import Optional, Dict, Any, List, Union
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import httpx
