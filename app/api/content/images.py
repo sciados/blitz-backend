@@ -108,8 +108,12 @@ async def generate_image(
         user_prompt=request.custom_prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        quality_boost=request.quality_boost or False
+        quality_boost=request.quality_boost or False,
+        highlight_features=request.highlight_features
     )
+
+    logger.info(f"Generated prompt: {prompt}")
+    logger.info(f"Highlight features: {request.highlight_features}")
 
     # Add testimonial if requested
     if request.use_testimonial:

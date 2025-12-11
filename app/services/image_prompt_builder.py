@@ -81,7 +81,8 @@ class ImagePromptBuilder:
         style: str = "photorealistic",
         aspect_ratio: str = "1:1",
         quality_boost: bool = False,
-        concise: bool = False
+        concise: bool = False,
+        highlight_features: Optional[List[str]] = None
     ) -> str:
         """
         Build comprehensive image prompt from intelligence data.
@@ -94,11 +95,16 @@ class ImagePromptBuilder:
             aspect_ratio: Image aspect ratio
             quality_boost: Enable quality enhancement terms
             concise: Use shorter, visual-only prompt (for free providers)
+            highlight_features: User-selected keywords to highlight
 
         Returns:
             str: Enhanced prompt for image generation
         """
         prompt_parts = []
+
+        # Add user-selected highlight features first
+        if highlight_features and len(highlight_features) > 0:
+            prompt_parts.append(", ".join(highlight_features))
 
         if concise:
             # For preview (free providers) - use very simple, visual prompt
