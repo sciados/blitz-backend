@@ -319,6 +319,14 @@ async def generate_content(
     # Format context for additional_context parameter
     context_text = "\n".join([f"- {c.get('text', '')}" for c in context]) if context else None
 
+    # Extract keywords from request for filtering intelligence
+    all_selected_keywords = []
+    if request.keywords:
+        for category, keywords in request.keywords.items():
+            if keywords:
+                all_selected_keywords.extend(keywords)
+        logger.info(f"Filtering intelligence data with keywords: {all_selected_keywords}")
+
     # If no RAG context but we have intelligence data, use it
     # Check both campaign.intelligence_data (legacy) and campaign.product_intelligence.intelligence_data (current)
     intelligence_data = None
@@ -339,18 +347,61 @@ async def generate_content(
             intel_parts = []
             intel = intelligence_data
 
+            # Filter intelligence based on keywords if provided
+            def contains_keywords(text, keywords):
+                """Check if text contains any of the keywords"""
+                if not keywords:
+                    return True
+                text_lower = text.lower()
+                return any(keyword.lower() in text_lower for keyword in keywords)
+
             if intel.get("product_analysis"):
                 analysis = intel["product_analysis"]
                 if analysis.get("key_points"):
-                    intel_parts.append("Key Product Points:\n" + "\n".join([f"- {p}" for p in analysis["key_points"]]))
+                    # Filter key points by keywords
+                    filtered_key_points = [p for p in analysis["key_points"] if contains_keywords(p, all_selected_keywords)]
+                    if filtered_key_points:
+                        intel_parts.append("Key Product Points:\n" + "\n".join([f"- {p}" for p in filtered_key_points]))
+                    elif not all_selected_keywords:  # No keywords, show all
+                        intel_parts.append("Key Product Points:\n" + "\n".join([f"- {p}" for p in analysis["key_points"]]))
 
+            # Filter competitor insights by keywords
             if intel.get("competitor_insights"):
-                intel_parts.append("Competitor Insights:\n" + str(intel["competitor_insights"]))
+                competitor_text = str(intel["competitor_insights"])
+                if contains_keywords(competitor_text, all_selected_keywords):
+                    intel_parts.append("Competitor Insights:\n" + competitor_text)
 
+            # Filter market positioning by keywords
             if intel.get("market_positioning"):
-                intel_parts.append("Market Positioning:\n" + str(intel["market_positioning"]))
+                positioning_text = str(intel["market_positioning"])
+                if contains_keywords(positioning_text, all_selected_keywords):
+                    intel_parts.append("Market Positioning:\n" + positioning_text)
+
+            # Filter benefits, features, pain points by keywords if they exist in intelligence
+            if intel.get("product") and isinstance(int intel["product"], dict):
+                product = intel["product"]
+
+                # Filter benefits
+                if product.get("benefits") and isinstance(product["benefits"], list):
+                    filtered_benefits = [b for b in product["benefits"] if contains_keywords(b, all_selected_keywords)]
+                    if filtered_benefits:
+                        intel_parts.append("Product Benefits:\n" + "\n".join([f"- {b}" for b in filtered_benefits]))
+
+                # Filter features
+                if product.get("features") and isinstance(product["features"], list):
+                    filtered_features = [f for f in product["features"] if contains_keywords(f, all_selected_keywords)]
+                    if filtered_features:
+                        intel_parts.append("Product Features:\n" + "\n".join([f"- {f}" for f in filtered_features]))
+
+                # Filter pain points
+                if product.get("pain_points") and isinstance(product["pain_points"], list):
+                    filtered_pain_points = [p for p in product["pain_points"] if contains_keywords(p, all_selected_keywords)]
+                    if filtered_pain_points:
+                        intel_parts.append("Pain Points Addressed:\n" + "\n".join([f"- {p}" for p in filtered_pain_points]))
 
             context_text = "\n\n".join(intel_parts)
+            if not context_text and all_selected_keywords:
+                logger.warning(f"No intelligence data matched keywords: {all_selected_keywords}")
 
     # Convert length string to word count based on content type
     length_to_words_by_type = {

@@ -65,7 +65,7 @@ async def generate_image(
     image_generator: ImageGenerator = Depends(get_image_generator),
     prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
 ):
-    """Generate image for campaign using saved intelligence."""
+    """Generate image for campaign using saved intelligence or highlight features."""
     # Verify campaign ownership
     result = await db.execute(
         select(Campaign).where(
@@ -81,12 +81,25 @@ async def generate_image(
             detail="Campaign not found"
         )
 
-    # Get intelligence data from ProductIntelligence via product_intelligence_id
+    # OPTIMIZATION: Use highlight_features if provided, skip intelligence query
     intelligence_data = None
     logger.info(f"Campaign ID: {campaign.id}, product_intelligence_id: {campaign.product_intelligence_id}")
 
-    if campaign.product_intelligence_id:
-        # Get the linked ProductIntelligence
+    # Extract keywords from highlight_features if provided (Dict with categories)
+    extracted_keywords = None
+    if request.highlight_features:
+        # Extract all keywords from all categories
+        all_keywords = []
+        if isinstance(request.highlight_features, dict):
+            for category, keywords in request.highlight_features.items():
+                if keywords and isinstance(keywords, list):
+                    all_keywords.extend(keywords)
+        extracted_keywords = all_keywords if all_keywords else None
+        logger.info(f"Using highlight_features - extracted keywords: {extracted_keywords}")
+
+    # Only fetch intelligence if highlight_features are NOT provided
+    if not extracted_keywords and campaign.product_intelligence_id:
+        logger.info("No highlight_features provided, fetching intelligence data...")
         result = await db.execute(
             select(ProductIntelligence).where(
                 ProductIntelligence.id == campaign.product_intelligence_id
@@ -98,10 +111,12 @@ async def generate_image(
         if product_intelligence:
             intelligence_data = product_intelligence.intelligence_data
             logger.info(f"Intelligence data keys: {list(intelligence_data.keys()) if intelligence_data else 'None'}")
+    elif extracted_keywords:
+        logger.info(f"Using highlight_features directly: {extracted_keywords}")
+    else:
+        logger.info("No intelligence data available and no highlight_features provided")
 
-    logger.info(f"Final intelligence_data: {intelligence_data is not None}")
-
-    # Build prompt using intelligence data
+    # Build prompt using intelligence data or highlight_features
     prompt = prompt_builder.build_prompt(
         campaign_intelligence=intelligence_data,
         image_type=request.image_type,
@@ -109,7 +124,7 @@ async def generate_image(
         style=request.style,
         aspect_ratio=request.aspect_ratio,
         quality_boost=request.quality_boost or False,
-        highlight_features=request.highlight_features
+        highlight_features=extracted_keywords  # Pass extracted list of keywords
     )
 
     logger.info(f"Generated prompt: {prompt}")
@@ -249,9 +264,20 @@ async def preview_images(
             detail="Campaign not found"
         )
 
-    # Get intelligence data
+    # OPTIMIZATION: Use highlight_features if provided, skip intelligence query
     intelligence_data = None
-    if campaign.product_intelligence_id:
+
+    # Extract keywords from highlight_features if provided (Dict with categories)
+    extracted_keywords = None
+    if request.highlight_features:
+        all_keywords = []
+        if isinstance(request.highlight_features, dict):
+            for category, keywords in request.highlight_features.items():
+                if keywords and isinstance(keywords, list):
+                    all_keywords.extend(keywords)
+        extracted_keywords = all_keywords if all_keywords else None
+
+    if not extracted_keywords and campaign.product_intelligence_id:
         result = await db.execute(
             select(ProductIntelligence).where(
                 ProductIntelligence.id == campaign.product_intelligence_id
@@ -269,7 +295,8 @@ async def preview_images(
         style=request.style,
         aspect_ratio=request.aspect_ratio,
         quality_boost=False,  # Preview always uses free/low-cost providers
-        concise=True  # Use shorter prompts for free providers
+        concise=True,  # Use shorter prompts for free providers
+        highlight_features=extracted_keywords
     )
 
     # Generate 4 unique drafts with different seeds
@@ -345,9 +372,20 @@ async def preview_image(
             detail="Campaign not found"
         )
 
-    # Get intelligence data
+    # OPTIMIZATION: Use highlight_features if provided, skip intelligence query
     intelligence_data = None
-    if campaign.product_intelligence_id:
+
+    # Extract keywords from highlight_features if provided (Dict with categories)
+    extracted_keywords = None
+    if request.highlight_features:
+        all_keywords = []
+        if isinstance(request.highlight_features, dict):
+            for category, keywords in request.highlight_features.items():
+                if keywords and isinstance(keywords, list):
+                    all_keywords.extend(keywords)
+        extracted_keywords = all_keywords if all_keywords else None
+
+    if not extracted_keywords and campaign.product_intelligence_id:
         result = await db.execute(
             select(ProductIntelligence).where(
                 ProductIntelligence.id == campaign.product_intelligence_id
@@ -365,7 +403,8 @@ async def preview_image(
         style=request.style,
         aspect_ratio=request.aspect_ratio,
         quality_boost=False,  # Preview always uses free/low-cost providers
-        concise=True  # Use shorter prompts for free providers
+        concise=True,  # Use shorter prompts for free providers
+        highlight_features=extracted_keywords
     )
 
     # Generate a random seed for unique draft images
@@ -699,9 +738,20 @@ async def batch_generate_images(
             detail="Campaign not found"
         )
 
-    # Get intelligence data (consistent with other endpoints)
+    # OPTIMIZATION: Use highlight_features if provided, skip intelligence query
     intelligence_data = None
-    if campaign.product_intelligence_id:
+
+    # Extract keywords from highlight_features if provided (Dict with categories)
+    extracted_keywords = None
+    if request.highlight_features:
+        all_keywords = []
+        if isinstance(request.highlight_features, dict):
+            for category, keywords in request.highlight_features.items():
+                if keywords and isinstance(keywords, list):
+                    all_keywords.extend(keywords)
+        extracted_keywords = all_keywords if all_keywords else None
+
+    if not extracted_keywords and campaign.product_intelligence_id:
         result = await db.execute(
             select(ProductIntelligence).where(
                 ProductIntelligence.id == campaign.product_intelligence_id
@@ -720,7 +770,8 @@ async def batch_generate_images(
             image_type=img_request["image_type"],
             user_prompt=img_request.get("custom_prompt"),
             style=img_request.get("style", "photorealistic"),
-            aspect_ratio=img_request.get("aspect_ratio", "1:1")
+            aspect_ratio=img_request.get("aspect_ratio", "1:1"),
+            highlight_features=extracted_keywords
         )
 
         generation_requests.append({
