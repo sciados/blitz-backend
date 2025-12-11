@@ -537,3 +537,31 @@ async def get_thumbnail_options(
             status_code=500,
             detail=f"Failed to get thumbnail options: {str(e)}"
         )
+
+
+@router.post("/get-duration")
+async def get_video_duration(
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get video duration using ffprobe (avoids CORS)"""
+    try:
+        service = VideoOverlayService(db, current_user)
+        video_path = await service._download_video(request["video_url"])
+        
+        try:
+            cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_path]
+            process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdout, stderr = await process.communicate()
+            duration = float(stdout.decode().strip()) if process.returncode == 0 else 5.0
+        except:
+            duration = 5.0
+        
+        if os.path.exists(video_path):
+            os.remove(video_path)
+        
+        return {"duration": duration}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
