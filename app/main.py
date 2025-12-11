@@ -32,6 +32,7 @@ from app.api.admin import compliance as admin_compliance
 from app.api.admin import credits as admin_credits
 from app.api.admin import images as admin_images
 from app.api.admin import messages as admin_messages
+from app.api.admin import video_thumbnails as admin_video_thumbnails
 from app.api import analytics
 from app.api import demo_fix
 from app.api import list_users
@@ -241,6 +242,7 @@ app.include_router(admin_compliance.router)
 app.include_router(admin_compliance.router)
 app.include_router(admin_credits.router)
 app.include_router(admin_images.router)
+app.include_router(admin_video_thumbnails.router)
 app.include_router(admin_products.router)
 app.include_router(admin_campaigns.router)
 app.include_router(admin_email_campaigns.router)

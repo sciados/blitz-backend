@@ -80,6 +80,21 @@ class VideoOverlayService:
             # Upload to R2
             final_url = await self._upload_to_r2(output_path, campaign_id, video_url)
 
+            # Generate thumbnail
+            try:
+                from app.services.video_thumbnail_generator import video_thumbnail_generator
+                thumbnail_url = await video_thumbnail_generator.generate_thumbnail_from_file(
+                    video_path=output_path,
+                    campaign_id=campaign_id,
+                    timestamp=1.0,
+                    width=320,
+                    height=180
+                )
+                logger.info(f"✅ Thumbnail generated: {thumbnail_url}")
+            except Exception as e:
+                logger.warning(f"Failed to generate thumbnail: {e}")
+                thumbnail_url = None
+
             # Save to database
             video_record = VideoGeneration(
                 user_id=self.current_user.id,
@@ -90,6 +105,7 @@ class VideoOverlayService:
                 generation_mode="text_overlay",
                 prompt="Text overlay applied",
                 video_url=final_url,
+                thumbnail_url=thumbnail_url,
                 status="completed",
                 progress=100,
                 cost=0.0,
