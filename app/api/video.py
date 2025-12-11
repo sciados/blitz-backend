@@ -1593,18 +1593,20 @@ async def update_video_status(
                 "error_code": "GENERATION_FAILED"
             })
 
-        # Execute update
-        await db.execute(
-            text("UPDATE video_generations SET "
-                 "status = :status, progress = :progress, "
-                 "video_url = :video_url, video_raw_url = :video_raw_url, "
-                 "thumbnail_url = :thumbnail_url, last_frame_url = :last_frame_url, "
-                 "video_width = :video_width, video_height = :video_height, "
-                 "completed_at = :completed_at, error_message = :error_message, "
-                 "error_code = :error_code "
-                 "WHERE id = :id"),
-            {**update_data, "id": video_id}
-        )
+        # Build dynamic UPDATE query based on available fields
+        set_clauses = []
+        params = {"id": video_id}
+
+        for field, value in update_data.items():
+            set_clauses.append(f"{field} = :{field}")
+            params[field] = value
+
+        # Always include id in params
+        set_clauses.append("id = :id")
+
+        # Execute update with only the fields that have values
+        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+        await db.execute(text(update_sql), params)
         await db.commit()
 
         logger.info(f"Updated video {video_id} status to {mapped_status}")
@@ -1697,16 +1699,17 @@ async def update_video_status_hunyuan(
                 "error_code": "GENERATION_FAILED"
             })
 
-        # Execute update
-        await db.execute(
-            text("UPDATE video_generations SET "
-            "status = :status, progress = :progress, "
-            "video_url = :video_url, thumbnail_url = :thumbnail_url, "
-            "completed_at = :completed_at, error_message = :error_message, "
-            "error_code = :error_code "
-            "WHERE id = :id"),
-            {**update_data, "id": video_id}
-        )
+        # Build dynamic UPDATE query based on available fields
+        set_clauses = []
+        params = {"id": video_id}
+
+        for field, value in update_data.items():
+            set_clauses.append(f"{field} = :{field}")
+            params[field] = value
+
+        # Execute update with only the fields that have values
+        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+        await db.execute(text(update_sql), params)
         await db.commit()
 
         logger.info(f"Updated Hunyuan video {video_id} status to {mapped_status}")
@@ -1771,16 +1774,17 @@ async def update_video_status_wanx(
                 "error_code": "GENERATION_FAILED"
             })
 
-        # Execute update
-        await db.execute(
-            text("UPDATE video_generations SET "
-            "status = :status, progress = :progress, "
-            "video_url = :video_url, thumbnail_url = :thumbnail_url, "
-            "completed_at = :completed_at, error_message = :error_message, "
-            "error_code = :error_code "
-            "WHERE id = :id"),
-            {**update_data, "id": video_id}
-        )
+        # Build dynamic UPDATE query based on available fields
+        set_clauses = []
+        params = {"id": video_id}
+
+        for field, value in update_data.items():
+            set_clauses.append(f"{field} = :{field}")
+            params[field] = value
+
+        # Execute update with only the fields that have values
+        update_sql = f"UPDATE video_generations SET {', '.join(set_clauses)} WHERE id = :id"
+        await db.execute(text(update_sql), params)
         await db.commit()
 
         logger.info(f"Updated WanX video {video_id} status to {mapped_status}")
