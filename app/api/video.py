@@ -1369,6 +1369,7 @@ async def get_video_library(
         Paginated list of generated videos
     """
     user_id = current_user.id
+    logger.info(f"get_video_library - current_user.id: {current_user.id}, current_user.email: {current_user.email}")
 
     # Calculate offset for pagination
     offset = (page - 1) * per_page
@@ -1411,6 +1412,11 @@ async def get_video_library(
         query_params
     )
     videos = result.fetchall()
+
+    # Log what we found
+    logger.info(f"Found {len(videos)} videos for user_id {user_id}")
+    for v in videos[:5]:  # Log first 5 videos
+        logger.info(f"  Video ID {v[0]}: generation_mode={v[4]}, status={v[17]}, campaign_id={v[25]}")
 
     # Get total count
     count_query = "SELECT COUNT(*) FROM video_generations WHERE " + " AND ".join(where_conditions)
