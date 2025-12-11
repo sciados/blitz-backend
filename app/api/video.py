@@ -622,35 +622,26 @@ class HunyuanVideoService:
                 video_url = None
                 thumbnail_url = None
 
-                if isinstance(output, dict):
-                    # Try nested object structure first (output["video"]["url"])
-                    video_data = output.get("video")
-                    if isinstance(video_data, dict):
-                        video_url = video_data.get("url")
-                    else:
-                        video_url = output.get("video_url")
+                # Extract video URLs - PiAPI uses output["video_url"] directly
+                video_url = output.get("video_url") if isinstance(output, dict) else None
+                thumbnail_url = output.get("thumbnail_url") if isinstance(output, dict) else None
 
-                    # Try thumbnail
-                    thumbnail_data = output.get("thumbnail")
-                    if isinstance(thumbnail_data, dict):
-                        thumbnail_url = thumbnail_data.get("url")
-                    else:
-                        thumbnail_url = output.get("thumbnail_url")
+                logger.info(f"Hunyuan extracted video_url: {video_url}")
 
-                # Map Hunyuan status to our format (match API's capitalization)
+                # Map Hunyuan status to our format (handle both cases)
                 status_mapping = {
-                    "Pending": "processing",
-                    "Processing": "processing",
-                    "Completed": "completed",
-                    "Success": "completed",
-                    "Failed": "failed"
+                    "pending": "processing",
+                    "processing": "processing",
+                    "completed": "completed",  # PiAPI returns lowercase
+                    "success": "completed",
+                    "failed": "failed"
                 }
-                mapped_status = status_mapping.get(status, "unknown")
+                mapped_status = status_mapping.get(status.lower(), "unknown")
                 logger.info(f"Hunyuan mapped status: {mapped_status}")
 
-                # Workaround for Hunyuan API bug: if video URL exists, video is complete
-                if mapped_status == "processing" and video_url:
-                    logger.info(f"Hunyuan API shows 'processing' but video URL exists. Marking as completed.")
+                # Workaround: if video URL exists, video is complete
+                if mapped_status != "completed" and video_url:
+                    logger.info(f"Hunyuan video has video URL but status is '{mapped_status}'. Marking as completed.")
                     mapped_status = "completed"
 
                 return {
