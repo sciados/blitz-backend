@@ -19,6 +19,7 @@ from datetime import datetime
 
 from app.db.session import AsyncSessionLocal
 from app.db.models import User, VideoGeneration
+from app.auth import get_current_user
 from app.core.config.settings import settings
 from app.services.storage_r2 import r2_storage
 
@@ -1134,13 +1135,13 @@ async def get_video_status(
 @router.post("/save-to-library", response_model=VideoSaveResponse, status_code=201)
 async def save_video_to_library(
     request: VideoSaveRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Save a generated video to R2 storage by downloading from provider URL
     """
-    # TODO: Get current user from auth token
-    user_id = 1  # TODO: Get from auth token
+    user_id = current_user.id
 
     try:
         # Get video from database
@@ -1290,13 +1291,13 @@ async def save_video_to_library(
 @router.delete("/{video_id}", status_code=204)
 async def delete_video(
     video_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Delete a video from R2 storage and database
     """
-    # TODO: Get current user from auth token
-    user_id = 1  # TODO: Get from auth token
+    user_id = current_user.id
 
     try:
         # Get video from database
@@ -1352,7 +1353,8 @@ async def get_video_library(
     per_page: int = 20,
     campaign_id: Optional[int] = None,
     video_type: Optional[str] = Query(None, description="Filter by type: 'generated' or 'overlays'"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get user's generated videos, optionally filtered by campaign and type
@@ -1366,8 +1368,7 @@ async def get_video_library(
     Returns:
         Paginated list of generated videos
     """
-    # TODO: Get current user from auth token
-    user_id = 1  # TODO: Get from auth token
+    user_id = current_user.id
 
     # Calculate offset for pagination
     offset = (page - 1) * per_page

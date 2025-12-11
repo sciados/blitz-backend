@@ -500,11 +500,14 @@ async def get_video_duration(
 @router.post("/save-thumbnail")
 async def save_selected_thumbnail(request: Dict[str, Any], current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     from app.services.video_thumbnail_generator import video_thumbnail_generator
-    
+
+    logger.info(f"Save thumbnail request - video_id: {request.get('video_id')}, user_id: {current_user.id}")
+
     result = await db.execute(text("SELECT video_url, campaign_id FROM video_generations WHERE id = :id AND user_id = :user_id"), {"id": request["video_id"], "user_id": current_user.id})
     video_record = result.fetchone()
-    
+
     if not video_record:
+        logger.error(f"Video not found - video_id: {request.get('video_id')}, user_id: {current_user.id}")
         raise HTTPException(status_code=404, detail="Video not found")
     
     video_url = video_record[0]
