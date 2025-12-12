@@ -378,7 +378,7 @@ async def generate_content(
                     intel_parts.append("Market Positioning:\n" + positioning_text)
 
             # Filter benefits, features, pain points by keywords if they exist in intelligence
-            if intel.get("product") and isinstance(int intel["product"], dict):
+            if intel.get("product") and isinstance(intel["product"], dict):
                 product = intel["product"]
 
                 # Filter benefits
