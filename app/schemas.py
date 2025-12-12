@@ -391,7 +391,7 @@ class ImageGenerateRequest(BaseModel):
     style: Optional[ImageStyle] = ImageStyle.PHOTOREALISTIC
     aspect_ratio: Optional[AspectRatio] = AspectRatio.SQUARE
     custom_prompt: Optional[str] = None
-    highlight_features: Optional[List[str]] = None
+    highlight_features: Optional[Dict[str, List[str]]] = None
     use_testimonial: Optional[str] = None
     include_text_overlay: Optional[str] = None
     overlay_position: Optional[str] = "center"
@@ -402,6 +402,7 @@ class ImageBatchRequest(BaseModel):
     campaign_id: int
     images: List[Dict[str, Any]]
     batch_name: Optional[str] = None
+    highlight_features: Optional[Dict[str, List[str]]] = None
 
 class ImageVariationRequest(BaseModel):
     base_image_id: int
