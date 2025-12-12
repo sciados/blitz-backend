@@ -466,12 +466,26 @@ async def generate_content(
             if keywords:
                 all_selected_keywords.extend(keywords)
 
+    # For video scripts, use only keywords if provided (no intelligence data)
+    # Check if content_type is video_script
+    from app.schemas import ContentType
+    is_video_script = str(request.content_type.value) == "video_script" or request.content_type == ContentType.VIDEO_SCRIPT
+
+    # If video script AND keywords provided, skip intelligence context
+    additional_context_for_prompt = None
+    if is_video_script and all_selected_keywords:
+        logger.info(f"Video script generation: Using keywords only, skipping intelligence data")
+        additional_context_for_prompt = request.additional_context  # Only user-provided additional context
+    else:
+        # Use filtered intelligence data (or user context if no keywords)
+        additional_context_for_prompt = context_text or request.additional_context
+
     prompt_params = {
         "content_type": request.content_type,
         "product_info": product_info,
         "marketing_angle": request.marketing_angle,
         "tone": request.tone or "professional",
-        "additional_context": context_text or request.additional_context,
+        "additional_context": additional_context_for_prompt,
         "constraints": {
             "word_count": word_count,
             "keywords": all_selected_keywords
