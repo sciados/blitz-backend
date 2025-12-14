@@ -52,6 +52,8 @@ class VideoGenerateRequest(BaseModel):
     # For slide_video mode
     slides: Optional[List[Dict[str, Any]]] = Field(None, description="List of slides with text and optionally images (for slide_video)")
     motion_intensity: str = Field(default="medium", description="Motion intensity: low, medium, high")
+    # Keywords for focused generation
+    keywords: Optional[Dict[str, List[str]]] = Field(None, description="Selected keywords organized by category (ingredients, features, benefits, pain_points)")
     # Optional: Force a specific provider (for testing or user preference)
     provider: Optional[str] = Field(None, description="Optional: force 'piapi_luma' or 'replicate_veo'")
 
@@ -204,7 +206,7 @@ class LumaVideoService:
                         status_code=400,
                         detail="Script is required for text_to_video mode"
                     )
-                input_params["prompt"] = self._prepare_prompt(script, style, duration)
+                input_params["prompt"] = self._prepare_prompt(script, style, duration, request.keywords)
 
             elif generation_mode == "image_to_video":
                 if not image_url:
@@ -307,7 +309,7 @@ class LumaVideoService:
                     detail=f"Failed to connect to PiAPI: {str(e)}"
                 )
 
-    def _prepare_prompt(self, script: str, style: str, duration: int) -> str:
+    def _prepare_prompt(self, script: str, style: str, duration: int, keywords: Optional[Dict[str, List[str]]] = None) -> str:
         """
         Prepare the video generation prompt for Luma AI
 
@@ -325,7 +327,17 @@ class LumaVideoService:
         base_prompt = style_prompts.get(style, style_prompts["marketing"])
         duration_context = f"The video should be approximately {duration} seconds long with a clear beginning, middle, and end."
 
-        return f"{base_prompt} {duration_context}\n\n{narrative_prompt}"
+        # Add keywords if provided
+        keywords_context = ""
+        if keywords:
+            all_keywords = []
+            for category, items in keywords.items():
+                if items:
+                    all_keywords.extend(items)
+            if all_keywords:
+                keywords_context = f"Focus on: {', '.join(all_keywords)}."
+
+        return f"{base_prompt} {duration_context} {keywords_context}\n\n{narrative_prompt}"
 
     def _convert_script_to_narrative(self, script: str) -> str:
         """
@@ -524,7 +536,7 @@ class HunyuanVideoService:
             # Prepare the input parameters
             # Hunyuan uses standard /api/v1/task endpoint
             input_params = {
-                "prompt": self._prepare_prompt(script, style, duration),
+                "prompt": self._prepare_prompt(script, style, duration, request.keywords),
                 "aspect_ratio": aspect_ratio,
                 "duration": duration  # Add duration parameter
             }
@@ -579,7 +591,7 @@ class HunyuanVideoService:
                 "actual_duration": 5  # Hunyuan generates 5-second videos
             }
 
-    def _prepare_prompt(self, script: Optional[str], style: str, duration: int) -> str:
+    def _prepare_prompt(self, script: Optional[str], style: str, duration: int, keywords: Optional[Dict[str, List[str]]] = None) -> str:
         """Prepare prompt for Hunyuan video generation"""
         if not script:
             script = f"Create a {style} video"
@@ -591,7 +603,18 @@ class HunyuanVideoService:
         }
 
         base_prompt = style_prompts.get(style, style_prompts["marketing"])
-        return f"{base_prompt}. Duration: {duration}s. Script: {script}"
+
+        # Add keywords if provided
+        keywords_context = ""
+        if keywords:
+            all_keywords = []
+            for category, items in keywords.items():
+                if items:
+                    all_keywords.extend(items)
+            if all_keywords:
+                keywords_context = f" Focus on: {', '.join(all_keywords)}."
+
+        return f"{base_prompt}. Duration: {duration}s.{keywords_context} Script: {script}"
 
     async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
         """
@@ -714,7 +737,7 @@ class WanxVideoService:
 
             # Prepare the input parameters
             input_params = {
-                "prompt": self._prepare_prompt(script, style, actual_duration),
+                "prompt": self._prepare_prompt(script, style, actual_duration, request.keywords),
                 "aspect_ratio": aspect_ratio
             }
 
@@ -771,7 +794,7 @@ class WanxVideoService:
                 "actual_duration": actual_duration
             }
 
-    def _prepare_prompt(self, script: Optional[str], style: str, duration: int) -> str:
+    def _prepare_prompt(self, script: Optional[str], style: str, duration: int, keywords: Optional[Dict[str, List[str]]] = None) -> str:
         """Prepare prompt for WanX video generation"""
         if not script:
             script = f"Create a {style} video"
@@ -784,7 +807,18 @@ class WanxVideoService:
 
         base_prompt = style_prompts.get(style, style_prompts["marketing"])
         duration_note = "5-second clip" if duration == 5 else "1-minute video"
-        return f"{base_prompt}. {duration_note}. Script: {script}"
+
+        # Add keywords if provided
+        keywords_context = ""
+        if keywords:
+            all_keywords = []
+            for category, items in keywords.items():
+                if items:
+                    all_keywords.extend(items)
+            if all_keywords:
+                keywords_context = f" Focus on: {', '.join(all_keywords)}."
+
+        return f"{base_prompt}. {duration_note}.{keywords_context} Script: {script}"
 
     async def get_generation_status(self, generation_id: str) -> Dict[str, Any]:
         """
