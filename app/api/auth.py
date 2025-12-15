@@ -16,7 +16,7 @@ from app.auth import (
 )
 from app.core.config.settings import settings
 from app.utils.r2_storage import R2Storage
-from app.services.usage_limits import start_trial, check_trial_status
+from app.services.usage_limits import start_trial, check_trial_status, get_effective_tier, UsageLimitsService
 
 # Profile update schema
 class ProfileUpdate(BaseModel):
@@ -153,6 +153,49 @@ async def get_subscription_status(
             "standard": {"price": 7, "name": "Standard"},
             "pro": {"price": 47, "name": "Pro"},
             "business": {"price": 97, "name": "Business"}
+        }
+    }
+
+
+@router.get("/usage")
+async def get_usage_and_limits(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get current user's usage and tier limits.
+    Returns current usage counts and maximum limits for dashboard display.
+    """
+    # Get effective tier (considers trial, subscription, etc.)
+    effective_tier = await get_effective_tier(db, current_user.id)
+
+    # Get usage and limits using the service
+    service = UsageLimitsService(db)
+    usage = await service.get_user_usage(current_user.id)
+    limits = await service.get_tier_limits(effective_tier)
+
+    # Default limits if none found
+    if not limits:
+        limits = {
+            "monthly_campaigns": 3,
+            "monthly_ai_text_generations": 10,
+            "monthly_ai_image_generations": 10,
+            "monthly_ai_video_scripts": 5,
+        }
+
+    return {
+        "tier": effective_tier,
+        "usage": {
+            "campaigns": usage.get("campaigns_created", 0),
+            "text_content": usage.get("ai_text_generations_used", 0),
+            "images": usage.get("ai_image_generations_used", 0),
+            "videos": usage.get("ai_video_scripts_used", 0),
+        },
+        "limits": {
+            "campaigns": limits.get("monthly_campaigns"),
+            "text_content": limits.get("monthly_ai_text_generations"),
+            "images": limits.get("monthly_ai_image_generations"),
+            "videos": limits.get("monthly_ai_video_scripts"),
         }
     }
 
