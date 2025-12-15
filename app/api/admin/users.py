@@ -242,6 +242,12 @@ async def update_user(
         if user_update.subscription_tier not in valid_tiers:
             raise HTTPException(status_code=400, detail=f"Invalid subscription_tier. Must be one of: {', '.join(valid_tiers)}")
         user.subscription_tier = user_update.subscription_tier
+        # Auto-sync affiliate_tier when subscription_tier is pro or business
+        if user_update.subscription_tier in ["pro", "business"]:
+            if user.affiliate_tier != "pro":
+                user.affiliate_tier = "pro"
+                from datetime import datetime
+                user.affiliate_tier_upgraded_at = datetime.utcnow()
     if user_update.affiliate_tier is not None:
         # Validate affiliate_tier
         valid_affiliate_tiers = ["standard", "pro"]
