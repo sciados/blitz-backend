@@ -41,6 +41,10 @@ class User(Base):
     stripe_subscription_id = Column(String(255), nullable=True)  # For premium tier
     email_notifications = Column(JSONB, nullable=True)  # Email notification preferences
 
+    # Subscription tier for usage limits (free, trial, standard, pro, business)
+    subscription_tier = Column(String(20), nullable=True, default="trial", index=True)
+    trial_ends_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

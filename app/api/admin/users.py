@@ -32,6 +32,7 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     role: str
     user_type: Optional[str] = None
+    subscription_tier: Optional[str] = None  # free, trial, standard, pro, business
     created_at: datetime
     is_active: bool
     last_login: Optional[datetime] = None
@@ -47,6 +48,7 @@ class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
     user_type: Optional[str] = None
+    subscription_tier: Optional[str] = None  # free, trial, standard, pro, business
     is_active: Optional[bool] = None
 
 class UserCreateRequest(BaseModel):
@@ -152,6 +154,7 @@ async def list_users(
             full_name=user.full_name or "",
             role=user.role,
             user_type=user.user_type,
+            subscription_tier=user.subscription_tier or "trial",
             created_at=user.created_at,
             is_active=user.is_active,
             last_login=None,  # Not tracking yet
@@ -191,6 +194,7 @@ async def get_user(
         full_name=user.full_name or "",
         role=user.role,
         user_type=user.user_type,
+        subscription_tier=user.subscription_tier or "trial",
         created_at=user.created_at,
         is_active=user.is_active,
         campaign_count=campaign_count,
@@ -231,6 +235,12 @@ async def update_user(
         if user_update.user_type not in ["", "Affiliate", "Creator", "Business", "Admin"]:
             raise HTTPException(status_code=400, detail="Invalid user_type")
         user.user_type = user_update.user_type if user_update.user_type else None
+    if user_update.subscription_tier is not None:
+        # Validate subscription_tier
+        valid_tiers = ["free", "trial", "standard", "pro", "business"]
+        if user_update.subscription_tier not in valid_tiers:
+            raise HTTPException(status_code=400, detail=f"Invalid subscription_tier. Must be one of: {', '.join(valid_tiers)}")
+        user.subscription_tier = user_update.subscription_tier
     # is_active would be updated here when we add that field
 
     await db.commit()
@@ -249,6 +259,7 @@ async def update_user(
         full_name=user.full_name or "",
         role=user.role,
         user_type=user.user_type,
+        subscription_tier=user.subscription_tier or "trial",
         created_at=user.created_at,
         is_active=user.is_active,
         campaign_count=campaign_count,
@@ -301,6 +312,7 @@ async def create_user(
         full_name=new_user.full_name or "",
         role=new_user.role,
         user_type=new_user.user_type,
+        subscription_tier=new_user.subscription_tier or "trial",
         created_at=new_user.created_at,
         is_active=new_user.is_active,
         campaign_count=0
@@ -345,6 +357,7 @@ async def activate_user(
         full_name=user.full_name or "",
         role=user.role,
         user_type=user.user_type,
+        subscription_tier=user.subscription_tier or "trial",
         created_at=user.created_at,
         is_active=user.is_active,
         campaign_count=campaign_count,
