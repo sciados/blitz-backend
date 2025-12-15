@@ -49,6 +49,7 @@ class UserUpdateRequest(BaseModel):
     role: Optional[str] = None
     user_type: Optional[str] = None
     subscription_tier: Optional[str] = None  # free, trial, standard, pro, business
+    affiliate_tier: Optional[str] = None  # standard, pro (for Pro Marketer status)
     is_active: Optional[bool] = None
 
 class UserCreateRequest(BaseModel):
@@ -241,6 +242,16 @@ async def update_user(
         if user_update.subscription_tier not in valid_tiers:
             raise HTTPException(status_code=400, detail=f"Invalid subscription_tier. Must be one of: {', '.join(valid_tiers)}")
         user.subscription_tier = user_update.subscription_tier
+    if user_update.affiliate_tier is not None:
+        # Validate affiliate_tier
+        valid_affiliate_tiers = ["standard", "pro"]
+        if user_update.affiliate_tier not in valid_affiliate_tiers:
+            raise HTTPException(status_code=400, detail=f"Invalid affiliate_tier. Must be one of: {', '.join(valid_affiliate_tiers)}")
+        user.affiliate_tier = user_update.affiliate_tier
+        # Set upgrade timestamp if upgrading to pro
+        if user_update.affiliate_tier == "pro" and user.affiliate_tier != "pro":
+            from datetime import datetime
+            user.affiliate_tier_upgraded_at = datetime.utcnow()
     # is_active would be updated here when we add that field
 
     await db.commit()
