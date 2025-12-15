@@ -145,6 +145,7 @@ class UserResponse(UserBase):
     is_active: bool = True
     affiliate_tier: Optional[str] = None
     affiliate_tier_upgraded_at: Optional[datetime] = None
+    subscription_tier: Optional[str] = None  # free, trial, standard, pro, business
 
     class Config:
         from_attributes = True
