@@ -563,70 +563,17 @@ async def generate_content(
         max_tokens = 1500  # Default for unspecified length
 
     # ========================================================================
-    # TIER-BASED VIDEO SCRIPT GENERATION
-    # Standard tier users get template-based scripts (cost-effective)
-    # Pro tier users get premium AI generation (Claude/GPT-4o quality)
+    # VIDEO SCRIPT GENERATION
+    # Always use AI generation for consistent, high-quality prompts
     # ========================================================================
-    use_template_engine = False
 
-    if is_video_script:
-        # Check user's affiliate tier - "standard" uses templates, "pro" uses AI
-        user_tier = current_user.affiliate_tier or "standard"
-        logger.info(f"[TEMPLATE] User tier: {user_tier}, content_type: video_script")
-
-        if user_tier == "standard":
-            # Use template engine for standard tier users
-            use_template_engine = True
-            logger.info(f"[TEMPLATE] Using template engine for standard tier user")
-        else:
-            logger.info(f"[TEMPLATE] Using AI generation for {user_tier} tier user")
-
-    generated_text = None
-
-    if use_template_engine:
-        # Generate video script from template
-        try:
-            # Get duration from request.length (e.g., "5" or "10")
-            duration = int(request.length) if request.length else 5
-
-            # Get marketing angle from request
-            marketing_angle_str = str(request.marketing_angle.value) if hasattr(request.marketing_angle, 'value') else str(request.marketing_angle)
-
-            # Prepare keywords for template engine
-            template_keywords = {
-                "product_name": campaign.name,
-                "ingredients": request.keywords.get("ingredients", []) if request.keywords else [],
-                "features": request.keywords.get("features", []) if request.keywords else [],
-                "benefits": request.keywords.get("benefits", []) if request.keywords else [],
-                "pain_points": request.keywords.get("pain_points", []) if request.keywords else []
-            }
-
-            logger.info(f"[TEMPLATE] Generating script: campaign={campaign.id}, angle={marketing_angle_str}, duration={duration}s")
-            logger.info(f"[TEMPLATE] Keywords: {template_keywords}")
-
-            generated_text = await generate_video_script(
-                db=db,
-                campaign_id=campaign.id,
-                marketing_angle=marketing_angle_str,
-                duration=duration,
-                keywords=template_keywords
-            )
-
-            logger.info(f"[TEMPLATE] Generated template-based script: {generated_text[:100]}...")
-
-        except Exception as e:
-            # Fallback to AI generation if template fails
-            logger.warning(f"[TEMPLATE] Template generation failed, falling back to AI: {str(e)}")
-            use_template_engine = False
-            generated_text = None
-
-    # Generate content using AI router (if not using template or template failed)
-    if generated_text is None:
-        generated_text = await ai_router.generate_text(
-            prompt=prompt,
-            max_tokens=max_tokens,
-            temperature=0.7
-        )
+    # Generate content using AI router
+    logger.info(f"[AI] Generating content using AI router")
+    generated_text = await ai_router.generate_text(
+        prompt=prompt,
+        max_tokens=max_tokens,
+        temperature=0.7
+    )
 
     # Log generation details for debugging
     text_length = len(generated_text)
@@ -637,108 +584,46 @@ async def generate_content(
 
     # Post-process to enforce word count limits (AI models can't accurately count words)
     if word_count:
-        # For video scripts, count only VOICEOVER words, not production notes
+        # For video scripts, the new format is flowing narrative (no [VOICEOVER:] tags)
         if is_video_script:
-            import re
-            # Extract all VOICEOVER text from [VOICEOVER: ...] tags
-            voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
-            voiceover_text = ' '.join(voiceover_matches)
-            word_count_actual = len(voiceover_text.split())
-            logger.info(f"[DEBUG] Video script: {word_count_actual} voiceover words (excluding production notes)")
-            logger.info(f"[DEBUG] Voiceover text: {voiceover_text[:100]}...")
+            # New format: flowing narrative description, count all words
+            logger.info(f"[DEBUG] Video script: {word_count_actual} words (flowing narrative format)")
+            logger.info(f"[DEBUG] Narrative text: {generated_text[:100]}...")
 
         if word_count_actual > word_count:
-            # Too long - truncate voiceover to word count
-            logger.info(f"[DEBUG] Truncating from {word_count_actual} to {word_count} voiceover words")
-            # Reconstruct with truncated voiceover
-            if is_video_script:
-                import re
-                # Replace each VOICEOVER with truncated version (without "...")
-                def truncate_voiceover(match):
-                    voiceover_text = match.group(1)
-                    words = voiceover_text.split()
-                    if len(words) > word_count:
-                        # Truncate without adding "..." in the middle
-                        truncated = ' '.join(words[:word_count])
-                        # Try to end at punctuation
-                        last_period = truncated.rfind('.')
-                        last_exclamation = truncated.rfind('!')
-                        last_question = truncated.rfind('?')
-                        punctuation_pos = max(last_period, last_exclamation, last_question)
-                        if punctuation_pos > len(truncated) * 0.5:
-                            truncated = truncated[:punctuation_pos + 1]
-                        return f"[VOICEOVER: {truncated}]"
-                    return match.group(0)
-
-                generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', truncate_voiceover, generated_text, flags=re.IGNORECASE)
-                # Recalculate actual count
-                voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
-                voiceover_text = ' '.join(voiceover_matches)
-                logger.info(f"[DEBUG] Truncated to {len(voiceover_text.split())} voiceover words")
-            else:
-                # Non-video: simple truncation - NEVER cut mid-word
-                words = generated_text.split()
-                if len(words) > word_count:
-                    # Get exact number of words (no more, no less)
-                    truncated_words = words[:word_count]
-                    truncated_text = ' '.join(truncated_words)
-                    # Try to end at punctuation for natural ending
-                    last_period = truncated_text.rfind('.')
-                    last_exclamation = truncated_text.rfind('!')
-                    last_question = truncated_text.rfind('?')
-                    punctuation_pos = max(last_period, last_exclamation, last_question)
-                    # Only use punctuation if it's not too early (>30% of text) and not cutting off words
-                    if punctuation_pos > len(truncated_text) * 0.3:
-                        # Make sure punctuation doesn't cut off the last word
-                        punct_index = punctuation_pos + 1
-                        if punct_index < len(truncated_text):
-                            # Find last space before punctuation
-                            last_space = truncated_text.rfind(' ', 0, punct_index)
-                            if last_space > 0:
-                                truncated_text = truncated_text[:last_space] + truncated_text[punct_index-1:]
-                            else:
-                                truncated_text = truncated_text[:punct_index]
+            # Too long - truncate to word count
+            logger.info(f"[DEBUG] Truncating from {word_count_actual} to {word_count} words")
+            # Simple truncation for all content types
+            words = generated_text.split()
+            if len(words) > word_count:
+                # Get exact number of words (no more, no less)
+                truncated_words = words[:word_count]
+                truncated_text = ' '.join(truncated_words)
+                # Try to end at punctuation for natural ending
+                last_period = truncated_text.rfind('.')
+                last_exclamation = truncated_text.rfind('!')
+                last_question = truncated_text.rfind('?')
+                punctuation_pos = max(last_period, last_exclamation, last_question)
+                # Only use punctuation if it's not too early (>30% of text) and not cutting off words
+                if punctuation_pos > len(truncated_text) * 0.3:
+                    # Make sure punctuation doesn't cut off the last word
+                    punct_index = punctuation_pos + 1
+                    if punct_index < len(truncated_text):
+                        # Find last space before punctuation
+                        last_space = truncated_text.rfind(' ', 0, punct_index)
+                        if last_space > 0:
+                            truncated_text = truncated_text[:last_space] + truncated_text[punct_index-1:]
                         else:
                             truncated_text = truncated_text[:punct_index]
-                    generated_text = truncated_text
-                    logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
-                else:
-                    logger.info(f"[DEBUG] No truncation needed ({len(words)} words, target: {word_count})")
-        elif word_count_actual < word_count * 0.8:
-            # Too short - expand voiceover to meet minimum threshold
-            words_needed = word_count - word_count_actual
-            logger.info(f"[DEBUG] Expanding from {word_count_actual} to ~{word_count} voiceover words (adding {words_needed} words)")
-
-            if is_video_script:
-                # Expand VOICEOVER text for video scripts
-                import re
-                # Add 1-2 concise expansion phrases (not too many!)
-                expansion_phrases = [
-                    " naturally",
-                    " effectively",
-                    " daily",
-                    " safely"
-                ]
-
-                # Replace each VOICEOVER with expanded version
-                def expand_voiceover(match):
-                    voiceover_text = match.group(1)
-                    words = voiceover_text.split()
-                    # Only add 1-2 phrases max, not all of them!
-                    num_phrases = min(2, max(1, words_needed // 10))
-                    expanded_voiceover = voiceover_text
-                    for i in range(num_phrases):
-                        if i < len(expansion_phrases):
-                            expanded_voiceover += expansion_phrases[i]
-                    return f"[VOICEOVER: {expanded_voiceover}]"
-
-                generated_text = re.sub(r'\[VOICEOVER:\s*([^\]]+)\]', expand_voiceover, generated_text, flags=re.IGNORECASE)
-                # Recalculate actual count
-                voiceover_matches = re.findall(r'\[VOICEOVER:\s*([^\]]+)\]', generated_text, re.IGNORECASE)
-                voiceover_text = ' '.join(voiceover_matches)
-                logger.info(f"[DEBUG] Expanded to {len(voiceover_text.split())} voiceover words")
+                    else:
+                        truncated_text = truncated_text[:punct_index]
+                generated_text = truncated_text
+                logger.info(f"[DEBUG] Truncated to {len(generated_text.split())} words")
             else:
-                logger.info(f"[DEBUG] Content too short but not a video script - leaving as-is")
+                logger.info(f"[DEBUG] No truncation needed ({len(words)} words, target: {word_count})")
+        elif word_count_actual < word_count * 0.8:
+            # Too short - leave as-is (AI models vary, some generate shorter)
+            logger.info(f"[DEBUG] Content too short ({word_count_actual} words, target: {word_count}) - leaving as-is")
 
     # Note: Affiliate URLs will be replaced with tracking after content is saved
     # (need content ID for tracking parameters)
