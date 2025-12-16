@@ -115,7 +115,8 @@ Write detailed, flowing narrative descriptions (20+ words minimum) that include:
 - Mood and emotional tone
 - Smooth transitions
 - Present tense, flowing paragraphs
-NO timestamps, bullet points, or technical notes""",
+NO timestamps, bullet points, or technical notes
+CRITICAL: Use GENERIC terms for products - say "product bottle", "wellness product", "supplement", "daily routine item". NEVER mention specific product names, brands, or ingredient names.""",
             'structure': [
                 'opening_scene',
                 'main_content',
@@ -360,7 +361,7 @@ PRODUCT INFORMATION:
 
             # BASE SYSTEM PROMPT (from successful Claude/GPT testing)
             user_prompt += f"\n\nBASE SYSTEM INSTRUCTION:\n"
-            user_prompt += f"You are an expert AI video prompt writer for platforms like Runway, Pika, and Luma. Write detailed, flowing narrative descriptions (20+ words minimum) that include: visual scene details and composition, camera movements (push in, pull out, pan, tilt, dolly), lighting and atmosphere, mood and emotional tone, smooth transitions, present tense flowing paragraphs. NO timestamps, bullet points, or technical notes.\n\n"
+            user_prompt += f"You are an expert AI video prompt writer for platforms like Runway, Pika, and Luma. Write detailed, flowing narrative descriptions (20+ words minimum) that include: visual scene details and composition, camera movements (push in, pull out, pan, tilt, dolly), lighting and atmosphere, mood and emotional tone, smooth transitions, present tense flowing paragraphs. NO timestamps, bullet points, or technical notes. CRITICAL: Use GENERIC terms for products - say 'product bottle', 'wellness product', 'supplement', 'daily routine item'. NEVER mention specific product names, brands, or ingredient names.\n\n"
 
             # ADDITIONAL CONTEXT FOR VIDEO SCRIPT
             user_prompt += f"CREATE A VIDEO SCRIPT:\n"

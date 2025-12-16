@@ -97,6 +97,100 @@ def replace_affiliate_urls(
     return updated_content
 
 
+def format_video_script_with_overlay_guide(
+    narrative_text: str,
+    keywords: Optional[Dict[str, List[str]]],
+    duration_seconds: int
+) -> str:
+    """
+    Format video script with overlay timeline guide for user
+
+    Args:
+        narrative_text: The clean generated narrative (no product names)
+        keywords: Dict with keywords by category (ingredients, features, benefits, etc.)
+        duration_seconds: Video duration in seconds
+
+    Returns:
+        Formatted text with narrative + overlay guide
+    """
+    if not keywords:
+        return narrative_text
+
+    # Build overlay guide
+    overlay_guide = "\n\n" + "="*60 + "\n"
+    overlay_guide += "VIDEO EDITOR OVERLAY GUIDE\n"
+    overlay_guide += "="*60 + "\n\n"
+
+    # Extract keywords by category
+    ingredients = keywords.get("ingredients", [])
+    features = keywords.get("features", [])
+    benefits = keywords.get("benefits", [])
+    pain_points = keywords.get("pain_points", [])
+
+    # Calculate timing segments (evenly distributed)
+    num_segments = max(3, min(5, duration_seconds))  # 3-5 segments
+    segment_length = duration_seconds / num_segments
+
+    overlay_guide += "TIMELINE OVERLAY SUGGESTIONS:\n"
+    overlay_guide += "-" * 60 + "\n"
+
+    # Segment 1: Product introduction
+    overlay_guide += f"\n⏱️  0-{int(segment_length)}s: PRODUCT INTRODUCTION\n"
+    overlay_guide += "   📸 Overlay: Product bottle/container\n"
+    if ingredients:
+        overlay_guide += f"   📝 Text: {', '.join(ingredients[:3])}\n"
+    overlay_guide += "   🎬 Action: Camera reveals product\n\n"
+
+    # Segment 2-3: Features/Benefits
+    for i in range(1, num_segments - 1):
+        start_time = int(i * segment_length)
+        end_time = int((i + 1) * segment_length)
+        overlay_guide += f"⏱️  {start_time}-{end_time}s: "
+
+        if features and i <= len(features):
+            overlay_guide += "FEATURE HIGHLIGHT\n"
+            overlay_guide += f"   📝 Text: {features[i-1] if i-1 < len(features) else 'Key feature'}\n"
+        elif benefits and i <= len(benefits):
+            overlay_guide += "BENEFIT FOCUS\n"
+            overlay_guide += f"   📝 Text: {benefits[i-1] if i-1 < len(benefits) else 'Key benefit'}\n"
+        else:
+            overlay_guide += "STORYTELLING\n"
+            overlay_guide += "   📝 Text: Supporting information\n"
+        overlay_guide += "   🎬 Action: Show lifestyle/benefits\n\n"
+
+    # Final segment: CTA
+    start_time = int((num_segments - 1) * segment_length)
+    overlay_guide += f"⏱️  {start_time}-{duration_seconds}s: CALL TO ACTION\n"
+    overlay_guide += "   📝 Text: "
+    if benefits:
+        overlay_guide += f"{benefits[0]}\n"
+    else:
+        overlay_guide += "Your CTA message here\n"
+    overlay_guide += "   🎬 Action: Close-up on product/logo\n"
+    overlay_guide += "   🎯 Focus: Encourage action\n\n"
+
+    # Add keyword reference section
+    overlay_guide += "-" * 60 + "\n"
+    overlay_guide += "KEYWORDS FOR REFERENCE:\n"
+    overlay_guide += "-" * 60 + "\n"
+
+    if ingredients:
+        overlay_guide += f"\n🏷️  INGREDIENTS:\n   {', '.join(ingredients)}\n"
+    if features:
+        overlay_guide += f"\n⚡ FEATURES:\n   {', '.join(features)}\n"
+    if benefits:
+        overlay_guide += f"\n✅ BENEFITS:\n   {', '.join(benefits)}\n"
+    if pain_points:
+        overlay_guide += f"\n🎯 PAIN POINTS:\n   {', '.join(pain_points)}\n"
+
+    overlay_guide += "\n" + "="*60 + "\n"
+    overlay_guide += "💡 TIP: Use these keywords to create text overlays at the suggested timestamps.\n"
+    overlay_guide += "💡 TIP: Match overlay timing with the narrative flow for best results.\n"
+    overlay_guide += "="*60 + "\n"
+
+    return narrative_text + overlay_guide
+
+
 def parse_email_sequence(generated_text: str, num_emails: int) -> List[Dict[str, str]]:
     """
     Parse email sequence text into individual emails.
@@ -624,6 +718,18 @@ async def generate_content(
         elif word_count_actual < word_count * 0.8:
             # Too short - leave as-is (AI models vary, some generate shorter)
             logger.info(f"[DEBUG] Content too short ({word_count_actual} words, target: {word_count}) - leaving as-is")
+
+    # For video scripts, add overlay guide with timeline and keywords
+    if is_video_script:
+        # Get duration from request.length (e.g., "5" or "10")
+        duration_seconds = int(request.length) if request.length else 10
+        # Format video script with overlay guide (keywords can be None)
+        generated_text = format_video_script_with_overlay_guide(
+            narrative_text=generated_text,
+            keywords=request.keywords or {},
+            duration_seconds=duration_seconds
+        )
+        logger.info(f"[DEBUG] Added overlay guide to video script")
 
     # Note: Affiliate URLs will be replaced with tracking after content is saved
     # (need content ID for tracking parameters)
