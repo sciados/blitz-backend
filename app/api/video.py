@@ -163,7 +163,8 @@ class LumaVideoService:
         aspect_ratio: str,
         image_url: Optional[str] = None,
         slides: Optional[List[Dict[str, Any]]] = None,
-        motion_intensity: str = "medium"
+        motion_intensity: str = "medium",
+        keywords: Optional[Dict[str, List[str]]] = None
     ) -> Dict[str, Any]:
         """
         Generate video using Luma AI via PiAPI
@@ -206,7 +207,7 @@ class LumaVideoService:
                         status_code=400,
                         detail="Script is required for text_to_video mode"
                     )
-                input_params["prompt"] = self._prepare_prompt(script, style, duration, request.keywords)
+                input_params["prompt"] = self._prepare_prompt(script, style, duration, keywords)
 
             elif generation_mode == "image_to_video":
                 if not image_url:
@@ -513,7 +514,8 @@ class HunyuanVideoService:
         image_url: Optional[str] = None,
         slides: Optional[List[Dict[str, Any]]] = None,
         motion_intensity: str = "medium",
-        model_variant: str = "standard"
+        model_variant: str = "standard",
+        keywords: Optional[Dict[str, List[str]]] = None
     ) -> Dict[str, Any]:
         """
         Generate video using Hunyuan Video via PiAPI
@@ -536,7 +538,7 @@ class HunyuanVideoService:
             # Prepare the input parameters
             # Hunyuan uses standard /api/v1/task endpoint
             input_params = {
-                "prompt": self._prepare_prompt(script, style, duration, request.keywords),
+                "prompt": self._prepare_prompt(script, style, duration, keywords),
                 "aspect_ratio": aspect_ratio,
                 "duration": duration  # Add duration parameter
             }
@@ -703,7 +705,8 @@ class WanxVideoService:
         image_url: Optional[str] = None,
         slides: Optional[List[Dict[str, Any]]] = None,
         motion_intensity: str = "medium",
-        model_variant: str = "1.3b"
+        model_variant: str = "1.3b",
+        keywords: Optional[Dict[str, List[str]]] = None
     ) -> Dict[str, Any]:
         """
         Generate video using WanX via PiAPI
@@ -737,7 +740,7 @@ class WanxVideoService:
 
             # Prepare the input parameters
             input_params = {
-                "prompt": self._prepare_prompt(script, style, actual_duration, request.keywords),
+                "prompt": self._prepare_prompt(script, style, actual_duration, keywords),
                 "aspect_ratio": aspect_ratio
             }
 
@@ -957,7 +960,8 @@ async def generate_video(
                 aspect_ratio=request.aspect_ratio,
                 image_url=request.image_url,
                 slides=request.slides,
-                motion_intensity=request.motion_intensity
+                motion_intensity=request.motion_intensity,
+                keywords=request.keywords
             )
 
             # Use actual_duration from the result (5s for ray-v1)
@@ -996,7 +1000,8 @@ async def generate_video(
                 image_url=request.image_url,
                 slides=request.slides,
                 motion_intensity=request.motion_intensity,
-                model_variant="fast"
+                model_variant="fast",
+                keywords=request.keywords
             )
 
             actual_duration = generation_result.get("actual_duration", 5)
@@ -1034,7 +1039,8 @@ async def generate_video(
                 image_url=request.image_url,
                 slides=request.slides,
                 motion_intensity=request.motion_intensity,
-                model_variant="standard"
+                model_variant="standard",
+                keywords=request.keywords
             )
 
             actual_duration = generation_result.get("actual_duration", 5)
@@ -1072,7 +1078,8 @@ async def generate_video(
                 image_url=request.image_url,
                 slides=request.slides,
                 motion_intensity=request.motion_intensity,
-                model_variant="1.3b"
+                model_variant="1.3b",
+                keywords=request.keywords
             )
 
             actual_duration = generation_result.get("actual_duration", 5)
@@ -1108,7 +1115,8 @@ async def generate_video(
                 image_url=request.image_url,
                 slides=request.slides,
                 motion_intensity=request.motion_intensity,
-                model_variant="14b"
+                model_variant="14b",
+                keywords=request.keywords
             )
 
             actual_duration = generation_result.get("actual_duration", 5)
