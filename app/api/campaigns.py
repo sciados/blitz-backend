@@ -714,3 +714,157 @@ async def get_campaign_analytics(
         compliance_score=float(avg_compliance),
         last_generated=last_generated
     )
+# ============================================================================
+# ACTIVE CAMPAIGN LIMIT ENFORCEMENT
+# ============================================================================
+
+@router.get("/active-limit")
+async def get_active_campaign_limit(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get user's current active campaign count and their tier's limit.
+    
+    Returns:
+    {
+        "current_active": 2,
+        "limit": 4,
+        "remaining": 2,
+        "can_activate_more": true
+    }
+    """
+    from app.models.admin_settings import TierConfig
+    
+    # Get user's subscription tier
+    tier_name = current_user.subscription_tier or "trial"
+    
+    # Get tier configuration
+    tier_result = await db.execute(
+        select(TierConfig).where(TierConfig.tier_name == tier_name)
+    )
+    tier_config = tier_result.scalar_one_or_none()
+    
+    # Default limits if tier not found
+    if not tier_config:
+        limit = 4  # Default for trial/free
+    else:
+        limit = tier_config.active_campaigns_limit or 4
+    
+    # Count currently active campaigns
+    active_count_result = await db.execute(
+        select(func.count(Campaign.id))
+        .where(
+            Campaign.user_id == current_user.id,
+            Campaign.status == "active"
+        )
+    )
+    current_active = active_count_result.scalar() or 0
+    
+    remaining = max(0, limit - current_active)
+    can_activate_more = current_active < limit
+    
+    return {
+        "current_active": current_active,
+        "limit": limit,
+        "remaining": remaining,
+        "can_activate_more": can_activate_more,
+        "tier": tier_name
+    }
+
+@router.patch("/{campaign_id}/status")
+async def toggle_campaign_status(
+    campaign_id: int,
+    new_status: str,  # "active" or "paused" or "draft"
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Toggle campaign status with active campaign limit validation.
+    
+    If activating a campaign, checks that user won't exceed their tier's limit.
+    """
+    from app.models.admin_settings import TierConfig
+    
+    # Get campaign
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+    
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    
+    # Validate status
+    valid_statuses = ["draft", "active", "paused", "completed"]
+    if new_status not in valid_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+        )
+    
+    # If activating a campaign, check active limit
+    if new_status == "active" and campaign.status != "active":
+        # Get user's tier configuration
+        tier_name = current_user.subscription_tier or "trial"
+        tier_result = await db.execute(
+            select(TierConfig).where(TierConfig.tier_name == tier_name)
+        )
+        tier_config = tier_result.scalar_one_or_none()
+        
+        # Get active campaigns limit
+        if tier_config:
+            limit = tier_config.active_campaigns_limit or 4
+        else:
+            limit = 4  # Default
+        
+        # Count currently active campaigns (excluding this one if it's already active)
+        active_count_result = await db.execute(
+            select(func.count(Campaign.id))
+            .where(
+                Campaign.user_id == current_user.id,
+                Campaign.status == "active",
+                Campaign.id != campaign_id
+            )
+        )
+        current_active = active_count_result.scalar() or 0
+        
+        # Check if activating would exceed limit
+        if current_active >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "Active Campaign Limit Reached",
+                    "message": f"You've reached the maximum of {limit} active campaigns for your {tier_name} tier. Pause some campaigns before activating new ones.",
+                    "current_active": current_active,
+                    "limit": limit,
+                    "code": "ACTIVE_CAMPAIGN_LIMIT_EXCEEDED"
+                }
+            )
+    
+    # Update campaign status
+    campaign.status = new_status
+    await db.commit()
+    await db.refresh(campaign)
+    
+    # Return updated campaign with active count
+    active_count_result = await db.execute(
+        select(func.count(Campaign.id))
+        .where(
+            Campaign.user_id == current_user.id,
+            Campaign.status == "active"
+        )
+    )
+    current_active = active_count_result.scalar() or 0
+    
+    return {
+        "campaign": campaign,
+        "active_campaigns_count": current_active,
+        "message": f"Campaign status updated to {new_status}"
+    }

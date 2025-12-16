@@ -86,6 +86,7 @@ class TierConfig(Base):
 
     # Campaign limits (-1 = unlimited)
     max_campaigns = Column(Integer, default=3, nullable=False)
+    active_campaigns_limit = Column(Integer, default=4, nullable=False)  # Max active campaigns at once
     content_pieces_per_campaign = Column(Integer, default=10, nullable=False)
     email_sequences = Column(Integer, default=1, nullable=False)
 
@@ -116,6 +117,7 @@ class TierConfig(Base):
             "images_per_month": self.images_per_month,
             "videos_per_month": self.videos_per_month,
             "max_campaigns": self.max_campaigns,
+            "active_campaigns_limit": self.active_campaigns_limit,
             "content_pieces_per_campaign": self.content_pieces_per_campaign,
             "email_sequences": self.email_sequences,
             "api_calls_per_day": self.api_calls_per_day,

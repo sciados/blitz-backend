@@ -38,6 +38,7 @@ class TierConfigCreate(BaseModel):
     images_per_month: int = -1
     videos_per_month: int = -1
     max_campaigns: int = -1
+    active_campaigns_limit: int = 4
     content_pieces_per_campaign: int = -1
     email_sequences: int = -1
     api_calls_per_day: int = 0
@@ -54,6 +55,7 @@ class TierConfigUpdate(BaseModel):
     images_per_month: Optional[int] = None
     videos_per_month: Optional[int] = None
     max_campaigns: Optional[int] = None
+    active_campaigns_limit: Optional[int] = None
     content_pieces_per_campaign: Optional[int] = None
     email_sequences: Optional[int] = None
     api_calls_per_day: Optional[int] = None
