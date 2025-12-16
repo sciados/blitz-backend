@@ -736,10 +736,8 @@ async def generate_content(
             # ========================================================================
             # Email sequences count as ONE text generation (not num_emails)
             # Calculate estimated cost based on token usage
-            estimated_cost = 0.0
-            if not use_template_engine:
-                # AI generation cost: $0.002 per 1K tokens (rough estimate)
-                estimated_cost = max_tokens * 0.002 / 1000
+            # AI generation cost: $0.002 per 1K tokens (rough estimate)
+            estimated_cost = max_tokens * 0.002 / 1000
 
             await increment_usage(
                 db,
@@ -838,13 +836,11 @@ async def generate_content(
         await db.refresh(content)
 
     # ========================================================================
-    # INCREMENT USAGE AFTER SUCCESSFUL GENERATION (Standard Content)
+    # INCREMENT USAGE AFTER SUCCESSFUL GENERATION
     # ========================================================================
     # Calculate estimated cost based on token usage
-    estimated_cost = 0.0
-    if not use_template_engine:
-        # AI generation cost: $0.002 per 1K tokens (rough estimate)
-        estimated_cost = max_tokens * 0.002 / 1000
+    # AI generation cost: $0.002 per 1K tokens (rough estimate)
+    estimated_cost = max_tokens * 0.002 / 1000
 
     await increment_usage(
         db,
