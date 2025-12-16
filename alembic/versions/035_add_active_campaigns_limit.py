@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '035_add_active_campaigns_limit'
-down_revision = None
+revision = '035'
+down_revision = '034'
 branch_labels = None
 depends_on = None
 
