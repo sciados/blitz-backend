@@ -78,7 +78,7 @@ class TierConfig(Base):
     # Word limits
     words_per_month = Column(Integer, default=10000, nullable=False)
     words_per_day = Column(Integer, default=330, nullable=False)
-    words_per_generation = Column(Integer, default=2000, nullable=False)
+    words_per_generation = Column(Integer, default=400, nullable=False)
 
     # Media limits (-1 = unlimited)
     images_per_month = Column(Integer, default=-1, nullable=False)

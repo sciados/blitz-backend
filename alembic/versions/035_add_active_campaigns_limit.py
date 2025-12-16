@@ -60,7 +60,7 @@ def upgrade() -> None:
             ('trial', 'Trial', 0.0, 10000, 330, 2000, -1, 10, 3, 4, 10, 1, 0.50, '["trial_features"]'::json),
             ('standard', 'Standard', 7.0, 50000, 1650, 3000, -1, 20, 10, 4, 20, 3, 0.50, '["standard_features"]'::json),
             ('pro', 'Pro', 47.0, 200000, 6600, 5000, -1, 50, 25, 10, 50, 10, 0.30, '["pro_features"]'::json),
-            ('business', 'Business', 97.0, 500000, 16500, 8000, -1, 100, 50, 20, 100, 25, 0.20, '["business_features"]'::json)
+            ('business', 'Business', 97.0, 500000, 16500, 8000, -1, 100, 50, 4, 100, 25, 0.20, '["business_features"]'::json)
         """)
     else:
         # Table exists, check if column exists
@@ -81,7 +81,7 @@ def upgrade() -> None:
             # Update existing tiers with appropriate values
             op.execute("UPDATE tier_configs SET active_campaigns_limit = 4 WHERE tier_name IN ('free', 'trial', 'standard')")
             op.execute("UPDATE tier_configs SET active_campaigns_limit = 10 WHERE tier_name = 'pro'")
-            op.execute("UPDATE tier_configs SET active_campaigns_limit = 20 WHERE tier_name = 'business'")
+            op.execute("UPDATE tier_configs SET active_campaigns_limit = 4 WHERE tier_name = 'business'")
             
             # Set NOT NULL constraint after populating data
             op.alter_column('tier_configs', 'active_campaigns_limit', nullable=False)
