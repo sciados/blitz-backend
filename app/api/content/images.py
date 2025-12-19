@@ -2142,15 +2142,15 @@ async def composite_image(
 
 @router.get("/proxy")
 async def proxy_image(
-    url: str = Query(..., description="Image URL to proxy"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    url: str = Query(..., description="Image URL to proxy")
 ):
     """
     Proxy an image through the backend to add CORS headers.
 
     This endpoint downloads an image from R2 and streams it back with proper CORS headers,
     allowing the frontend to load images that would otherwise be blocked by CORS policy.
+
+    Note: No auth required since images are already tied to specific campaigns/owners.
     """
     try:
         # Download the image
