@@ -230,7 +230,7 @@ class VideoOverlayService:
             "-i", input_path,
             "-filter_complex", filter_complex,  # Use -filter_complex for multiple streams
             "-map", final_video_label,  # Map video from final filter output
-            "-map", "0:a",  # Map audio from input 0
+            "-map", "0:a?",  # Map audio from input 0 if it exists
             "-c:a", "copy",  # Copy audio without re-encoding
             "-y",  # Overwrite output file
             output_path
