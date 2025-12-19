@@ -354,13 +354,13 @@ PRODUCT INFORMATION:
 
                 user_prompt += "[SCENE STRUCTURE FOR " + str(duration_seconds) + " SECOND VIDEO]\n"
                 user_prompt += "1. OPENING (hook the viewer immediately)\n"
-                user_prompt += "2. MAIN CONTENT (show product/benefit visually)\n"
+                user_prompt += "2. MAIN CONTENT (show scene/story visually)\n"
                 user_prompt += "3. CLOSING (implied call-to-action)\n\n"
 
                 user_prompt += "[USE INTELLIGENCE DATA]\n"
-                user_prompt += "- Reference the product name and key benefits from intelligence\n"
-                user_prompt += "- Describe the transformation or problem being solved\n"
-                user_prompt += "- Include mood/atmosphere that matches the product\n\n"
+                user_prompt += "- Reference mood, atmosphere, and themes from intelligence\n"
+                user_prompt += "- Adapt visual style to match business category (health→nature, tech→modern, etc.)\n"
+                user_prompt += "- Create category-appropriate background (NO specific products or brands)\n\n"
 
         # Add specific instructions based on content type
         if content_type == 'video_script':
@@ -370,21 +370,22 @@ PRODUCT INFORMATION:
             # BASE SYSTEM PROMPT (from successful Claude/GPT testing)
             user_prompt += f"\n\nBASE SYSTEM INSTRUCTION:\n"
             user_prompt += f"You are an expert AI video prompt writer for platforms like Runway, Pika, and Luma. Write detailed, flowing narrative descriptions (20+ words minimum) that include: visual scene details and composition, camera movements (push in, pull out, pan, tilt, dolly), lighting and atmosphere, mood and emotional tone, smooth transitions, present tense flowing paragraphs. NO timestamps, bullet points, or technical notes.\n\n"
-            user_prompt += f"CRITICAL: VISUAL ONLY - Describe what to SHOW, not what to SAY. NO voiceover, NO narration. Use GENERIC terms: 'product bottle', 'wellness product', 'supplement', 'daily routine item'. NEVER mention specific product names, brands, or ingredient names.\n\n"
+            user_prompt += f"CRITICAL: VISUAL ONLY - Describe what to SHOW, not what to SAY. NO voiceover, NO narration, NO product bottles, NO branded items, NO labels or text. Create CLEAN BACKGROUND SCENES that match the campaign category and keywords (lifestyle, environments, natural elements, textures, colors, moods). Never mention specific product names, brands, or show any products with text.\n\n"
 
             # ADDITIONAL CONTEXT FOR VIDEO SCRIPT
             user_prompt += f"CREATE A VIDEO SCRIPT:\n"
-            user_prompt += f"Write a FLOWING NARRATIVE description for a {int(word_count / 1.75) if word_count else 10}-second marketing video about the product described below.\n"
+            user_prompt += f"Write a FLOWING NARRATIVE description for a {int(word_count / 1.75) if word_count else 10}-second background video.\n"
             user_prompt += f"Format: Single flowing paragraph (NO bullet points, NO timestamps, NO brackets)\n"
             user_prompt += f"MUST INCLUDE:\n"
             user_prompt += f"- Camera movements (push in, pull out, pan, tilt, orbit, dolly, zoom)\n"
-            user_prompt += f"- Visual scenes (product shots, environments, textures, colors)\n"
+            user_prompt += f"- Visual scenes (adapt to category: health/wellness→nature/lifestyle, tech→modern/digital, beauty→spa/elegant, fitness→active/gym, food→kitchen/cooking, etc.)\n"
             user_prompt += f"- Lighting (soft light, golden hour, professional studio, natural sunlight)\n"
             user_prompt += f"- Atmosphere/mood (frustration to hope, professional, energetic, calm)\n"
             user_prompt += f"- Transitions (dissolve, fade, cut, smooth transition)\n"
             user_prompt += f"- Present tense, paint a complete cinematic picture\n"
             user_prompt += f"- Target: {word_count if word_count else 50} words minimum\n"
             user_prompt += f"- Write like a movie director describing a scene\n"
+            user_prompt += f"- IMPORTANT: Create a REUSABLE background scene with NO products or branded items\n"
         else:
             # Add structure requirements for non-video content
             user_prompt += f"\n\nCONTENT STRUCTURE:\n"
@@ -622,23 +623,26 @@ FORMAT:
 
 STRUCTURE (describe in flowing prose):
 1. OPENING - Eye-catching opening scene that hooks the viewer
-2. MAIN CONTENT - Visual storytelling showing the product/message
+2. MAIN CONTENT - Visual storytelling showing category-appropriate background
 3. CLOSING - Strong ending with implied call-to-action
 
 WRITING STYLE:
-- Describe scenes visually: "A woman smiles confidently in morning light..."
+- Describe scenes visually: "A person enjoys morning sunlight in a serene setting..."
 - Include motion and transitions: "Camera slowly zooms in...", "Scene transitions to..."
 - Mention mood and atmosphere: "warm, inviting atmosphere", "professional studio setting"
-- Be specific about subjects: people, products, environments
+- Be specific about subjects: people, environments, textures, colors that match the business category
+- Adapt to category: health→nature/lifestyle, tech→modern/digital, beauty→spa/elegant, etc.
 - Keep prompt concise but detailed enough for video generation
-- Focus on transformation and benefits
+- Focus on creating versatile backgrounds
 
 PROHIBITED:
 - NO timestamps or time markers
 - NO [BRACKETS] for production notes
 - NO numbered shot lists
 - NO "Narrator:" or "VO:" prefixes
-- NO landing page style content"""
+- NO landing page style content
+- NO product bottles, branded items, or labels
+- NO products with text or graphics"""
         }
         
         return instructions.get(content_type, "")
