@@ -1,7 +1,8 @@
 # app/api/content/images.py
 
 """Image generation API endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
@@ -10,6 +11,8 @@ import logging
 import random
 import time
 import base64
+import httpx
+import io
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedImage, ProductIntelligence
@@ -2135,3 +2138,43 @@ async def composite_image(
     except Exception as e:
         logger.error(f"Composite failed: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Composite failed: {str(e)}")
+
+
+@router.get("/proxy")
+async def proxy_image(
+    url: str = Query(..., description="Image URL to proxy"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Proxy an image through the backend to add CORS headers.
+
+    This endpoint downloads an image from R2 and streams it back with proper CORS headers,
+    allowing the frontend to load images that would otherwise be blocked by CORS policy.
+    """
+    try:
+        # Download the image
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            # Get content type, default to image/png if not provided
+            content_type = response.headers.get("content-type", "image/png")
+
+            # Return the image with CORS headers
+            return Response(
+                content=response.content,
+                media_type=content_type,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
+                }
+            )
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to proxy image: {e}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to load image: {str(e)}")
+    except Exception as e:
+        logger.error(f"Image proxy failed: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Image proxy failed: {str(e)}")
