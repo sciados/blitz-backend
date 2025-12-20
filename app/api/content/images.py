@@ -2140,7 +2140,7 @@ async def composite_image(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Composite failed: {str(e)}")
 
 
-@router.get("/proxy")
+@router.get("/proxy", dependencies=[])
 async def proxy_image(
     url: str = Query(..., description="Image URL to proxy")
 ):
