@@ -1,5 +1,4 @@
 # app/api/content/images.py
-# file updated with additional endpoints
 
 """Image generation API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, Request
