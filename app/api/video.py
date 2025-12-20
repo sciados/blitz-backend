@@ -1513,38 +1513,10 @@ async def get_video_library(
     count_result = await db.execute(text(count_query), query_params)
     total = count_result.fetchone()[0]
 
-    # Start background tasks for any stuck videos (processing/unknown) that need polling
-    stuck_videos_query = "SELECT id, task_id, provider FROM video_generations WHERE " + " AND ".join(where_conditions) + " AND status IN ('processing', 'unknown')"
-    stuck_result = await db.execute(text(stuck_videos_query), query_params)
-    stuck_videos = stuck_result.fetchall()
-
-    # Start background polling for stuck videos (don't wait for completion)
-    for stuck_video in stuck_videos:
-        video_id = stuck_video[0]
-        task_id = stuck_video[1]
-        provider = stuck_video[2]
-
-        logger.info(f"Starting polling for stuck video {video_id} (status will be updated in background)")
-
-        # Start appropriate polling task based on provider
-        # Each task gets its own database session
-        async def start_polling_with_new_session():
-            async with AsyncSessionLocal() as task_db:
-                try:
-                    if provider == "piapi_luma":
-                        luma_service = LumaVideoService()
-                        await update_video_status(video_id=video_id, db=task_db, video_service=luma_service)
-                    elif "hunyuan" in provider:
-                        hunyuan_service = HunyuanVideoService()
-                        await update_video_status_hunyuan(video_id=video_id, db=task_db, video_service=hunyuan_service)
-                    elif "wanx" in provider:
-                        wanx_service = WanxVideoService()
-                        await update_video_status_wanx(video_id=video_id, db=task_db, video_service=wanx_service)
-                finally:
-                    await task_db.close()
-
-        # Run polling task in background
-        asyncio.create_task(start_polling_with_new_session())
+    # NOTE: Removed automatic background polling for stuck videos
+    # This was causing excessive polling even when not viewing videos tab
+    # Background polling should only happen when actively viewing the video tab
+    # Individual stuck videos can be polled manually when needed
 
     # Format videos for response
     formatted_videos = []
