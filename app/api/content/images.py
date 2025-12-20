@@ -55,20 +55,24 @@ async def update_image_url(
 ):
     """Update an image's URL (for operations like AI erase)"""
 
-    # Get the image record
+    # Get the image record with campaign join to verify ownership
     result = await db.execute(
-        select(GeneratedImage).where(
+        select(GeneratedImage, Campaign).join(
+            Campaign, GeneratedImage.campaign_id == Campaign.id
+        ).where(
             GeneratedImage.id == image_id,
-            GeneratedImage.user_id == current_user.id
+            Campaign.user_id == current_user.id
         )
     )
-    image = result.scalar_one_or_none()
+    result_tuple = result.first()
 
-    if not image:
+    if not result_tuple:
         raise HTTPException(
             status_code=404,
             detail="Image not found"
         )
+
+    image = result_tuple[0]
 
     # Update the image URL
     image.image_url = request["image_url"]
