@@ -87,7 +87,7 @@ async def ai_erase_image(request: AIEraseRequest):
             },
             data={
                 "output_format": "png",
-                "prompt": "",  # Empty prompt - just use mask for inpainting
+                "prompt": "remove",  # Minimal prompt - use mask for inpainting
             }
         )
         print(f"API Response Status: {response.status_code}")
