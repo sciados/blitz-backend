@@ -1,3 +1,5 @@
+# app/api/images/ai_erase.py
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 import base64
