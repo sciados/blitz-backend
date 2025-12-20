@@ -11,3 +11,4 @@ AI-Powered Modular SaaS Platform for Affiliate Marketing Campaign Generation.
 - Deployment: Railway (backend + Postgres)
 
 ## Project Structure
+# Force redeploy 20 Dec 2025 12:09:05
