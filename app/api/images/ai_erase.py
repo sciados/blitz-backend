@@ -87,7 +87,7 @@ async def ai_erase_image(request: AIEraseRequest):
             },
             data={
                 "output_format": "png",
-                "prompt": "plain background, seamless fill, no text",  # Describe what should be in the masked area
+                "prompt": "seamlessly blend with surrounding background colors, match the existing background texture and lighting, natural inpainting",  # Match background colors
             }
         )
         print(f"API Response Status: {response.status_code}")
