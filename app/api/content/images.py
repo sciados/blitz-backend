@@ -45,6 +45,56 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
+
+@router.put("/{image_id}/url", response_model=ImageResponse)
+async def update_image_url(
+    image_id: int,
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an image's URL (for operations like AI erase)"""
+
+    # Get the image record
+    result = await db.execute(
+        select(GeneratedImage).where(
+            GeneratedImage.id == image_id,
+            GeneratedImage.user_id == current_user.id
+        )
+    )
+    image = result.scalar_one_or_none()
+
+    if not image:
+        raise HTTPException(
+            status_code=404,
+            detail="Image not found"
+        )
+
+    # Update the image URL
+    image.image_url = request["image_url"]
+
+    # Update thumbnail if provided
+    if "thumbnail_url" in request:
+        image.thumbnail_url = request["thumbnail_url"]
+
+    await db.commit()
+    await db.refresh(image)
+
+    return ImageResponse(
+        id=image.id,
+        campaign_id=image.campaign_id,
+        image_type=image.image_type,
+        image_url=image.image_url,
+        thumbnail_url=image.thumbnail_url,
+        provider=image.provider,
+        model=image.model,
+        prompt=image.prompt,
+        style=image.style,
+        aspect_ratio=image.aspect_ratio,
+        meta_data=image.meta_data,
+        created_at=image.created_at
+    )
+
 # Text Overlay - Simple direct positioning using bbox[1] offset
 
 
