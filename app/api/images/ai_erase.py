@@ -6,6 +6,7 @@ import io
 from PIL import Image
 import os
 from typing import Optional
+import asyncio
 
 router = APIRouter()
 
@@ -106,13 +107,23 @@ async def ai_erase_image(request: AIEraseRequest):
                     detail="No inpainted image in response"
                 )
 
-            # Save to R2 or local storage
-            # For now, we'll save to local storage
-            from app.utils.r2_storage import upload_image_from_base64
+            # Save to R2 storage
+            from app.services.storage_r2 import r2_storage
+            import time
+            import uuid
 
-            inpainted_image_url = await upload_image_from_base64(
-                inpainted_base64,
-                folder="ai-erased"
+            # Generate unique key for R2
+            timestamp = int(time.time())
+            key = f"ai-erased/erased_{uuid.uuid4().hex[:8]}_{timestamp}.png"
+
+            # Convert base64 to bytes
+            inpainted_bytes = base64.b64decode(inpainted_base64)
+
+            # Upload to R2
+            _, inpainted_image_url = await r2_storage.upload_file(
+                file_bytes=inpainted_bytes,
+                key=key,
+                content_type="image/png"
             )
 
             return AIEraseResponse(
@@ -130,6 +141,8 @@ async def ai_erase_image(request: AIEraseRequest):
         raise
     except Exception as e:
         print(f"Error in AI erase: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to erase image: {str(e)}"
