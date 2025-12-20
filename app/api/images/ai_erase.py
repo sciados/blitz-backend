@@ -79,7 +79,7 @@ async def ai_erase_image(request: AIEraseRequest):
             "https://api.stability.ai/v2beta/stable-image/edit/inpaint",
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "Accept": "image/png"
+                "Accept": "application/json"
             },
             files={
                 "image": ("image.png", base64.b64decode(request.image_base64), "image/png"),
@@ -105,8 +105,18 @@ async def ai_erase_image(request: AIEraseRequest):
                 detail=f"Stability AI API error (status {response.status_code}): {response.text}"
             )
 
-        # The v2beta API returns binary image data directly
-        if response.status_code == 200 and response.content:
+        # The v2beta API returns JSON with base64 image
+        result = response.json()
+
+        # Extract base64 image from response
+        if "image" in result:
+            inpainted_base64 = result["image"]
+            if not inpainted_base64:
+                raise HTTPException(
+                    status_code=500,
+                    detail="No inpainted image in response"
+                )
+
             # Save to R2 storage
             from app.services.storage_r2 import r2_storage
             import time
@@ -116,9 +126,12 @@ async def ai_erase_image(request: AIEraseRequest):
             timestamp = int(time.time())
             key = f"ai-erased/erased_{uuid.uuid4().hex[:8]}_{timestamp}.png"
 
-            # Upload to R2 (response.content is already bytes)
+            # Convert base64 to bytes
+            inpainted_bytes = base64.b64decode(inpainted_base64)
+
+            # Upload to R2
             _, inpainted_image_url = await r2_storage.upload_file(
-                file_bytes=response.content,
+                file_bytes=inpainted_bytes,
                 key=key,
                 content_type="image/png"
             )
@@ -129,9 +142,10 @@ async def ai_erase_image(request: AIEraseRequest):
                 message="Successfully erased text/objects"
             )
         else:
+            print(f"Response structure: {result}")
             raise HTTPException(
                 status_code=500,
-                detail="No image data in response"
+                detail="No image field in response"
             )
 
     except HTTPException:
