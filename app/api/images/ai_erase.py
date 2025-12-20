@@ -74,41 +74,39 @@ async def ai_erase_image(request: AIEraseRequest):
                 detail="Stability AI API key not configured"
             )
 
-        # Stability AI Inpainting endpoint
+        # Stability AI Inpainting endpoint (v2beta API)
         response = requests.post(
-            "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/inpainting",
+            "https://api.stability.ai/v2beta/stable-image/edit/inpaint",
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "Accept": "application/json"
+                "Accept": "image/png"
             },
             files={
-                "init_image": ("image.png", image_bytes, "image/png"),
-                "mask_image": ("mask.png", mask_bytes, "image/png"),
+                "image": ("image.png", base64.b64decode(request.image_base64), "image/png"),
+                "mask": ("mask.png", base64.b64decode(request.mask_base64), "image/png"),
             },
             data={
-                "text_prompts": [{}],  # No text prompt, just inpainting
-                "cfg_scale": 7,
-                "steps": 30,
+                "output_format": "png",
             }
         )
+        print(f"API Response Status: {response.status_code}")
+        print(f"API Response: {response.text[:500]}")
 
         if response.status_code != 200:
+            print(f"Stability AI API Error - Status: {response.status_code}")
+            print(f"Response: {response.text}")
+            try:
+                error_json = response.json()
+                print(f"Error JSON: {error_json}")
+            except:
+                pass
             raise HTTPException(
                 status_code=500,
-                detail=f"Stability AI API error: {response.text}"
+                detail=f"Stability AI API error (status {response.status_code}): {response.text}"
             )
 
-        result = response.json()
-
-        # Extract base64 image from response
-        if "artifacts" in result and len(result["artifacts"]) > 0:
-            inpainted_base64 = result["artifacts"][0].get("base64")
-            if not inpainted_base64:
-                raise HTTPException(
-                    status_code=500,
-                    detail="No inpainted image in response"
-                )
-
+        # The v2beta API returns binary image data directly
+        if response.status_code == 200 and response.content:
             # Save to R2 storage
             from app.services.storage_r2 import r2_storage
             import time
@@ -118,12 +116,9 @@ async def ai_erase_image(request: AIEraseRequest):
             timestamp = int(time.time())
             key = f"ai-erased/erased_{uuid.uuid4().hex[:8]}_{timestamp}.png"
 
-            # Convert base64 to bytes
-            inpainted_bytes = base64.b64decode(inpainted_base64)
-
-            # Upload to R2
+            # Upload to R2 (response.content is already bytes)
             _, inpainted_image_url = await r2_storage.upload_file(
-                file_bytes=inpainted_bytes,
+                file_bytes=response.content,
                 key=key,
                 content_type="image/png"
             )
@@ -136,7 +131,7 @@ async def ai_erase_image(request: AIEraseRequest):
         else:
             raise HTTPException(
                 status_code=500,
-                detail="No artifacts in response"
+                detail="No image data in response"
             )
 
     except HTTPException:
