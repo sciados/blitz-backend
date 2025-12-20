@@ -1,0 +1,1289 @@
+# app/api/content/images.py
+# add, commit & push to  git
+
+"""Image generation API endpoints."""
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from datetime import datetime
+from typing import List, Optional
+import logging
+import random
+import time
+import base64
+
+from app.db.session import get_db
+from app.db.models import User, Campaign, GeneratedImage, ProductIntelligence
+from app.auth import get_current_user
+from app.schemas import (
+    ImageGenerateRequest,
+    ImageBatchRequest,
+    ImageVariationRequest,
+    ImageResponse,
+    ImageListResponse,
+    ImageDeleteResponse,
+    ImageUpgradeRequest,
+    ImageSaveDraftRequest,
+    ImageTextOverlayRequest,
+    ImageTextOverlayResponse
+)
+from app.services.image_generator import ImageGenerator, ImageGenerationResult
+from app.services.image_prompt_builder import ImagePromptBuilder
+from app.services.storage_r2 import r2_storage
+from app.services.text_renderer import TkinterTextRenderer
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/content/images", tags=["images"])
+
+
+# Dependency to get ImageGenerator instance
+def get_image_generator() -> ImageGenerator:
+    """Get ImageGenerator instance."""
+    return ImageGenerator()
+
+
+# Dependency to get ImagePromptBuilder instance
+def get_image_prompt_builder() -> ImagePromptBuilder:
+    """Get ImagePromptBuilder instance."""
+    return ImagePromptBuilder()
+
+
+@router.post("/generate", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def generate_image(
+    request: ImageGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator),
+    prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
+):
+    """Generate image for campaign using saved intelligence."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data from ProductIntelligence via product_intelligence_id
+    intelligence_data = None
+    logger.info(f"Campaign ID: {campaign.id}, product_intelligence_id: {campaign.product_intelligence_id}")
+
+    if campaign.product_intelligence_id:
+        # Get the linked ProductIntelligence
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        logger.info(f"ProductIntelligence found: {product_intelligence is not None}")
+
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+            logger.info(f"Intelligence data keys: {list(intelligence_data.keys()) if intelligence_data else 'None'}")
+
+    logger.info(f"Final intelligence_data: {intelligence_data is not None}")
+
+    # Build prompt using intelligence data
+    prompt = prompt_builder.build_prompt(
+        campaign_intelligence=intelligence_data,
+        image_type=request.image_type,
+        user_prompt=request.custom_prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        quality_boost=request.quality_boost or False
+    )
+
+    # Add testimonial if requested
+    if request.use_testimonial:
+        prompt = prompt_builder.enhance_with_testimonial(
+            base_prompt=prompt,
+            testimonial_text=request.use_testimonial,
+            author_name="Customer"
+        )
+
+    # Add text overlay if requested
+    if request.include_text_overlay:
+        prompt = prompt_builder.enhance_with_text_overlay(
+            base_prompt=prompt,
+            text_content=request.include_text_overlay,
+            position=request.overlay_position or "center"
+        )
+
+    # Add platform-specific enhancements
+    if request.platform:
+        prompt = prompt_builder.build_social_media_variant(
+            base_prompt=prompt,
+            platform=request.platform,
+            content_type=request.image_type
+        )
+
+    # Generate image
+    try:
+        result = await image_generator.generate_image(
+            prompt=prompt,
+            image_type=request.image_type,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            campaign_intelligence=intelligence_data,
+            quality_boost=request.quality_boost or False,
+            campaign_id=request.campaign_id
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image generation failed: {str(e)}"
+        )
+
+    # Save to database
+    image_record = GeneratedImage(
+        campaign_id=request.campaign_id,
+        image_type=request.image_type,
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        meta_data=result.metadata,
+        ai_generation_cost=result.cost
+    )
+
+    db.add(image_record)
+    await db.commit()
+    await db.refresh(image_record)
+
+    return ImageResponse(
+        id=image_record.id,
+        campaign_id=image_record.campaign_id,
+        image_type=image_record.image_type,
+        image_url=image_record.image_url,
+        thumbnail_url=image_record.thumbnail_url,
+        provider=image_record.provider,
+        model=image_record.model,
+        prompt=image_record.prompt,
+        style=image_record.style,
+        aspect_ratio=image_record.aspect_ratio,
+        metadata=image_record.meta_data or {},
+        ai_generation_cost=image_record.ai_generation_cost,
+        content_id=image_record.content_id,
+        created_at=image_record.created_at
+    )
+
+
+@router.post("/previews", response_model=List[ImageResponse], status_code=status.HTTP_201_CREATED)
+async def preview_images(
+    request: ImageGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator),
+    prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
+):
+    """Generate 4 preview/draft images in a batch (free, temporary)."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build prompt - use concise version for preview (free providers)
+    prompt = prompt_builder.build_prompt(
+        campaign_intelligence=intelligence_data,
+        image_type=request.image_type,
+        user_prompt=request.custom_prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        quality_boost=False,  # Preview always uses free/low-cost providers
+        concise=True  # Use shorter prompts for free providers
+    )
+
+    # Generate 4 unique drafts with different seeds
+    generation_requests = []
+    for i in range(4):
+        # Generate unique seed for each draft
+        random_seed = int(time.time() * 1000000) + random.randint(1, 1000000) + i
+
+        generation_requests.append({
+            "prompt": prompt,
+            "image_type": request.image_type,
+            "style": request.style,
+            "aspect_ratio": request.aspect_ratio,
+            "campaign_intelligence": intelligence_data,
+            "custom_params": {"seed": random_seed}
+        })
+
+    # Generate images in batch (NOT saved to database, NOT saved to R2)
+    try:
+        results = await image_generator.batch_generate(
+            requests=generation_requests,
+            save_to_r2=False,  # Don't save preview drafts to R2
+            campaign_id=request.campaign_id  # Pass campaign_id for proper organization
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image generation failed: {str(e)}"
+        )
+
+    # Return image data WITHOUT saving to database
+    return [
+        ImageResponse(
+            id=0,  # No ID since not saved
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=result.image_url,
+            thumbnail_url=result.thumbnail_url,
+            provider=result.provider,
+            model=result.model,
+            prompt=result.prompt,
+            style=result.style,
+            aspect_ratio=result.aspect_ratio,
+            ai_generation_cost=result.cost,
+            content_id=None
+            # metadata and created_at not provided for drafts - not saved to DB
+        )
+        for result in results
+    ]
+
+
+@router.post("/preview", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def preview_image(
+    request: ImageGenerateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator),
+    prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
+):
+    """Generate preview/draft image without saving to database (free, temporary)."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build prompt - use concise version for preview (free providers)
+    prompt = prompt_builder.build_prompt(
+        campaign_intelligence=intelligence_data,
+        image_type=request.image_type,
+        user_prompt=request.custom_prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        quality_boost=False,  # Preview always uses free/low-cost providers
+        concise=True  # Use shorter prompts for free providers
+    )
+
+    # Generate a random seed for unique draft images
+    # Using time + random ensures uniqueness across simultaneous requests
+    random_seed = int(time.time() * 1000000) + random.randint(1, 1000000)
+
+    # Generate image (NOT saved to database)
+    try:
+        result = await image_generator.generate_image(
+            prompt=prompt,
+            save_to_r2=False,  # Preview mode - do not upload to R2
+            image_type=request.image_type,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            campaign_intelligence=intelligence_data,
+            quality_boost=False,  # Preview mode - no quality boost
+            campaign_id=request.campaign_id,
+            custom_params={"seed": random_seed}  # Ensure unique draft each time
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image generation failed: {str(e)}"
+        )
+
+    # Return image data WITHOUT saving to database
+    return ImageResponse(
+        id=0,  # No ID since not saved
+        campaign_id=request.campaign_id,
+        image_type=request.image_type,
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=result.style,
+        aspect_ratio=result.aspect_ratio,
+        ai_generation_cost=result.cost,
+        content_id=None
+        # metadata and created_at not provided for drafts - not saved to DB
+    )
+
+
+@router.post("/save-draft", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def save_draft_image(
+    request: ImageSaveDraftRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator)
+):
+    """Save a draft image to the library by downloading and storing it."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    try:
+        # Download the image from the provider URL and save to R2
+        result = await image_generator.save_draft_image(
+            image_url=request.image_url,
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            custom_prompt=request.custom_prompt
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save draft image: {str(e)}"
+        )
+
+    # Save to database
+    image_record = GeneratedImage(
+        campaign_id=request.campaign_id,
+        image_type=request.image_type,
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        meta_data=result.metadata,
+        ai_generation_cost=0.0,  # Draft images are free
+        content_id=None
+    )
+
+    db.add(image_record)
+    await db.commit()
+    await db.refresh(image_record)
+
+    return ImageResponse(
+        id=image_record.id,
+        campaign_id=image_record.campaign_id,
+        image_type=image_record.image_type,
+        image_url=image_record.image_url,
+        thumbnail_url=image_record.thumbnail_url,
+        provider=image_record.provider,
+        model=image_record.model,
+        prompt=image_record.prompt,
+        style=image_record.style,
+        aspect_ratio=image_record.aspect_ratio,
+        metadata=image_record.meta_data or {},
+        ai_generation_cost=image_record.ai_generation_cost,
+        content_id=image_record.content_id,
+        created_at=image_record.created_at
+    )
+
+
+@router.post("/upgrade", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def upgrade_image(
+    request: ImageUpgradeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator)
+):
+    """Enhance a draft image to premium quality."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build enhancement prompt
+    prompt = request.custom_prompt or "Enhance and improve this image quality, higher resolution, detailed, sharp, premium"
+
+    # File Organization for Enhancement:
+    # 1. Download draft and save to: campaigns/{id}/generated_images/temp/  (intermediate)
+    # 2. Enhance image and save to: campaigns/{id}/generated_images/         (final result)
+    # This keeps the main folder clean with only final enhanced images
+    logger.info(f"💾 Preparing draft for enhancement...")
+    try:
+        import httpx
+        import hashlib
+        import time
+        import re
+
+        # Handle different URL types for draft images
+        draft_url = request.draft_image_url
+        logger.info(f"📏 Original draft URL length: {len(request.draft_image_url)} chars")
+
+        # Check if this is a data URL (base64-encoded image)
+        if request.draft_image_url.startswith("data:image/"):
+            # Data URL - extract base64 data directly (no HTTP download needed)
+            logger.info(f"🔍 Detected data URL (base64-encoded image)")
+            try:
+                # Extract base64 data from data URL format: data:image/webp;base64,<data>
+                if ";base64," in request.draft_image_url:
+                    base64_data = request.draft_image_url.split(";base64,")[1]
+                    image_data = base64.b64decode(base64_data)
+                    logger.info(f"✅ Decoded {len(image_data)} bytes from base64 data URL")
+                else:
+                    raise Exception("Data URL does not contain base64 data")
+            except Exception as e:
+                logger.error(f"❌ Failed to decode data URL: {e}")
+                raise Exception(f"Failed to decode data URL: {str(e)}")
+        else:
+            # Regular HTTP URL - download via HTTP client
+            if "image.pollinations.ai" in request.draft_image_url and len(request.draft_image_url) > 200:
+                seed_match = re.search(r'seed=(\d+)', request.draft_image_url)
+                width_match = re.search(r'width=(\d+)', request.draft_image_url)
+                height_match = re.search(r'height=(\d+)', request.draft_image_url)
+
+                if seed_match and width_match and height_match:
+                    seed = seed_match.group(1)
+                    width = width_match.group(1)
+                    height = height_match.group(1)
+                    # Create minimal URL with just seed and dimensions
+                    draft_url = f"https://image.pollinations.ai/prompt/IMG?width={width}&height={height}&seed={seed}&nologo=true"
+                    logger.info(f"✂️ Shortened Pollinations URL: {len(request.draft_image_url)} → {len(draft_url)} chars")
+                else:
+                    # Regex didn't match - log warning but try original URL
+                    logger.warning(f"⚠️ Could not extract parameters from Pollinations URL (seed={bool(seed_match)}, width={bool(width_match)}, height={bool(height_match)})")
+                    logger.warning(f"⚠️ Will attempt with original URL, may fail if too long")
+            elif len(request.draft_image_url) > 500:
+                # Generic long URL warning for non-Pollinations URLs
+                logger.warning(f"⚠️ Very long URL detected ({len(request.draft_image_url)} chars) from provider: {request.draft_image_url[:50]}...")
+
+            # Download with extended timeout for potentially slow providers
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                logger.info(f"⬇️ Downloading draft image from: {draft_url[:100]}...")
+                try:
+                    img_response = await client.get(draft_url)
+                    img_response.raise_for_status()
+                    image_data = img_response.content
+                    logger.info(f"✅ Downloaded {len(image_data)} bytes")
+                except httpx.HTTPError as e:
+                    logger.error(f"❌ HTTP error downloading draft: {e}")
+                    raise Exception(f"Failed to download draft image: {str(e)}")
+
+        # Upload to temp folder (not main generated_images)
+        draft_filename = f"draft_for_enhancement_{int(time.time())}_{hashlib.md5(request.draft_image_url.encode()).hexdigest()[:8]}.png"
+        _, draft_url = await image_generator.r2_storage.upload_file(
+            file_bytes=image_data,
+            key=f"campaigns/{request.campaign_id}/generated_images/temp/{draft_filename}",
+            content_type="image/png"
+        )
+        logger.info(f"✅ Draft saved to temp folder")
+    except Exception as e:
+        logger.error(f"Failed to save draft to temp: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save draft: {str(e)}"
+        )
+
+    # Now enhance the image using the draft URL
+    try:
+        result = await image_generator.enhance_image(
+            base_image_url=draft_url,
+            prompt=prompt,
+            image_type="hero",  # Default type for enhancement
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            quality_boost=True,  # Enhancement always uses premium providers
+            campaign_id=request.campaign_id,
+            save_to_r2=True  # Saves enhanced result to generated_images folder
+        )
+    except Exception as e:
+        logger.error(f"Image enhancement failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image enhancement failed: {str(e)}"
+        )
+
+    # Save enhanced image to database
+    image_record = GeneratedImage(
+        campaign_id=request.campaign_id,
+        image_type="hero",
+        image_url=result.image_url,
+        thumbnail_url=result.thumbnail_url,
+        provider=result.provider,
+        model=result.model,
+        prompt=result.prompt,
+        style=request.style,
+        aspect_ratio=request.aspect_ratio,
+        meta_data=result.metadata,
+        ai_generation_cost=result.cost,
+        content_id=None
+    )
+
+    db.add(image_record)
+    await db.commit()
+    await db.refresh(image_record)
+
+    return ImageResponse(
+        id=image_record.id,
+        campaign_id=image_record.campaign_id,
+        image_type=image_record.image_type,
+        image_url=image_record.image_url,
+        thumbnail_url=image_record.thumbnail_url,
+        provider=image_record.provider,
+        model=image_record.model,
+        prompt=image_record.prompt,
+        style=image_record.style,
+        aspect_ratio=image_record.aspect_ratio,
+        metadata=image_record.meta_data or {},
+        ai_generation_cost=image_record.ai_generation_cost,
+        content_id=image_record.content_id,
+        created_at=image_record.created_at
+    )
+
+
+@router.post("/batch-generate", response_model=List[ImageResponse], status_code=status.HTTP_201_CREATED)
+async def batch_generate_images(
+    request: ImageBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator),
+    prompt_builder: ImagePromptBuilder = Depends(get_image_prompt_builder)
+):
+    """Generate multiple images in parallel for a campaign."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == request.campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Get intelligence data (consistent with other endpoints)
+    intelligence_data = None
+    if campaign.product_intelligence_id:
+        result = await db.execute(
+            select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+        )
+        product_intelligence = result.scalar_one_or_none()
+        if product_intelligence:
+            intelligence_data = product_intelligence.intelligence_data
+
+    # Build generation requests
+    generation_requests = []
+    for img_request in request.images:
+        # Build prompt
+        prompt = prompt_builder.build_prompt(
+            campaign_intelligence=intelligence_data,
+            image_type=img_request["image_type"],
+            user_prompt=img_request.get("custom_prompt"),
+            style=img_request.get("style", "photorealistic"),
+            aspect_ratio=img_request.get("aspect_ratio", "1:1")
+        )
+
+        generation_requests.append({
+            "prompt": prompt,
+            "image_type": img_request["image_type"],
+            "style": img_request.get("style", "photorealistic"),
+            "aspect_ratio": img_request.get("aspect_ratio", "1:1"),
+            "campaign_intelligence": intelligence_data,
+            "custom_params": img_request.get("custom_params", {})
+        })
+
+    # Generate images in batch
+    try:
+        results = await image_generator.batch_generate(
+            requests=generation_requests,
+            save_to_r2=True,  # Save batch-generated images to R2
+            campaign_id=request.campaign_id
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch image generation failed: {str(e)}"
+        )
+
+    # Save to database
+    image_records = []
+    for i, result in enumerate(results):
+        image_record = GeneratedImage(
+            campaign_id=request.campaign_id,
+            image_type=generation_requests[i]["image_type"],
+            image_url=result.image_url,
+            thumbnail_url=result.thumbnail_url,
+            provider=result.provider,
+            model=result.model,
+            prompt=result.prompt,
+            style=result.style,
+            aspect_ratio=result.aspect_ratio,
+            meta_data=result.metadata,
+            ai_generation_cost=result.cost
+        )
+
+        db.add(image_record)
+        image_records.append(image_record)
+
+    await db.commit()
+
+    # Refresh all records
+    for record in image_records:
+        await db.refresh(record)
+
+    return [
+        ImageResponse(
+            id=record.id,
+            campaign_id=record.campaign_id,
+            image_type=record.image_type,
+            image_url=record.image_url,
+            thumbnail_url=record.thumbnail_url,
+            provider=record.provider,
+            model=record.model,
+            prompt=record.prompt,
+            style=record.style,
+            aspect_ratio=record.aspect_ratio,
+            metadata=record.meta_data or {},
+            ai_generation_cost=record.ai_generation_cost,
+            content_id=record.content_id,
+            created_at=record.created_at
+        )
+        for record in image_records
+    ]
+
+
+@router.get("/campaign/{campaign_id}", response_model=ImageListResponse)
+async def list_campaign_images(
+    campaign_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_type: Optional[str] = Query(None, description="Filter by image type"),
+    skip: int = 0,
+    limit: int = 50
+):
+    """List all generated images for a campaign."""
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Build query
+    query = select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
+
+    if image_type:
+        query = query.where(GeneratedImage.image_type == image_type)
+
+    # Get total count
+    count_result = await db.execute(
+        select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
+    )
+    total = len(count_result.scalars().all())
+
+    # Get paginated results
+    query = query.offset(skip).limit(limit).order_by(GeneratedImage.created_at.desc())
+
+    result = await db.execute(query)
+    images = result.scalars().all()
+
+    return ImageListResponse(
+        images=[
+            ImageResponse(
+                id=image.id,
+                campaign_id=image.campaign_id,
+                image_type=image.image_type,
+                image_url=image.image_url,
+                thumbnail_url=image.thumbnail_url,
+                provider=image.provider,
+                model=image.model,
+                prompt=image.prompt,
+                style=image.style,
+                aspect_ratio=image.aspect_ratio,
+                metadata=image.meta_data or {},
+                ai_generation_cost=image.ai_generation_cost,
+                content_id=image.content_id,
+                created_at=image.created_at
+            )
+            for image in images
+        ],
+        total=total,
+        page=skip // limit + 1,
+        per_page=limit
+    )
+
+
+@router.get("/fonts", response_model=List[dict])
+async def list_available_fonts():
+    """List all available TTF fonts in the fonts directory."""
+    import os
+    import glob
+    from pathlib import Path
+
+    # Search in multiple possible locations
+    font_dirs = ["/app/app/fonts"]
+    fonts = []
+    
+    for font_dir in font_dirs:
+        if os.path.exists(font_dir):
+            logger.info(f"📂 Found fonts directory: {font_dir}")
+            
+            # Find all .ttf files recursively
+            for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+                # Get relative path from fonts directory
+                rel_path = os.path.relpath(ttf_file, font_dir)
+                # Get just the filename without extension
+                filename = os.path.basename(ttf_file)
+                name_without_ext = os.path.splitext(filename)[0]
+
+                # Create a friendly display name
+                # Replace underscores and dashes with spaces, title case
+                display_name = name_without_ext.replace("_", " ").replace("-", " ").title()
+
+                fonts.append({
+                    "value": display_name,  # Used in frontend
+                    "label": display_name,  # Display label
+                    "filename": filename,   # Actual filename
+                    "path": rel_path,       # Relative path
+                    "full_path": ttf_file   # Full filesystem path
+                })
+            # Found fonts, stop searching
+            break
+        else:
+            logger.info(f"⚠️ Fonts directory not found: {font_dir}")
+    
+    # Sort alphabetically by label
+
+    logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
+    fonts = []
+
+    # Search in /fonts (repo root) and subdirectories
+    font_dir = "/app/app/fonts"
+
+    if os.path.exists(font_dir):
+        # Find all .ttf files recursively
+        for ttf_file in glob.glob(os.path.join(font_dir, "**/*.ttf"), recursive=True):
+            # Get relative path from fonts directory
+            rel_path = os.path.relpath(ttf_file, font_dir)
+            # Get just the filename without extension
+            filename = os.path.basename(ttf_file)
+            name_without_ext = os.path.splitext(filename)[0]
+
+            # Create a friendly display name
+            # Replace underscores and dashes with spaces, title case
+            display_name = name_without_ext.replace("_", " ").replace("-", " ").title()
+
+            fonts.append({
+                "value": display_name,  # Used in frontend
+                "label": display_name,  # Display label
+                "filename": filename,   # Actual filename
+                "path": rel_path,       # Relative path
+                "full_path": ttf_file   # Full filesystem path
+            })
+
+    # Sort alphabetically by label
+    fonts.sort(key=lambda x: x["label"])
+
+    logger.info(f"📝 Found {len(fonts)} fonts: {[f['label'] for f in fonts]}")
+
+    return fonts
+
+
+@router.get("/{image_id}", response_model=ImageResponse)
+async def get_image(
+    image_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get a single generated image by ID."""
+    # Get image and verify ownership
+    result = await db.execute(
+        select(GeneratedImage)
+        .join(Campaign)
+        .where(
+            GeneratedImage.id == image_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    image = result.scalar_one_or_none()
+
+    if not image:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found"
+        )
+
+    return ImageResponse(
+        id=image.id,
+        campaign_id=image.campaign_id,
+        image_type=image.image_type,
+        image_url=image.image_url,
+        thumbnail_url=image.thumbnail_url,
+        provider=image.provider,
+        model=image.model,
+        style=image.style,
+        aspect_ratio=image.aspect_ratio,
+        prompt=image.prompt,
+        metadata=image.meta_data or {},
+        ai_generation_cost=image.ai_generation_cost,
+        content_id=image.content_id,
+        created_at=image.created_at
+    )
+
+
+@router.delete("/{image_id}", response_model=ImageDeleteResponse)
+async def delete_image(
+    image_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete generated image."""
+    # Get image and verify ownership
+    result = await db.execute(
+        select(GeneratedImage)
+        .join(Campaign)
+        .where(
+            GeneratedImage.id == image_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    image = result.scalar_one_or_none()
+
+    if not image:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image not found"
+        )
+
+    await db.delete(image)
+    await db.commit()
+
+    return ImageDeleteResponse(
+        message="Image deleted successfully",
+        deleted_id=image_id
+    )
+
+
+@router.post("/{image_id}/variations", response_model=List[ImageResponse])
+async def create_variations(
+    image_id: int,
+    request: ImageVariationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    image_generator: ImageGenerator = Depends(get_image_generator)
+):
+    """Create variations of an existing image."""
+    # Get base image and verify ownership
+    result = await db.execute(
+        select(GeneratedImage)
+        .join(Campaign)
+        .where(
+            GeneratedImage.id == image_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    base_image = result.scalar_one_or_none()
+
+    if not base_image:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Base image not found"
+        )
+
+    # Create variations
+    try:
+        results = await image_generator.create_variations(
+            base_image_url=base_image.image_url,
+            base_prompt=base_image.prompt,
+            num_variations=request.num_variations,
+            variation_strength=request.variation_strength
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Image variation failed: {str(e)}"
+        )
+
+    # Save variations to database
+    variation_records = []
+    for result in results:
+        image_record = GeneratedImage(
+            campaign_id=base_image.campaign_id,
+            image_type="variation",
+            image_url=result.image_url,
+            thumbnail_url=result.thumbnail_url,
+            provider=result.provider,
+            model=result.model,
+            prompt=result.prompt,
+            style=result.style,
+            aspect_ratio=result.aspect_ratio,
+            meta_data={**result.metadata, "base_image_id": image_id},
+            ai_generation_cost=result.cost,
+            content_id=base_image.content_id
+        )
+
+        db.add(image_record)
+        variation_records.append(image_record)
+
+    await db.commit()
+
+    # Refresh all records
+    for record in variation_records:
+        await db.refresh(record)
+
+    return [
+        ImageResponse(
+            id=record.id,
+            campaign_id=record.campaign_id,
+            image_type=record.image_type,
+            image_url=record.image_url,
+            thumbnail_url=record.thumbnail_url,
+            provider=record.provider,
+            model=record.model,
+            prompt=record.prompt,
+            style=record.style,
+            aspect_ratio=record.aspect_ratio,
+            metadata=record.meta_data or {},
+            ai_generation_cost=record.ai_generation_cost,
+            content_id=record.content_id,
+            created_at=record.created_at
+        )
+        for record in variation_records
+    ]
+
+
+@router.post("/text-overlay", response_model=ImageTextOverlayResponse, status_code=status.HTTP_201_CREATED)
+async def add_text_overlay(
+    request: ImageTextOverlayRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add text overlay to an image using Tkinter for better text rendering."""
+    # Initialize Tkinter text renderer
+    text_renderer = TkinterTextRenderer()
+    from PIL import Image
+    import httpx
+    from io import BytesIO
+    import hashlib
+    import time
+
+    # Verify campaign ownership if campaign_id is provided
+    campaign = None
+    if request.campaign_id:
+        result = await db.execute(
+            select(Campaign).where(
+                Campaign.id == request.campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found"
+            )
+
+    try:
+        # Download image from URL
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            image_response = await client.get(request.image_url)
+            image_response.raise_for_status()
+            image_data = image_response.content
+
+        # Open image from bytes
+        image = Image.open(BytesIO(image_data)).convert("RGBA")
+
+        logger.info(f"🎨 Processing {len(request.text_layers)} text layer(s) using Tkinter")
+        logger.info(f"🖼️ Original image size: {image.width}x{image.height}")
+        logger.info(f"🖼️ Display size from frontend: {request.display_width}x{request.display_height}")
+
+        # Resize image if display dimensions provided
+        # NOTE: If no display_width/height sent, we keep FULL RESOLUTION for marketing quality
+        if request.display_width or request.display_height:
+            if request.display_width and not request.display_height:
+                # Only width provided, calculate height maintaining aspect ratio
+                ratio = image.width / request.display_width
+                new_width = request.display_width
+                new_height = int(image.height / ratio)
+            elif request.display_height and not request.display_width:
+                # Only height provided, calculate width maintaining aspect ratio
+                ratio = image.height / request.display_height
+                new_height = request.display_height
+                new_width = int(image.width / ratio)
+            else:
+                # Both provided, use them
+                new_width = request.display_width
+                new_height = request.display_height
+
+            logger.info(f"🔄 Resizing image from {image.width}x{image.height} to {new_width}x{new_height}")
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"✅ Image resized successfully")
+
+        # Process each text layer with Tkinter
+        for text_layer_config in request.text_layers:
+            # Use ABSOLUTE pixel coordinates (no percentage scaling)
+            # Coordinates are already based on the ORIGINAL image size
+            scaled_x = int(text_layer_config.x)
+            scaled_y = int(text_layer_config.y)
+            scaled_font_size = int(text_layer_config.font_size)
+
+            logger.info(f"🎨 X: absolute pixel value = {scaled_x}px")
+            logger.info(f"🎨 Y: absolute pixel value = {scaled_y}px")
+            logger.info(f"🎨 Font size: absolute value = {scaled_font_size}px")
+
+            logger.info(f"🎨 Drawing text layer: '{text_layer_config.text}' at position ({scaled_x}, {scaled_y}), font_size: {scaled_font_size}, font_family: {text_layer_config.font_family}")
+
+            try:
+                # Render text using Tkinter with scaled coordinates and font size
+                # The renderer draws text at position (stroke_padding + left_bearing)
+                # So we need to subtract BOTH to get precise alignment at (scaled_x, scaled_y)
+                stroke_padding = text_layer_config.stroke_width * 2 if text_layer_config.stroke_width > 0 else 0
+                text_image_bytes, left_bearing = text_renderer.render_text_with_pil(
+                    text=text_layer_config.text,
+                    font_family=text_layer_config.font_family,
+                    font_size=scaled_font_size,
+                    color=text_layer_config.color,
+                    stroke_color=text_layer_config.stroke_color,
+                    stroke_width=text_layer_config.stroke_width,
+                    opacity=text_layer_config.opacity,
+                    position=(scaled_x, scaled_y)
+                )
+
+                # Open the rendered text as PIL Image
+                text_img = Image.open(BytesIO(text_image_bytes)).convert("RGBA")
+
+                # Composite text onto the main image
+                if image.mode != "RGBA":
+                    image = image.convert("RGBA")
+
+                # Create a new image to hold the composition
+                result = Image.new("RGBA", image.size, (0, 0, 0, 0))
+
+                # Paste the background image
+                result.paste(image, (0, 0))
+
+                # Log text image dimensions and position
+                logger.info(f"📐 Text image size: {text_img.width}x{text_img.height}")
+                logger.info(f"📍 Stroke padding: {stroke_padding}px")
+                logger.info(f"📍 Left bearing offset: {left_bearing}px")
+                logger.info(f"📍 Pasting text at: ({scaled_x - stroke_padding - left_bearing}, {scaled_y}) to compensate")
+
+                # Paste the text image, adjusted for both stroke padding and left bearing offset
+                # Text ink in the text image is at position: (stroke_padding + left_bearing)
+                # So we subtract both from paste position to get precise alignment
+                result.paste(text_img, (scaled_x - stroke_padding - left_bearing, scaled_y), text_img)
+
+                # Update image
+                image = result
+
+            except Exception as e:
+                logger.error(f"❌ Failed to render text layer: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Text rendering failed: {str(e)}"
+                )
+
+        logger.info(f"✅ Text overlay complete")
+
+        # Convert back to RGB for JPEG/PNG
+        if image.mode == "RGBA":
+            # Create white background
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[3])  # Use alpha channel as mask
+            final_image = background
+        else:
+            final_image = image
+
+        # Save to bytes buffer
+        buffer = BytesIO()
+        final_image.save(buffer, format="PNG", quality=95)
+        composed_image_data = buffer.getvalue()
+
+        # Upload to R2
+        r2_key, image_url = await r2_storage.upload_file(
+            file_bytes=composed_image_data,
+            key=f"campaigns/{request.campaign_id or 0}/generated_images/text_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            content_type="image/png"
+        )
+
+        # Generate thumbnail
+        thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
+
+        # Save to database
+        image_record = GeneratedImage(
+            campaign_id=request.campaign_id,
+            image_type=request.image_type,
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=request.provider,
+            model=request.model,
+            prompt=request.prompt,
+            style=request.style,
+            aspect_ratio=request.aspect_ratio,
+            meta_data={
+                "text_overlay": True,
+                "original_image_url": request.image_url,
+                "text_layers": [layer.dict() for layer in request.text_layers]
+            },
+            ai_generation_cost=0.0,  # Text overlay is free
+            content_id=None
+        )
+
+        db.add(image_record)
+        await db.commit()
+        await db.refresh(image_record)
+
+        return ImageTextOverlayResponse(
+            id=image_record.id,
+            campaign_id=image_record.campaign_id,
+            image_type=image_record.image_type,
+            image_url=image_record.image_url,
+            thumbnail_url=image_record.thumbnail_url,
+            provider=image_record.provider,
+            model=image_record.model,
+            prompt=image_record.prompt,
+            style=image_record.style,
+            aspect_ratio=image_record.aspect_ratio,
+            metadata=image_record.meta_data or {},
+            ai_generation_cost=0.0,
+            created_at=image_record.created_at
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to download image: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Text overlay failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Text overlay failed: {str(e)}"
+        )
+
+
+async def generate_thumbnail(image_url: str, campaign_id: int, size: tuple = (256, 256)) -> Optional[str]:
+    """Generate thumbnail for image."""
+    from PIL import Image
+    from io import BytesIO
+    import httpx
+    import time
+    import hashlib
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(image_url)
+            image = Image.open(BytesIO(response.content))
+
+            # Resize image
+            image.thumbnail(size, Image.Resampling.LANCZOS)
+
+            # Save to bytes
+            buffer = BytesIO()
+            image.save(buffer, format="JPEG", quality=80)
+            thumbnail_data = buffer.getvalue()
+
+            # Upload to R2
+            _, thumbnail_url = await r2_storage.upload_file(
+                file_bytes=thumbnail_data,
+                key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                content_type="image/jpeg"
+            )
+
+            return thumbnail_url
+    except Exception as e:
+        logger.error(f"Failed to generate thumbnail: {e}")
+        return None
