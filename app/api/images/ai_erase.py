@@ -87,7 +87,7 @@ async def ai_erase_image(request: AIEraseRequest):
             },
             data={
                 "output_format": "png",
-                "prompt": " ",  # Single space - minimal prompt that won't generate visible text
+                "prompt": "plain background, seamless fill, no text",  # Describe what should be in the masked area
             }
         )
         print(f"API Response Status: {response.status_code}")
