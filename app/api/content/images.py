@@ -99,6 +99,78 @@ async def update_image_url(
         created_at=image.created_at
     )
 
+
+@router.post("/create-from-existing", response_model=ImageResponse)
+async def create_image_from_existing(
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new image record from an existing one (for edited versions like AI erase)"""
+
+    original_image_id = request["original_image_id"]
+    new_image_url = request["new_image_url"]
+    campaign_id = request["campaign_id"]
+
+    # Get the original image record with campaign join to verify ownership
+    result = await db.execute(
+        select(GeneratedImage, Campaign).join(
+            Campaign, GeneratedImage.campaign_id == Campaign.id
+        ).where(
+            GeneratedImage.id == original_image_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    result_tuple = result.first()
+
+    if not result_tuple:
+        raise HTTPException(
+            status_code=404,
+            detail="Original image not found"
+        )
+
+    original_image = result_tuple[0]
+
+    # Create a NEW image record with the same metadata but new URL
+    new_image = GeneratedImage(
+        campaign_id=original_image.campaign_id,
+        image_type=original_image.image_type,
+        image_url=new_image_url,
+        # Don't copy thumbnail - will be generated if needed
+        thumbnail_url=original_image.thumbnail_url,  # Keep same thumbnail for now
+        provider=original_image.provider,
+        model=original_image.model,
+        prompt=f"[EDITED] {original_image.prompt}",  # Mark as edited
+        style=original_image.style,
+        aspect_ratio=original_image.aspect_ratio,
+        meta_data={
+            **original_image.meta_data,
+            "edited_from_image_id": original_image_id,
+            "edit_type": "ai_erase",
+            "original_created_at": original_image.created_at.isoformat() if original_image.created_at else None,
+        },
+        ai_generation_cost=0.0,  # No additional cost for editing
+    )
+
+    db.add(new_image)
+    await db.commit()
+    await db.refresh(new_image)
+
+    return ImageResponse(
+        id=new_image.id,
+        campaign_id=new_image.campaign_id,
+        image_type=new_image.image_type,
+        image_url=new_image.image_url,
+        thumbnail_url=new_image.thumbnail_url,
+        provider=new_image.provider,
+        model=new_image.model,
+        prompt=new_image.prompt,
+        style=new_image.style,
+        aspect_ratio=new_image.aspect_ratio,
+        meta_data=new_image.meta_data,
+        created_at=new_image.created_at
+    )
+
 # Text Overlay - Simple direct positioning using bbox[1] offset
 
 

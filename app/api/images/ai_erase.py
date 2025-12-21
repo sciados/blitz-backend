@@ -87,7 +87,7 @@ async def ai_erase_image(request: AIEraseRequest):
             },
             data={
                 "output_format": "png",
-                "prompt": "seamlessly blend with surrounding background colors, match the existing background texture and lighting, natural inpainting",  # Match background colors
+                "prompt": "inpaint",  # Simple command - let mask and surrounding pixels do the work
             }
         )
         print(f"API Response Status: {response.status_code}")
