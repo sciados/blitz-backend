@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.auth import get_current_user
 from app.db.models import User, Campaign
 
-from app.plugins.image_editor import (
+from .schemas import (
     InpaintingResponse,
     ImageEditRecord,
     EditHistoryResponse,
