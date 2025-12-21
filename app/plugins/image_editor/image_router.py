@@ -1,14 +1,16 @@
 """
-Image Editor API Router - ALL OPERATIONS
-FastAPI endpoints for all image editing operations
+Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
+FastAPI endpoints for all image editing operations with async SQLAlchemy
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, insert, text
 from typing import Optional
 import base64
 import time
+import json
 
-from app.db.session import get_db
+from app.db.session import get_db  # Your async session dependency
 from app.auth import get_current_user
 from app.db.models import User, Campaign
 
@@ -31,20 +33,23 @@ async def _process_edit(
     operation_type: str,
     operation_func,
     operation_params: dict,
-    db: Session,
+    db: AsyncSession,
     current_user: User
 ) -> InpaintingResponse:
     """
-    Common processing function for all edit operations
+    Common processing function for all edit operations (ASYNC)
     """
     start_time = time.time()
     
     try:
-        # Verify campaign
-        campaign = db.query(Campaign).filter(
-            Campaign.id == campaign_id,
-            Campaign.user_id == current_user.id
-        ).first()
+        # Verify campaign (async query)
+        result = await db.execute(
+            select(Campaign).filter(
+                Campaign.id == campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
         
         if not campaign:
             raise HTTPException(
@@ -84,9 +89,8 @@ async def _process_edit(
         processing_time_ms = int((time.time() - start_time) * 1000)
         api_cost = stability_service.estimate_cost_credits(operation_type)
         
-        # Save to database
-        db.execute(
-            """
+        # Save to database (async)
+        query = text("""
             INSERT INTO image_edits 
             (user_id, campaign_id, original_image_path, edited_image_path, 
              operation_type, operation_params, stability_model, api_cost_credits, 
@@ -96,23 +100,25 @@ async def _process_edit(
              :op_type, :params::jsonb, :model, :cost, 
              :time_ms, :success, NOW(), NOW())
             RETURNING id
-            """,
+        """)
+        
+        result = await db.execute(
+            query,
             {
                 "user_id": current_user.id,
                 "campaign_id": campaign_id,
                 "original_path": original_image_path,
                 "edited_path": edited_r2_path,
                 "op_type": operation_type,
-                "params": operation_params,
+                "params": json.dumps(operation_params),  # Convert to JSON string
                 "model": metadata.get("model"),
                 "cost": api_cost,
                 "time_ms": processing_time_ms,
                 "success": True
             }
         )
-        result = db.execute("SELECT lastval()").scalar()
-        edit_id = result
-        db.commit()
+        edit_id = result.scalar_one()
+        await db.commit()
         
         return InpaintingResponse(
             success=True,
@@ -124,14 +130,13 @@ async def _process_edit(
         )
         
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         
         # Log failed edit
         processing_time_ms = int((time.time() - start_time) * 1000)
         
         try:
-            db.execute(
-                """
+            query = text("""
                 INSERT INTO image_edits 
                 (user_id, campaign_id, original_image_path, edited_image_path, 
                  operation_type, operation_params, processing_time_ms, success, error_message,
@@ -140,18 +145,21 @@ async def _process_edit(
                 (:user_id, :campaign_id, :original_path, '', 
                  :op_type, :params::jsonb, :time_ms, false, :error,
                  NOW(), NOW())
-                """,
+            """)
+            
+            await db.execute(
+                query,
                 {
                     "user_id": current_user.id,
                     "campaign_id": campaign_id,
                     "original_path": image_url,
                     "op_type": operation_type,
-                    "params": operation_params,
+                    "params": json.dumps(operation_params),
                     "time_ms": processing_time_ms,
                     "error": str(e)
                 }
             )
-            db.commit()
+            await db.commit()
         except:
             pass
         
@@ -170,7 +178,7 @@ async def inpaint_image(
     negative_prompt: Optional[str] = Form(None),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Perform inpainting operation"""
@@ -201,7 +209,7 @@ async def remove_background(
     image_url: str = Form(...),
     campaign_id: int = Form(...),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Remove background from an image"""
@@ -225,7 +233,7 @@ async def search_and_replace(
     negative_prompt: Optional[str] = Form(None),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Search for an object and replace it"""
@@ -252,7 +260,7 @@ async def outpaint_image(
     creativity: float = Form(0.5),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Extend image borders with AI-generated content"""
@@ -274,7 +282,7 @@ async def erase_objects(
     mask_image_data: str = Form(...),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Erase objects from image using mask"""
@@ -309,7 +317,7 @@ async def upscale_image(
     creativity: float = Form(0.35),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Creative upscaling - enhance and upscale image"""
@@ -333,7 +341,7 @@ async def sketch_to_image(
     control_strength: float = Form(0.7),
     seed: int = Form(0),
     output_format: str = Form("png"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Convert sketch/drawing to realistic image"""
@@ -353,15 +361,19 @@ async def get_edit_history(
     campaign_id: int,
     page: int = 1,
     page_size: int = 20,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get edit history for a campaign"""
     
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.user_id == current_user.id
-    ).first()
+    # Verify campaign access (async)
+    result = await db.execute(
+        select(Campaign).filter(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
     
     if not campaign:
         raise HTTPException(
@@ -369,22 +381,26 @@ async def get_edit_history(
             detail="Campaign not found or access denied"
         )
     
-    total = db.execute(
-        "SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id",
-        {"campaign_id": campaign_id}
-    ).scalar()
+    # Get total count (async)
+    count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id")
+    count_result = await db.execute(count_query, {"campaign_id": campaign_id})
+    total = count_result.scalar()
     
+    # Get paginated results (async)
     offset = (page - 1) * page_size
     
-    edits = db.execute(
-        """
+    edits_query = text("""
         SELECT * FROM image_edits 
         WHERE campaign_id = :campaign_id 
         ORDER BY created_at DESC 
         LIMIT :limit OFFSET :offset
-        """,
+    """)
+    
+    edits_result = await db.execute(
+        edits_query,
         {"campaign_id": campaign_id, "limit": page_size, "offset": offset}
-    ).fetchall()
+    )
+    edits = edits_result.fetchall()
     
     edit_records = []
     for edit in edits:
@@ -415,13 +431,13 @@ async def get_edit_history(
 
 @router.get("/statistics", response_model=EditStatistics)
 async def get_edit_statistics(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get editing statistics for the current user"""
     
-    stats = db.execute(
-        """
+    # Get overall stats (async)
+    stats_query = text("""
         SELECT 
             COUNT(*) as total_edits,
             COUNT(CASE WHEN success = true THEN 1 END) as successful_edits,
@@ -430,19 +446,21 @@ async def get_edit_statistics(
             COALESCE(AVG(processing_time_ms), 0) as avg_processing_time_ms
         FROM image_edits 
         WHERE user_id = :user_id
-        """,
-        {"user_id": current_user.id}
-    ).fetchone()
+    """)
     
-    edits_by_type = db.execute(
-        """
+    stats_result = await db.execute(stats_query, {"user_id": current_user.id})
+    stats = stats_result.fetchone()
+    
+    # Get edits by type (async)
+    by_type_query = text("""
         SELECT operation_type, COUNT(*) as count
         FROM image_edits 
         WHERE user_id = :user_id 
         GROUP BY operation_type
-        """,
-        {"user_id": current_user.id}
-    ).fetchall()
+    """)
+    
+    by_type_result = await db.execute(by_type_query, {"user_id": current_user.id})
+    edits_by_type = by_type_result.fetchall()
     
     edits_by_type_dict = {row.operation_type: row.count for row in edits_by_type}
     
