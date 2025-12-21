@@ -1,3 +1,5 @@
+# app/plugins/image_editor/services/stability_service.py
+
 """
 Stability AI Service for Image Editing Operations
 Handles all interactions with Stability AI API
