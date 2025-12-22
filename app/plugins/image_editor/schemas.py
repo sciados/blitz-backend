@@ -15,6 +15,8 @@ class OperationType(str, Enum):
     UPSCALING = "upscaling"
     SEARCH_REPLACE = "search_replace"
     RELIGHT = "relight"
+    ERASE = "erase"
+    SKETCH_TO_IMAGE = "sketch_to_image"
 
 
 class InpaintingRequest(BaseModel):
