@@ -24,7 +24,7 @@ from .schemas import (
     OperationType
 )
 from .services.stability_service import StabilityAIService
-from .services.r2_service import R2StorageService
+from .services.r2_service import R2StorageService, get_r2_service
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
 
@@ -474,3 +474,51 @@ async def get_edit_statistics(
         avg_processing_time_ms=float(stats.avg_processing_time_ms),
         edits_by_type=edits_by_type_dict
     )
+
+
+@router.delete("/{edit_id}")
+async def delete_edit(
+    edit_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    r2_service: R2StorageService = Depends(get_r2_service)
+):
+    """Delete an edited image record"""
+
+    # Get the edit to check ownership and get the file path
+    query = text("""
+        SELECT edited_image_path, user_id
+        FROM image_edits
+        WHERE id = :edit_id
+    """)
+
+    result = await db.execute(query, {"edit_id": edit_id})
+    edit_record = result.fetchone()
+
+    if not edit_record:
+        raise HTTPException(status_code=404, detail="Edit not found")
+
+    if edit_record.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this edit")
+
+    # Delete the file from R2
+    if edit_record.edited_image_path:
+        try:
+            # Construct the full R2 path
+            r2_path = edit_record.edited_image_path
+            # Delete from R2
+            await r2_service.delete_file(r2_path)
+        except Exception as e:
+            # Log the error but continue with database deletion
+            print(f"Warning: Failed to delete file from R2: {e}")
+
+    # Delete from database
+    delete_query = text("""
+        DELETE FROM image_edits
+        WHERE id = :edit_id AND user_id = :user_id
+    """)
+
+    await db.execute(delete_query, {"edit_id": edit_id, "user_id": current_user.id})
+    await db.commit()
+
+    return {"success": True, "message": "Edit deleted successfully"}

@@ -179,5 +179,43 @@ class R2StorageService:
         parts = url.split("/", 3)
         if len(parts) >= 4:
             return parts[3]
-        
+
         return None
+
+    async def delete_file(self, r2_path: str) -> bool:
+        """
+        Delete a file from R2 (ASYNC)
+
+        Args:
+            r2_path: Path to the file in R2
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        session = aioboto3.Session()
+
+        try:
+            async with session.client(
+                's3',
+                endpoint_url=f'https://{self.account_id}.r2.cloudflarestorage.com',
+                aws_access_key_id=self.access_key_id,
+                aws_secret_access_key=self.secret_access_key,
+                config=Config(signature_version='s3v4'),
+                region_name='auto'
+            ) as s3_client:
+                await s3_client.delete_object(
+                    Bucket=self.bucket_name,
+                    Key=r2_path
+                )
+                return True
+        except Exception as e:
+            print(f"Error deleting from R2: {e}")
+            return False
+
+
+# Create a global instance
+r2_service = R2StorageService()
+
+# Dependency to get the service instance
+def get_r2_service() -> R2StorageService:
+    return r2_service
