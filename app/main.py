@@ -33,7 +33,7 @@ from app.api.admin import api_keys as admin_api_keys
 from app.api.admin import compliance as admin_compliance
 from app.api.admin import credits as admin_credits
 from app.api.admin import images as admin_images
-from app.plugins.image_editor import router as image_editor_router
+# from app.plugins.image_editor import router as image_editor_router
 from app.api.admin import messages as admin_messages
 from app.api.admin import video_thumbnails as admin_video_thumbnails
 from app.api import analytics
@@ -220,7 +220,7 @@ app.include_router(text_router)
 app.include_router(proxy_router)  # Image proxy endpoint (no auth)
 app.include_router(images_router)
 app.include_router(ai_erase_router)  # AI image erase/inpainting API
-app.include_router(image_editor_router)  # Image Editor Plugin with 7 AI operations
+# app.include_router(image_editor_router)  # Image Editor Plugin with 7 AI operations
 app.include_router(unified_content_router)  # Unified content library (text + images)
 app.include_router(prompt_generator_router)  # Prompt generation service
 app.include_router(video_overlay_router)  # Video text overlay API
