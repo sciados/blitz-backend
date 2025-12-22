@@ -29,7 +29,7 @@ tiktoken==0.5.2
 
 # Storage (Cloudflare R2 / S3 Compatible)
 boto3>=1.40.0,<1.41.0
-aiobotocore>=2.24.0,<2.25.0
+aioboto3>=13.0.0
 
 
 
