@@ -144,7 +144,7 @@ async def _process_edit(
                  operation_type, operation_params, processing_time_ms, success, error_message,
                  created_at, updated_at)
                 VALUES
-                (:user_id, :campaign_id, :original_path, '',
+                (:user_id, :campaign_id, :original_path, NULL,
                  :op_type, :params::jsonb, :time_ms, false, :error,
                  NOW(), NOW())
             """)
