@@ -1,5 +1,4 @@
 # src/app/plugins/image_editor/image_router.py
-# Updated to match
 
 """
 Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
@@ -100,7 +99,7 @@ async def _process_edit(
              processing_time_ms, success, created_at, updated_at)
             VALUES
             (:user_id, :campaign_id, :original_path, :edited_path,
-             :op_type, :params::jsonb, :model, :cost,
+             :op_type, :params, :model, :cost,
              :time_ms, :success, NOW(), NOW())
             RETURNING id
         """)
@@ -146,7 +145,7 @@ async def _process_edit(
                  created_at, updated_at)
                 VALUES
                 (:user_id, :campaign_id, :original_path, NULL,
-                 :op_type, :params::jsonb, :time_ms, false, :error,
+                 :op_type, :params, :time_ms, false, :error,
                  NOW(), NOW())
             """)
             
