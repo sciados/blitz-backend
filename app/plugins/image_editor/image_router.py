@@ -1,4 +1,5 @@
 # src/app/plugins/image_editor/image_router.py
+# Updated to match
 
 """
 Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
