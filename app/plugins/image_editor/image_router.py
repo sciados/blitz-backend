@@ -91,31 +91,31 @@ async def _process_edit(
         
         # Save to database (async)
         query = text("""
-            INSERT INTO image_edits 
-            (user_id, campaign_id, original_image_path, edited_image_path, 
-             operation_type, operation_params, stability_model, api_cost_credits, 
+            INSERT INTO image_edits
+            (user_id, campaign_id, original_image_path, edited_image_path,
+             operation_type, operation_params, stability_model, api_cost_credits,
              processing_time_ms, success, created_at, updated_at)
-            VALUES 
-            (:user_id, :campaign_id, :original_path, :edited_path, 
-             :op_type, :params::jsonb, :model, :cost, 
-             :time_ms, :success, NOW(), NOW())
+            VALUES
+            ($1, $2, $3, $4,
+             $5, $6::jsonb, $7, $8,
+             $9, $10, NOW(), NOW())
             RETURNING id
         """)
         
         result = await db.execute(
             query,
-            {
-                "user_id": current_user.id,
-                "campaign_id": campaign_id,
-                "original_path": original_image_path,
-                "edited_path": edited_r2_path,
-                "op_type": operation_type,
-                "params": json.dumps(operation_params),  # Convert to JSON string
-                "model": metadata.get("model"),
-                "cost": api_cost,
-                "time_ms": processing_time_ms,
-                "success": True
-            }
+            [
+                current_user.id,
+                campaign_id,
+                original_image_path,
+                edited_r2_path,
+                operation_type,
+                json.dumps(operation_params),  # Convert to JSON string
+                metadata.get("model"),
+                api_cost,
+                processing_time_ms,
+                True
+            ]
         )
         edit_id = result.scalar_one()
         await db.commit()
@@ -137,27 +137,27 @@ async def _process_edit(
         
         try:
             query = text("""
-                INSERT INTO image_edits 
-                (user_id, campaign_id, original_image_path, edited_image_path, 
+                INSERT INTO image_edits
+                (user_id, campaign_id, original_image_path, edited_image_path,
                  operation_type, operation_params, processing_time_ms, success, error_message,
                  created_at, updated_at)
-                VALUES 
-                (:user_id, :campaign_id, :original_path, '', 
-                 :op_type, :params::jsonb, :time_ms, false, :error,
+                VALUES
+                ($1, $2, $3, '',
+                 $4, $5::jsonb, $6, false, $7,
                  NOW(), NOW())
             """)
             
             await db.execute(
                 query,
-                {
-                    "user_id": current_user.id,
-                    "campaign_id": campaign_id,
-                    "original_path": image_url,
-                    "op_type": operation_type,
-                    "params": json.dumps(operation_params),
-                    "time_ms": processing_time_ms,
-                    "error": str(e)
-                }
+                [
+                    current_user.id,
+                    campaign_id,
+                    image_url,
+                    operation_type,
+                    json.dumps(operation_params),
+                    processing_time_ms,
+                    str(e)
+                ]
             )
             await db.commit()
         except:
@@ -382,23 +382,23 @@ async def get_edit_history(
         )
     
     # Get total count (async)
-    count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id")
-    count_result = await db.execute(count_query, {"campaign_id": campaign_id})
+    count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = $1")
+    count_result = await db.execute(count_query, [campaign_id])
     total = count_result.scalar()
     
     # Get paginated results (async)
     offset = (page - 1) * page_size
     
     edits_query = text("""
-        SELECT * FROM image_edits 
-        WHERE campaign_id = :campaign_id 
-        ORDER BY created_at DESC 
-        LIMIT :limit OFFSET :offset
+        SELECT * FROM image_edits
+        WHERE campaign_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
     """)
     
     edits_result = await db.execute(
         edits_query,
-        {"campaign_id": campaign_id, "limit": page_size, "offset": offset}
+        [campaign_id, page_size, offset]
     )
     edits = edits_result.fetchall()
     
@@ -444,22 +444,22 @@ async def get_edit_statistics(
             COUNT(CASE WHEN success = false THEN 1 END) as failed_edits,
             COALESCE(SUM(api_cost_credits), 0) as total_credits_used,
             COALESCE(AVG(processing_time_ms), 0) as avg_processing_time_ms
-        FROM image_edits 
-        WHERE user_id = :user_id
+        FROM image_edits
+        WHERE user_id = $1
     """)
     
-    stats_result = await db.execute(stats_query, {"user_id": current_user.id})
+    stats_result = await db.execute(stats_query, [current_user.id])
     stats = stats_result.fetchone()
     
     # Get edits by type (async)
     by_type_query = text("""
         SELECT operation_type, COUNT(*) as count
-        FROM image_edits 
-        WHERE user_id = :user_id 
+        FROM image_edits
+        WHERE user_id = $1 
         GROUP BY operation_type
     """)
     
-    by_type_result = await db.execute(by_type_query, {"user_id": current_user.id})
+    by_type_result = await db.execute(by_type_query, [current_user.id])
     edits_by_type = by_type_result.fetchall()
     
     edits_by_type_dict = {row.operation_type: row.count for row in edits_by_type}
