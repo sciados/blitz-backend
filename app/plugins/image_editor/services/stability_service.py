@@ -337,20 +337,32 @@ class StabilityAIService:
             if response.status_code != 200:
                 error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
-            
-            # Erase endpoint returns binary image data directly, not JSON
-            image_bytes = response.content
 
             # DEBUG: Log response details
-            print(f"[DEBUG] Erase response - Length: {len(image_bytes)} bytes")
-            print(f"[DEBUG] First 20 bytes (hex): {image_bytes[:20].hex() if image_bytes else b''}")
-            
+            print(f"[DEBUG] Erase response - Length: {len(response.content)} bytes")
+            print(f"[DEBUG] First 20 bytes (hex): {response.content[:20].hex() if response.content else b''}")
+
+            # Check if response is JSON (erase endpoint may return JSON with base64 image)
+            content_type = response.headers.get("content-type", "").lower()
+            if "application/json" in content_type or response.content.startswith(b"{"):
+                # Parse JSON response
+                result = response.json()
+                if "image" in result:
+                    # Decode base64 image
+                    image_base64 = result["image"]
+                    image_bytes = base64.b64decode(image_base64)
+                else:
+                    raise Exception("No 'image' field in Stability AI response")
+            else:
+                # Binary image data (fallback - though this may not happen)
+                image_bytes = response.content
+
             metadata = {
                 "model": "stable-diffusion-xl-1024-v1-0",
                 "finish_reason": "SUCCESS",
                 "seed": seed
             }
-            
+
             return image_bytes, metadata
     
     async def upscale_image(
