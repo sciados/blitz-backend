@@ -340,6 +340,10 @@ class StabilityAIService:
             
             # Erase endpoint returns binary image data directly, not JSON
             image_bytes = response.content
+
+            # DEBUG: Log response details
+            print(f"[DEBUG] Erase response - Length: {len(image_bytes)} bytes")
+            print(f"[DEBUG] First 20 bytes (hex): {image_bytes[:20].hex() if image_bytes else b''}")
             
             metadata = {
                 "model": "stable-diffusion-xl-1024-v1-0",
