@@ -68,7 +68,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -123,7 +123,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -188,7 +188,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -261,7 +261,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -319,7 +319,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -385,7 +385,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=90.0) as client:  # Longer timeout for upscaling
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
@@ -451,7 +451,7 @@ class StabilityAIService:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=self.headers,
                 files=files,
                 data=data
             )
