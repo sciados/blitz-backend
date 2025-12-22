@@ -7,6 +7,8 @@ import httpx
 from typing import Optional
 from datetime import datetime
 import hashlib
+import aioboto3
+from botocore.client import Config
 
 
 class R2StorageService:
@@ -69,7 +71,7 @@ class R2StorageService:
         content_type: str = "image/png"
     ) -> tuple[str, str]:
         """
-        Upload an edited image to R2
+        Upload an edited image to R2 (ASYNC)
         
         Args:
             image_data: Image bytes to upload
@@ -88,27 +90,25 @@ class R2StorageService:
             operation_type
         )
         
-        # Use boto3 for S3-compatible upload to R2
-        import boto3
-        from botocore.client import Config
+        # Use aioboto3 for proper async S3-compatible upload to R2
+        session = aioboto3.Session()
         
-        # Create S3 client configured for R2
-        s3_client = boto3.client(
+        async with session.client(
             's3',
             endpoint_url=f'https://{self.account_id}.r2.cloudflarestorage.com',
             aws_access_key_id=self.access_key_id,
             aws_secret_access_key=self.secret_access_key,
             config=Config(signature_version='s3v4'),
             region_name='auto'
-        )
-        
-        # Upload the file
-        s3_client.put_object(
-            Bucket=self.bucket_name,
-            Key=r2_path,
-            Body=image_data,
-            ContentType=content_type
-        )
+        ) as s3_client:
+            # Upload the file with proper content type
+            await s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=r2_path,
+                Body=image_data,
+                ContentType=content_type,
+                CacheControl='public, max-age=31536000'  # Cache for 1 year
+            )
         
         # Generate public URL
         public_url = f"{self.public_url_base}/{r2_path}"
@@ -117,7 +117,7 @@ class R2StorageService:
     
     async def download_image_from_r2(self, r2_path: str) -> bytes:
         """
-        Download an image from R2
+        Download an image from R2 (ASYNC)
         
         Args:
             r2_path: Path to the image in R2
@@ -125,24 +125,24 @@ class R2StorageService:
         Returns:
             Image bytes
         """
-        import boto3
-        from botocore.client import Config
+        session = aioboto3.Session()
         
-        s3_client = boto3.client(
+        async with session.client(
             's3',
             endpoint_url=f'https://{self.account_id}.r2.cloudflarestorage.com',
             aws_access_key_id=self.access_key_id,
             aws_secret_access_key=self.secret_access_key,
             config=Config(signature_version='s3v4'),
             region_name='auto'
-        )
-        
-        response = s3_client.get_object(
-            Bucket=self.bucket_name,
-            Key=r2_path
-        )
-        
-        return response['Body'].read()
+        ) as s3_client:
+            response = await s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=r2_path
+            )
+            
+            # Read the body asynchronously
+            async with response['Body'] as stream:
+                return await stream.read()
     
     async def download_image_from_url(self, url: str) -> bytes:
         """
