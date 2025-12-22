@@ -1,5 +1,6 @@
 # app/plugins/image_editor/services/stability_service.py
 
+# Updated: 2025-12-22 - Fixed JSON/binary response handling
 """
 Stability AI Service for Image Editing Operations
 Handles all interactions with Stability AI API
