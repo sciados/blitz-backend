@@ -1,3 +1,5 @@
+# src/app/plugins/image_editor/image_router.py
+
 """
 Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
 FastAPI endpoints for all image editing operations with async SQLAlchemy
