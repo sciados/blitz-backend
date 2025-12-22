@@ -100,20 +100,23 @@ async def _process_edit(
              :op_type, :params::jsonb, :model, :cost,
              :time_ms, :success, NOW(), NOW())
             RETURNING id
-        """).bindparams(
-            user_id=current_user.id,
-            campaign_id=campaign_id,
-            original_path=original_image_path,
-            edited_path=edited_r2_path,
-            op_type=operation_type,
-            params=json.dumps(operation_params),
-            model=metadata.get("model"),
-            cost=api_cost,
-            time_ms=processing_time_ms,
-            success=True
-        )
+        """)
         
-        result = await db.execute(query)
+        result = await db.execute(
+            query,
+            {
+                "user_id": current_user.id,
+                "campaign_id": campaign_id,
+                "original_path": original_image_path,
+                "edited_path": edited_r2_path,
+                "op_type": operation_type,
+                "params": json.dumps(operation_params),
+                "model": metadata.get("model"),
+                "cost": api_cost,
+                "time_ms": processing_time_ms,
+                "success": True
+            }
+        )
         edit_id = result.scalar_one()
         await db.commit()
         
@@ -142,17 +145,20 @@ async def _process_edit(
                 (:user_id, :campaign_id, :original_path, '',
                  :op_type, :params::jsonb, :time_ms, false, :error,
                  NOW(), NOW())
-            """).bindparams(
-                user_id=current_user.id,
-                campaign_id=campaign_id,
-                original_path=image_url,
-                op_type=operation_type,
-                params=json.dumps(operation_params),
-                time_ms=processing_time_ms,
-                error=str(e)
-            )
+            """)
             
-            await db.execute(query)
+            await db.execute(
+                query,
+                {
+                    "user_id": current_user.id,
+                    "campaign_id": campaign_id,
+                    "original_path": image_url,
+                    "op_type": operation_type,
+                    "params": json.dumps(operation_params),
+                    "time_ms": processing_time_ms,
+                    "error": str(e)
+                }
+            )
             await db.commit()
         except:
             pass
@@ -377,7 +383,7 @@ async def get_edit_history(
     
     # Get total count (async)
     count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id")
-    count_result = await db.execute(count_query.bindparams(campaign_id=campaign_id))
+    count_result = await db.execute(count_query, {"campaign_id": campaign_id})
     total = count_result.scalar()
     
     # Get paginated results (async)
@@ -390,11 +396,10 @@ async def get_edit_history(
         LIMIT :limit OFFSET :offset
     """)
     
-    edits_result = await db.execute(edits_query.bindparams(
-        campaign_id=campaign_id,
-        limit=page_size,
-        offset=offset
-    ))
+    edits_result = await db.execute(
+        edits_query,
+        {"campaign_id": campaign_id, "limit": page_size, "offset": offset}
+    )
     edits = edits_result.fetchall()
     
     edit_records = []
@@ -443,7 +448,7 @@ async def get_edit_statistics(
         WHERE user_id = :user_id
     """)
     
-    stats_result = await db.execute(stats_query.bindparams(user_id=current_user.id))
+    stats_result = await db.execute(stats_query, {"user_id": current_user.id})
     stats = stats_result.fetchone()
     
     # Get edits by type (async)
@@ -454,7 +459,7 @@ async def get_edit_statistics(
         GROUP BY operation_type
     """)
     
-    by_type_result = await db.execute(by_type_query.bindparams(user_id=current_user.id))
+    by_type_result = await db.execute(by_type_query, {"user_id": current_user.id})
     edits_by_type = by_type_result.fetchall()
     
     edits_by_type_dict = {row.operation_type: row.count for row in edits_by_type}
