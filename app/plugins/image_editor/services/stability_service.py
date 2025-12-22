@@ -338,17 +338,13 @@ class StabilityAIService:
                 error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
-            result = response.json()
-            
-            if "image" in result:
-                image_bytes = base64.b64decode(result["image"])
-            else:
-                raise Exception("No image data in Stability AI response")
+            # Erase endpoint returns binary image data directly, not JSON
+            image_bytes = response.content
             
             metadata = {
                 "model": "stable-diffusion-xl-1024-v1-0",
-                "finish_reason": result.get("finish_reason", "SUCCESS"),
-                "seed": result.get("seed", seed)
+                "finish_reason": "SUCCESS",
+                "seed": seed
             }
             
             return image_bytes, metadata
