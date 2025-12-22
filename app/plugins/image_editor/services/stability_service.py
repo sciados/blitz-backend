@@ -74,24 +74,33 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
-            # Get the generated image
-            result = response.json()
-            
-            # The API returns base64 encoded image in the 'image' field
-            if "image" in result:
-                image_bytes = base64.b64decode(result["image"])
+            # Check response format
+            content_type = response.headers.get("content-type", "")
+
+            if "application/json" in content_type or response.content.startswith(b'{"'):
+                # JSON response with base64 image
+                result = response.json()
+                if "image" in result:
+                    image_bytes = base64.b64decode(result["image"])
+                else:
+                    raise Exception("No image data in Stability AI response")
+                # Extract metadata from JSON
+                metadata = {
+                    "model": "stable-diffusion-xl-1024-v1-0",
+                    "finish_reason": result.get("finish_reason", "SUCCESS"),
+                    "seed": result.get("seed", seed)
+                }
             else:
-                raise Exception("No image data in Stability AI response")
-            
-            # Extract metadata
-            metadata = {
-                "model": "stable-diffusion-xl-1024-v1-0",  # Default inpainting model
-                "finish_reason": result.get("finish_reason", "SUCCESS"),
-                "seed": result.get("seed", seed)
-            }
+                # Direct binary image response
+                image_bytes = response.content
+                metadata = {
+                    "model": "stable-diffusion-xl-1024-v1-0",
+                    "finish_reason": "SUCCESS",
+                    "seed": seed
+                }
             
             return image_bytes, metadata
     
@@ -129,7 +138,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
@@ -194,7 +203,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
@@ -267,7 +276,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
@@ -325,7 +334,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
@@ -391,7 +400,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
@@ -457,7 +466,7 @@ class StabilityAIService:
             )
             
             if response.status_code != 200:
-                error_detail = response.json() if response.content else {"error": "Unknown error"}
+                error_detail = response.text if response.content else "Unknown error"
                 raise Exception(f"Stability AI API error: {response.status_code} - {error_detail}")
             
             result = response.json()
