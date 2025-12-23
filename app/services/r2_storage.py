@@ -14,7 +14,7 @@ import logging
 from botocore.config import Config
 import aioboto3
 
-from app.core.config import settings
+from app.core.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
