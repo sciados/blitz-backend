@@ -696,8 +696,8 @@ async def upgrade_image(
     prompt = request.custom_prompt or "Enhance and improve this image quality, higher resolution, detailed, sharp, premium"
 
     # File Organization for Enhancement:
-    # 1. Download draft and save to: campaigns/{id}/generated_images/temp/  (intermediate)
-    # 2. Enhance image and save to: campaigns/{id}/generated_images/         (final result)
+    # 1. Download draft and save to: campaignforge-storage/campaigns/{id}/generated_files/temp/  (intermediate)
+    # 2. Enhance image and save to: campaignforge-storage/campaigns/{id}/generated_files/         (final result)
     # This keeps the main folder clean with only final enhanced images
     logger.info(f"💾 Preparing draft for enhancement...")
     try:
@@ -763,7 +763,7 @@ async def upgrade_image(
         draft_filename = f"draft_for_enhancement_{int(time.time())}_{hashlib.md5(request.draft_image_url.encode()).hexdigest()[:8]}.png"
         _, draft_url = await image_generator.r2_storage.upload_file(
             file_bytes=image_data,
-            key=f"campaigns/{request.campaign_id}/generated_images/temp/{draft_filename}",
+            key=f"campaignforge-storage/campaigns/{request.campaign_id}/generated_files/temp/{draft_filename}",
             content_type="image/png"
         )
         logger.info(f"✅ Draft saved to temp folder")
@@ -1533,7 +1533,7 @@ async def add_text_overlay(
         # Upload to R2
         r2_key, image_url = await r2_storage.upload_file(
             file_bytes=composed_image_data,
-            key=f"campaigns/{request.campaign_id or 0}/generated_images/text_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/text_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
             content_type="image/png"
         )
 
@@ -1723,7 +1723,7 @@ async def add_image_overlay(
         # Upload to R2
         r2_key, image_url = await r2_storage.upload_file(
             file_bytes=composed_image_data,
-            key=f"campaigns/{request.campaign_id or 0}/generated_images/image_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/image_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
             content_type="image/png"
         )
 
@@ -1807,7 +1807,7 @@ async def generate_thumbnail(image_url: str, campaign_id: int, size: tuple = (25
             # Upload to R2
             _, thumbnail_url = await r2_storage.upload_file(
                 file_bytes=thumbnail_data,
-                key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                key=f"campaignforge-storage/campaigns/{campaign_id}/generated_files/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                 content_type="image/jpeg"
             )
 
@@ -1885,7 +1885,7 @@ async def trim_transparency(
 
         # Determine storage path
         if request.campaign_id:
-            key = f"campaigns/{request.campaign_id}/generated_images/trimmed_{timestamp}_{hash_suffix}.png"
+            key = f"campaignforge-storage/campaigns/{request.campaign_id}/generated_files/trimmed_{timestamp}_{hash_suffix}.png"
         else:
             key = f"temp/trimmed_{timestamp}_{hash_suffix}.png"
 
@@ -2209,7 +2209,7 @@ async def composite_image(
         # Upload to R2
         r2_key, image_url = await r2_storage.upload_file(
             file_bytes=composed_image_data,
-            key=f"campaigns/{request.campaign_id or 0}/generated_images/composite_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/composite_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
             content_type="image/png"
         )
 

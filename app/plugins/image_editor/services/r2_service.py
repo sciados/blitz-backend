@@ -60,7 +60,7 @@ class R2StorageService:
         
         edited_filename = f"{timestamp}_{operation_type}_{base_name}.{extension}"
         
-        return f"campaigns/{campaign_id}/edited/{edited_filename}"
+        return f"campaignforge-storage/campaigns/{campaign_id}/edited/{edited_filename}"
     
     async def upload_edited_image(
         self,

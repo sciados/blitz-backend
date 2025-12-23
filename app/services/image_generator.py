@@ -326,7 +326,7 @@ class ImageGenerator:
         if save_to_r2:
             r2_key, image_url = await self.r2_storage.upload_file(
                 file_bytes=result["image_data"],
-                key=f"campaigns/{campaign_id}/generated_images/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                key=f"campaignforge-storage/campaigns/{campaign_id}/generated_files/{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
             # Generate thumbnail for saved images
@@ -413,7 +413,7 @@ class ImageGenerator:
         if save_to_r2:
             r2_key, image_url = await self.r2_storage.upload_file(
                 file_bytes=result["image_data"],
-                key=f"campaigns/{campaign_id}/generated_images/enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                key=f"campaignforge-storage/campaigns/{campaign_id}/generated_files/enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
                 content_type="image/png"
             )
             # Generate thumbnail for saved images
@@ -964,7 +964,7 @@ class ImageGenerator:
                 # Upload to R2
                 _, thumbnail_url = await self.r2_storage.upload_file(
                     file_bytes=thumbnail_data,
-                    key=f"campaigns/{campaign_id}/generated_images/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
+                    key=f"campaignforge-storage/campaigns/{campaign_id}/generated_files/thumbnails/{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.jpg",
                     content_type="image/jpeg"
                 )
 
@@ -1152,7 +1152,7 @@ class ImageGenerator:
             # Upload to R2 (main image only, no thumbnail for drafts)
             r2_key, saved_image_url = await self.r2_storage.upload_file(
                 file_bytes=image_data,
-                key=f"campaigns/{campaign_id}/generated_images/{filename}",
+                key=f"campaignforge-storage/campaigns/{campaign_id}/edited/{filename}",
                 content_type="image/png"
             )
 
