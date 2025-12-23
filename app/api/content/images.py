@@ -1538,7 +1538,7 @@ async def add_text_overlay(
         filename = R2Storage.generate_filename("text_overlay", "png", request.campaign_id, timestamp=time.time())
         r2_key, image_url = await r2_storage.upload_image(
             campaign_id=request.campaign_id or 0,
-            folder="generated_files",
+            folder="edited",
             filename=filename,
             image_bytes=composed_image_data,
             content_type="image/png"
@@ -1731,7 +1731,7 @@ async def add_image_overlay(
         filename = R2Storage.generate_filename("image_overlay", "png", request.campaign_id, timestamp=time.time())
         r2_key, image_url = await r2_storage.upload_image(
             campaign_id=request.campaign_id or 0,
-            folder="generated_files",
+            folder="edited",
             filename=filename,
             image_bytes=composed_image_data,
             content_type="image/png"
@@ -2220,7 +2220,7 @@ async def composite_image(
         filename = R2Storage.generate_filename("composite", "png", request.campaign_id, timestamp=time.time())
         r2_key, image_url = await r2_storage.upload_image(
             campaign_id=request.campaign_id or 0,
-            folder="generated_files",
+            folder="edited",
             filename=filename,
             image_bytes=composed_image_data,
             content_type="image/png"
