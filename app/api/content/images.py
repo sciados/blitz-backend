@@ -39,6 +39,7 @@ from app.services.image_generator import ImageGenerator, ImageGenerationResult
 from app.services.image_prompt_builder import ImagePromptBuilder
 from app.services.storage_r2 import r2_storage
 from app.services.text_renderer import TkinterTextRenderer
+from app.services.r2_storage import r2_storage
 from app.services.usage_limits import get_effective_tier, check_usage_limit, increment_usage
 
 logger = logging.getLogger(__name__)
@@ -759,11 +760,13 @@ async def upgrade_image(
                     logger.error(f"❌ HTTP error downloading draft: {e}")
                     raise Exception(f"Failed to download draft image: {str(e)}")
 
-        # Upload to temp folder (not main generated_images)
+        # Upload to temp folder using centralized utility
         draft_filename = f"draft_for_enhancement_{int(time.time())}_{hashlib.md5(request.draft_image_url.encode()).hexdigest()[:8]}.png"
-        _, draft_url = await image_generator.r2_storage.upload_file(
-            file_bytes=image_data,
-            key=f"campaignforge-storage/campaigns/{request.campaign_id}/generated_files/temp/{draft_filename}",
+        _, draft_url = await r2_storage.upload_image(
+            campaign_id=request.campaign_id,
+            folder="temp",
+            filename=draft_filename,
+            image_bytes=image_data,
             content_type="image/png"
         )
         logger.info(f"✅ Draft saved to temp folder")
@@ -1530,10 +1533,14 @@ async def add_text_overlay(
         logger.info(f"💾 Saved composed image: {len(composed_image_data)} bytes, format={final_image.format if hasattr(final_image, 'format') else 'N/A'}, mode={final_image.mode}, size={final_image.size}")
         logger.info(f"🔍 First 100 bytes (hex): {composed_image_data[:100].hex()}")
 
-        # Upload to R2
-        r2_key, image_url = await r2_storage.upload_file(
-            file_bytes=composed_image_data,
-            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/text_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+        # Upload to R2 using centralized utility
+        from app.services.r2_storage import R2Storage
+        filename = R2Storage.generate_filename("text_overlay", "png", request.campaign_id, timestamp=time.time())
+        r2_key, image_url = await r2_storage.upload_image(
+            campaign_id=request.campaign_id or 0,
+            folder="generated_files",
+            filename=filename,
+            image_bytes=composed_image_data,
             content_type="image/png"
         )
 
@@ -1720,10 +1727,13 @@ async def add_image_overlay(
 
         logger.info(f"💾 Saved composed image: {len(composed_image_data)} bytes, format={final_image.format if hasattr(final_image, 'format') else 'N/A'}, mode={final_image.mode}, size={final_image.size}")
 
-        # Upload to R2
-        r2_key, image_url = await r2_storage.upload_file(
-            file_bytes=composed_image_data,
-            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/image_overlay_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+        # Upload to R2 using centralized utility
+        filename = R2Storage.generate_filename("image_overlay", "png", request.campaign_id, timestamp=time.time())
+        r2_key, image_url = await r2_storage.upload_image(
+            campaign_id=request.campaign_id or 0,
+            folder="generated_files",
+            filename=filename,
+            image_bytes=composed_image_data,
             content_type="image/png"
         )
 
@@ -2206,10 +2216,13 @@ async def composite_image(
         final_image.save(buffer, format="PNG", quality=95)
         composed_image_data = buffer.getvalue()
 
-        # Upload to R2
-        r2_key, image_url = await r2_storage.upload_file(
-            file_bytes=composed_image_data,
-            key=f"campaignforge-storage/campaigns/{request.campaign_id or 0}/generated_files/composite_{int(time.time())}_{hashlib.md5(request.image_url.encode()).hexdigest()[:8]}.png",
+        # Upload to R2 using centralized utility
+        filename = R2Storage.generate_filename("composite", "png", request.campaign_id, timestamp=time.time())
+        r2_key, image_url = await r2_storage.upload_image(
+            campaign_id=request.campaign_id or 0,
+            folder="generated_files",
+            filename=filename,
+            image_bytes=composed_image_data,
             content_type="image/png"
         )
 

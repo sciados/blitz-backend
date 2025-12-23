@@ -22,7 +22,9 @@ import httpx
 from PIL import Image
 
 from app.core.config.settings import settings
-from app.services.storage_r2 import r2_storage
+from app.services.storage_r2 import r2_storage as old_r2_storage
+from app.services.r2_storage import r2_storage
+from app.services.r2_storage import R2Storage
 from app.services.image_provider_config import provider_config
 
 logger = logging.getLogger(__name__)
@@ -1146,13 +1148,15 @@ class ImageGenerator:
                         logger.error(f"❌ HTTP error downloading draft: {e}")
                         raise Exception(f"Failed to download draft image: {str(e)}")
 
-            # Generate filename
-            filename = f"draft_{int(time.time())}_{hashlib.md5(image_url.encode()).hexdigest()[:8]}.png"
+            # Generate filename using centralized utility
+            filename = R2Storage.generate_filename("draft", "png", campaign_id, timestamp=time.time())
 
-            # Upload to R2 (main image only, no thumbnail for drafts)
-            r2_key, saved_image_url = await self.r2_storage.upload_file(
-                file_bytes=image_data,
-                key=f"campaignforge-storage/campaigns/{campaign_id}/edited/{filename}",
+            # Upload to R2 using centralized utility (main image only, no thumbnail for drafts)
+            r2_key, saved_image_url = await r2_storage.upload_image(
+                campaign_id=campaign_id,
+                folder="edited",
+                filename=filename,
+                image_bytes=image_data,
                 content_type="image/png"
             )
 

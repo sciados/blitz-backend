@@ -9,6 +9,8 @@ from datetime import datetime
 import hashlib
 import aioboto3
 from botocore.client import Config
+from app.services.r2_storage import R2Storage
+
 
 
 class R2StorageService:
