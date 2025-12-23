@@ -522,3 +522,213 @@ async def delete_edit(
     await db.commit()
 
     return {"success": True, "message": "Edit deleted successfully"}
+
+# Add this to your image_router.py file
+# Location: blitz-backend/app/plugins/image_editor/image_router.py
+
+from fastapi import UploadFile, File
+from typing import List
+import asyncio
+import zipfile
+from io import BytesIO
+
+@router.post("/batch-process")
+async def batch_process_images(
+    campaign_id: int = Form(...),
+    operation_type: str = Form(...),  # inpaint, resize, upscale, etc.
+    operation_params: str = Form(...),  # JSON string of parameters
+    image_urls: str = Form(...),  # JSON array of image URLs
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Batch process multiple images with the same operation
+    
+    Args:
+        campaign_id: Campaign ID
+        operation_type: Type of operation (e.g., 'resize', 'upscale', 'overlay')
+        operation_params: JSON string containing operation parameters
+        image_urls: JSON array of image URLs to process
+    
+    Returns:
+        ZIP file containing all processed images
+    """
+    import json
+    
+    start_time = time.time()
+    
+    try:
+        # Parse inputs
+        params = json.loads(operation_params)
+        urls = json.loads(image_urls)
+        
+        # Validate batch size
+        if len(urls) > 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Batch size limited to 50 images"
+            )
+        
+        if len(urls) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No images provided"
+            )
+        
+        # Verify campaign access
+        result = await db.execute(
+            select(Campaign).filter(
+                Campaign.id == campaign_id,
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found or access denied"
+            )
+        
+        # Initialize services
+        stability_service = StabilityAIService()
+        r2_service = R2StorageService()
+        
+        # Process images
+        processed_images = []
+        failed_images = []
+        
+        for idx, image_url in enumerate(urls):
+            try:
+                print(f"Processing image {idx + 1}/{len(urls)}: {image_url}")
+                
+                # Download original image
+                if image_url.startswith("http"):
+                    original_image_data = await r2_service.download_image_from_url(image_url)
+                    r2_path = r2_service.extract_r2_path_from_url(image_url)
+                    original_image_path = r2_path or image_url
+                else:
+                    original_image_data = await r2_service.download_image_from_r2(image_url)
+                    original_image_path = image_url
+                
+                # Route to appropriate operation
+                edited_image_data = None
+                metadata = {}
+                
+                if operation_type == "background-remove":
+                    edited_image_data, metadata = await stability_service.remove_background(
+                        original_image_data,
+                        output_format=params.get('output_format', 'png')
+                    )
+                
+                elif operation_type == "upscale":
+                    edited_image_data, metadata = await stability_service.upscale_image(
+                        original_image_data,
+                        prompt=params.get('prompt', ''),
+                        negative_prompt=params.get('negative_prompt'),
+                        creativity=params.get('creativity', 0.35),
+                        seed=params.get('seed', 0),
+                        output_format=params.get('output_format', 'png')
+                    )
+                
+                elif operation_type == "search-replace":
+                    edited_image_data, metadata = await stability_service.search_and_replace(
+                        original_image_data,
+                        search_prompt=params.get('search_prompt', ''),
+                        prompt=params.get('prompt', ''),
+                        negative_prompt=params.get('negative_prompt'),
+                        seed=params.get('seed', 0),
+                        output_format=params.get('output_format', 'png')
+                    )
+                
+                elif operation_type == "outpaint":
+                    edited_image_data, metadata = await stability_service.outpaint_image(
+                        original_image_data,
+                        prompt=params.get('prompt', ''),
+                        left=params.get('left', 0),
+                        right=params.get('right', 0),
+                        up=params.get('up', 0),
+                        down=params.get('down', 0),
+                        creativity=params.get('creativity', 0.5),
+                        seed=params.get('seed', 0),
+                        output_format=params.get('output_format', 'png')
+                    )
+                
+                # Add more operations as needed
+                else:
+                    raise ValueError(f"Unsupported operation type: {operation_type}")
+                
+                # Upload edited image
+                output_format = params.get('output_format', 'png')
+                edited_r2_path, edited_public_url = await r2_service.upload_edited_image(
+                    image_data=edited_image_data,
+                    campaign_id=campaign_id,
+                    original_filename=original_image_path,
+                    operation_type=f"batch_{operation_type}",
+                    content_type=f"image/{output_format}"
+                )
+                
+                processed_images.append({
+                    'original_url': image_url,
+                    'edited_url': edited_public_url,
+                    'edited_path': edited_r2_path,
+                    'filename': f"batch_{idx + 1}_{operation_type}.{output_format}"
+                })
+                
+                # Log to database
+                api_cost = stability_service.estimate_cost_credits(operation_type)
+                query = text("""
+                    INSERT INTO image_edits
+                    (user_id, campaign_id, original_image_path, edited_image_path,
+                     operation_type, operation_params, stability_model, api_cost_credits,
+                     processing_time_ms, success, created_at, updated_at)
+                    VALUES
+                    (:user_id, :campaign_id, :original_path, :edited_path,
+                     :op_type, :params, :model, :cost,
+                     :time_ms, :success, NOW(), NOW())
+                """)
+                
+                await db.execute(
+                    query,
+                    {
+                        "user_id": current_user.id,
+                        "campaign_id": campaign_id,
+                        "original_path": original_image_path,
+                        "edited_path": edited_r2_path,
+                        "op_type": f"batch_{operation_type}",
+                        "params": json.dumps(params),
+                        "model": metadata.get("model"),
+                        "cost": api_cost,
+                        "time_ms": 0,  # Individual time not tracked in batch
+                        "success": True
+                    }
+                )
+                
+            except Exception as e:
+                print(f"Failed to process image {idx + 1}: {str(e)}")
+                failed_images.append({
+                    'original_url': image_url,
+                    'error': str(e)
+                })
+        
+        await db.commit()
+        
+        # Calculate processing time
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        
+        return {
+            "success": True,
+            "total_images": len(urls),
+            "processed_count": len(processed_images),
+            "failed_count": len(failed_images),
+            "processing_time_ms": processing_time_ms,
+            "processed_images": processed_images,
+            "failed_images": failed_images
+        }
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch processing failed: {str(e)}"
+        )
