@@ -413,9 +413,55 @@ class ImageGenerator:
 
         # Upload to R2 if requested
         if save_to_r2:
+            # Use NEW centralized R2 utility interface
+            filename = f"enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png"
             r2_key, image_url = await self.r2_storage.upload_file(
+                campaign_id=campaign_id,
+                folder="generated_files",
+                filename=filename,
                 file_bytes=result["image_data"],
-                key=f"campaignforge-storage/campaigns/{campaign_id}/generated_files/enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png",
+                content_type="image/png"
+            )
+            # Generate thumbnail for saved images
+            thumbnail_url = await self._generate_thumbnail(image_url, campaign_id)
+        else:
+            # Use provider URL directly
+            image_url = result["image_url"]
+            thumbnail_url = None
+            logger.info(f"🔍 Enhancement preview mode - using provider URL directly")
+
+        # Build result
+        return ImageGenerationResult(
+            image_url=image_url,
+            thumbnail_url=thumbnail_url,
+            provider=provider_details.name,
+            model=provider_details.model,
+            prompt=prompt,
+            style=style,
+            aspect_ratio=aspect_ratio,
+            metadata={
+                "width": width,
+                "height": height,
+                "generation_time": generation_time,
+                "is_enhanced": True,
+                "base_image_url": base_image_url,
+                "custom_params": {"base_image_url": base_image_url}
+            },
+            cost=provider_details.cost_per_image
+        )
+                campaign_id=campaign_id,
+                folder="generated_files",
+                filename=filename,
+                file_bytes=result["image_data"],
+                content_type="image/png"
+            )
+            # Use NEW centralized R2 utility interface
+            filename = f"enhanced_{int(time.time())}_{hashlib.md5(prompt.encode()).hexdigest()[:8]}.png"
+            r2_key, image_url = await self.r2_storage.upload_file(
+                campaign_id=campaign_id,
+                folder="generated_files",
+                filename=filename,
+                file_bytes=result["image_data"],
                 content_type="image/png"
             )
             # Generate thumbnail for saved images
