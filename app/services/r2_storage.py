@@ -43,10 +43,10 @@ class R2Storage:
     def __init__(self):
         """Initialize R2 storage client"""
         self.account_id = settings.CLOUDFLARE_ACCOUNT_ID
-        self.access_key_id = settings.ClLOUDFLARE_R2_ACCESS_KEY_ID
-        self.secret_access_key = settings.ClLOUDFLARE_R2_SECRET_ACCESS_KEY
-        self.bucket_name = settings.ClLOUDFLARE_R2_BUCKET_NAME
-        self.public_url_base = settings.ClLOUDFLARE_R2_PUBLIC_URL_BASE
+        self.access_key_id = settings.CLOUDFLARE_R2_ACCESS_KEY_ID
+        self.secret_access_key = settings.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+        self.bucket_name = settings.CLOUDFLARE_R2_BUCKET_NAME
+        self.public_url_base = settings.CLOUDFLARE_R2_PUBLIC_URL
 
     def construct_path(
         self,
