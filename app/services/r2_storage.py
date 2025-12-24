@@ -78,7 +78,11 @@ class R2Storage:
             folder_path = folder
 
         # Build path
-        base = f"{self.BASE_PATH}/campaigns/{campaign_id}"
+        if self.BASE_PATH:
+            base = f"{self.BASE_PATH}campaigns/{campaign_id}"
+        else:
+            base = f"campaigns/{campaign_id}"
+
         if folder_path:
             path = f"{base}/{folder_path}/{filename}"
         else:
