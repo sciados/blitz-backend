@@ -463,6 +463,7 @@ class ImageSaveDraftRequest(BaseModel):
     provider: str
     model: str
     prompt: str
+    metadata: Optional[dict] = None
 
 
 class TextLayer(BaseModel):

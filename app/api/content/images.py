@@ -621,6 +621,9 @@ async def save_draft_image(
         )
 
     # Save to database
+    # Merge metadata from request (e.g., is_edited flag) with result metadata
+    merged_metadata = {**(result.metadata or {}), **(request.metadata or {})}
+
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
         image_type=request.image_type,
@@ -631,7 +634,7 @@ async def save_draft_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        meta_data=result.metadata,
+        meta_data=merged_metadata,
         ai_generation_cost=0.0,  # Draft images are free
         content_id=None
     )
