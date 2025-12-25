@@ -4,7 +4,7 @@
 Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
 FastAPI endpoints for all image editing operations with async SQLAlchemy
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, insert, text
 from typing import Optional
@@ -775,3 +775,98 @@ async def batch_process_images(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Batch processing failed: {str(e)}"
         )
+
+@router.post("/save-filtered-image")
+async def save_filtered_image(
+    image: UploadFile = File(...),
+    campaign_id: str = Form(...),
+    operation: str = Form(default="filter"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Save a client-side filtered/edited image (collage, filter, etc.) to R2 storage
+    
+    This endpoint receives an image that has already been processed on the client side
+    (via canvas filters, collage creation, etc.) and saves it to R2 storage.
+    """
+    try:
+        # Read the uploaded image bytes
+        image_bytes = await image.read()
+        
+        # Verify campaign ownership
+        result = await db.execute(
+            select(Campaign).filter(
+                Campaign.id == int(campaign_id),
+                Campaign.user_id == current_user.id
+            )
+        )
+        campaign = result.scalar_one_or_none()
+        
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found or access denied"
+            )
+        
+        # Generate filename
+        filename = r2_storage.generate_image_filename(
+            operation=operation,
+            campaign_id=campaign_id,
+            extension="png"
+        )
+        
+        # Upload to R2 in the "edited" folder
+        r2_path, public_url = await r2_storage.upload_image(
+            campaign_id=campaign_id,
+            folder="edited",
+            filename=filename,
+            image_bytes=image_bytes,
+            content_type="image/png"
+        )
+        
+        # Log to database
+        query = text("""
+            INSERT INTO image_edits 
+            (user_id, campaign_id, original_image_path, edited_image_path, 
+             operation_type, operation_params, model_used, api_cost_usd, 
+             processing_time_ms, success)
+            VALUES 
+            (:user_id, :campaign_id, :original_path, :edited_path, 
+             :op_type, :params, :model, :cost, :time_ms, :success)
+        """)
+        
+        await db.execute(
+            query,
+            {
+                "user_id": current_user.id,
+                "campaign_id": int(campaign_id),
+                "original_path": "",  # Client-side operation, no original path
+                "edited_path": r2_path,
+                "op_type": operation,
+                "params": json.dumps({"operation": operation}),
+                "model": "client-side",
+                "cost": 0.0,  # No API cost for client-side operations
+                "time_ms": 0,
+                "success": True
+            }
+        )
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "image_url": public_url,
+            "r2_path": r2_path,
+            "message": f"{operation.capitalize()} image saved successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving {operation} image: {str(e)}")
+        await db.rollback()
+        return {
+            "success": False,
+            "error": str(e)
+        }
