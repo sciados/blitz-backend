@@ -92,24 +92,48 @@ async def _process_edit(
             image_bytes=edited_image_data,
             content_type=f"image/{output_format}"
         )
-        
+
+        # Try to find parent image ID from the original image path
+        parent_image_id = None
+        try:
+            # Extract the R2 path if it's a full URL
+            r2_path_for_lookup = r2_path if 'r2_path' in locals() else original_image_path
+
+            # Query generated_images to find the parent image
+            parent_query = select(GeneratedImage).where(
+                GeneratedImage.image_url.like(f'%{r2_path_for_lookup.split("/")[-1]}%'),
+                GeneratedImage.campaign_id == campaign_id
+            ).limit(1)
+            parent_result = await db.execute(parent_query)
+            parent_image = parent_result.scalar_one_or_none()
+            if parent_image:
+                parent_image_id = parent_image.id
+        except Exception as e:
+            logger.warning(f"Could not find parent image: {e}")
+            parent_image_id = None
+
+        # Set transparency flag based on operation type
+        has_transparency = operation_type == "background-remove"
+
         # Calculate processing time and cost
         processing_time_ms = int((time.time() - start_time) * 1000)
         api_cost = stability_service.estimate_cost_credits(operation_type)
-        
+
         # Save to database (async)
         query = text("""
             INSERT INTO image_edits
             (user_id, campaign_id, original_image_path, edited_image_path,
              operation_type, operation_params, stability_model, api_cost_credits,
-             processing_time_ms, success, created_at, updated_at)
+             processing_time_ms, success, parent_image_id, has_transparency,
+             created_at, updated_at)
             VALUES
             (:user_id, :campaign_id, :original_path, :edited_path,
              :op_type, :params, :model, :cost,
-             :time_ms, :success, NOW(), NOW())
+             :time_ms, :success, :parent_id, :has_transparency,
+             NOW(), NOW())
             RETURNING id
         """)
-        
+
         result = await db.execute(
             query,
             {
@@ -122,7 +146,9 @@ async def _process_edit(
                 "model": metadata.get("model"),
                 "cost": api_cost,
                 "time_ms": processing_time_ms,
-                "success": True
+                "success": True,
+                "parent_id": parent_image_id,
+                "has_transparency": has_transparency
             }
         )
         edit_id = result.scalar_one()
@@ -398,7 +424,11 @@ async def get_edit_history(
     offset = (page - 1) * page_size
     
     edits_query = text("""
-        SELECT * FROM image_edits
+        SELECT id, user_id, campaign_id, original_image_path, edited_image_path,
+               operation_type, operation_params, stability_model, api_cost_credits,
+               processing_time_ms, success, error_message, parent_image_id,
+               has_transparency, created_at, updated_at
+        FROM image_edits
         WHERE campaign_id = :campaign_id
         ORDER BY created_at DESC
         LIMIT :limit OFFSET :offset
@@ -425,6 +455,8 @@ async def get_edit_history(
             processing_time_ms=edit.processing_time_ms,
             success=edit.success,
             error_message=edit.error_message,
+            parent_image_id=edit.parent_image_id,
+            has_transparency=edit.has_transparency if edit.has_transparency is not None else False,
             created_at=edit.created_at,
             updated_at=edit.updated_at
         ))

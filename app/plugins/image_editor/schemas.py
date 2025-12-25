@@ -68,9 +68,13 @@ class ImageEditRecord(BaseModel):
     processing_time_ms: Optional[int] = None
     success: bool
     error_message: Optional[str] = None
+    # Parent-child relationship for tracking image lineage
+    parent_image_id: Optional[int] = None
+    # Transparency detection
+    has_transparency: bool = False
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
