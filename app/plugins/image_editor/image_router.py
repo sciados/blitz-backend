@@ -11,10 +11,11 @@ from typing import Optional
 import base64
 import time
 import json
+import logging
 
 from app.db.session import get_db  # Your async session dependency
 from app.auth import get_current_user
-from app.db.models import User, Campaign
+from app.db.models import User, Campaign, GeneratedImage
 
 from .schemas import (
     InpaintingResponse,
@@ -26,6 +27,8 @@ from .schemas import (
 from .services.stability_service import StabilityAIService
 # Use centralized R2 storage utility
 from app.services.r2_storage import r2_storage, R2Storage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
 
