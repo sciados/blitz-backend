@@ -144,6 +144,10 @@ async def create_image_from_existing(
         prompt=f"[EDITED] {original_image.prompt}",  # Mark as edited
         style=original_image.style,
         aspect_ratio=original_image.aspect_ratio,
+        # Track parent-child relationship
+        parent_image_id=original_image_id,
+        # Track transparency (default to parent's value, can be updated later)
+        has_transparency=original_image.has_transparency,
         meta_data={
             **original_image.meta_data,
             "edited_from_image_id": original_image_id,
@@ -312,6 +316,9 @@ async def generate_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
+        # New generation - no parent, transparency unknown (can be set later)
+        parent_image_id=None,
+        has_transparency=False,
         meta_data=result.metadata,
         ai_generation_cost=result.cost
     )
@@ -634,6 +641,9 @@ async def save_draft_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
+        # New generation - no parent, transparency unknown (can be set later)
+        parent_image_id=None,
+        has_transparency=False,
         meta_data=merged_metadata,
         ai_generation_cost=0.0,  # Draft images are free
         content_id=None
@@ -810,6 +820,9 @@ async def upgrade_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
+        # Enhancement - track parent relationship
+        parent_image_id=None,  # Could be enhanced to track original if available
+        has_transparency=False,
         meta_data=result.metadata,
         ai_generation_cost=result.cost,
         content_id=None
@@ -944,6 +957,9 @@ async def batch_generate_images(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
+            # New generation - no parent, transparency unknown (can be set later)
+            parent_image_id=None,
+            has_transparency=False,
             meta_data=result.metadata,
             ai_generation_cost=result.cost
         )
@@ -1049,10 +1065,12 @@ async def list_campaign_images(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     image_type: Optional[str] = Query(None, description="Filter by image type"),
+    has_transparency: Optional[bool] = Query(None, description="Filter by transparency (true=transparent only, false=opaque only)"),
+    parent_image_id: Optional[int] = Query(None, description="Filter by parent image ID"),
     skip: int = 0,
     limit: int = 50
 ):
-    """List all generated images for a campaign."""
+    """List all generated images for a campaign with optional filters."""
     # Verify campaign ownership
     result = await db.execute(
         select(Campaign).where(
@@ -1073,6 +1091,12 @@ async def list_campaign_images(
 
     if image_type:
         query = query.where(GeneratedImage.image_type == image_type)
+
+    if has_transparency is not None:
+        query = query.where(GeneratedImage.has_transparency == has_transparency)
+
+    if parent_image_id is not None:
+        query = query.where(GeneratedImage.parent_image_id == parent_image_id)
 
     # Get total count
     count_result = await db.execute(
@@ -1099,6 +1123,8 @@ async def list_campaign_images(
                 prompt=image.prompt,
                 style=image.style,
                 aspect_ratio=image.aspect_ratio,
+                parent_image_id=image.parent_image_id,
+                has_transparency=image.has_transparency,
                 metadata=image.meta_data or {},
                 ai_generation_cost=image.ai_generation_cost,
                 content_id=image.content_id,
@@ -1287,6 +1313,9 @@ async def create_variations(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
+            # Variation - track parent relationship
+            parent_image_id=image_id,
+            has_transparency=base_image.has_transparency,
             meta_data={**result.metadata, "base_image_id": image_id},
             ai_generation_cost=result.cost,
             content_id=base_image.content_id
@@ -1561,6 +1590,9 @@ async def add_text_overlay(
             prompt=request.prompt,
             style=request.style,
             aspect_ratio=request.aspect_ratio,
+            # Text overlay - parent tracking could be added if original image ID is available
+            parent_image_id=None,
+            has_transparency=False,
             meta_data={
                 "text_overlay": True,
                 "original_image_url": request.image_url,
@@ -1754,6 +1786,9 @@ async def add_image_overlay(
             prompt=request.prompt,
             style=request.style,
             aspect_ratio=request.aspect_ratio,
+            # Image overlay - parent tracking could be added if original image ID is available
+            parent_image_id=None,
+            has_transparency=False,
             meta_data={
                 "image_overlay": True,
                 "original_image_url": request.image_url,
@@ -2243,6 +2278,9 @@ async def composite_image(
             prompt=request.prompt,
             style=request.style,
             aspect_ratio=request.aspect_ratio,
+            # Composite - parent tracking could be added if original image ID is available
+            parent_image_id=None,
+            has_transparency=False,
             meta_data={
                 "composite": True,
                 "original_image_url": request.image_url,

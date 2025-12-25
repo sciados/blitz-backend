@@ -227,11 +227,20 @@ class GeneratedImage(Base):
     style = Column(String(50), nullable=True)
     aspect_ratio = Column(String(20), nullable=True)
 
+    # Parent-child relationship for tracking image lineage
+    parent_image_id = Column(Integer, ForeignKey("generated_images.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Transparency detection
+    has_transparency = Column(Boolean, default=False, nullable=False, index=True)
+
     # Metadata
     meta_data = Column("metadata", JSONB, nullable=True)  # Store generation params
     ai_generation_cost = Column(Float, nullable=True)
     content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationship for parent-child hierarchy
+    parent = relationship("GeneratedImage", remote_side=[id], backref="edits")
 
 
 # ============================================================================

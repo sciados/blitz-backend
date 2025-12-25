@@ -422,6 +422,10 @@ class ImageResponse(BaseModel):
     prompt: str
     style: ImageStyle
     aspect_ratio: AspectRatio
+    # Parent-child relationship for tracking image lineage
+    parent_image_id: Optional[int] = None
+    # Transparency detection
+    has_transparency: bool = False
     metadata: Optional[Dict[str, Any]] = None
     ai_generation_cost: Optional[float] = None
     content_id: Optional[int] = None

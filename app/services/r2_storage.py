@@ -260,7 +260,7 @@ class R2Storage:
         custom_hash: Optional[str] = None
     ) -> str:
         """
-        Generate a standardized filename
+        Generate a shortened filename
 
         Args:
             prefix: Prefix for the filename (e.g., "draft", "enhanced", "overlay")
@@ -270,27 +270,27 @@ class R2Storage:
             custom_hash: Optional custom hash string
 
         Returns:
-            Generated filename
+            Shortened filename
 
         Example:
-            generate_filename("draft", "png", 28)
-            # Returns: "draft_20241223_143055_a1b2c3d4.png"
+            generate_filename("enhanced", "png", 28)
+            # Returns: "enh_1225_001.png"
         """
         if timestamp is None:
             timestamp = time.time()
 
-        # Create timestamp part
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        # Create short date part (MMDD)
+        ts = datetime.utcnow().strftime("%m%d")
 
-        # Create hash
+        # Create short hash (4 chars)
         if custom_hash:
-            hash_part = custom_hash
+            hash_part = custom_hash[:4]
         else:
             # Generate hash from timestamp and campaign_id
             hash_source = f"{timestamp}_{campaign_id}" if campaign_id else str(timestamp)
-            hash_part = hashlib.md5(hash_source.encode()).hexdigest()[:8]
+            hash_part = hashlib.md5(hash_source.encode()).hexdigest()[:4]
 
-        # Build filename
+        # Build shortened filename
         return f"{prefix}_{ts}_{hash_part}.{extension}"
 
     @staticmethod
@@ -301,7 +301,7 @@ class R2Storage:
         extension: str = "png"
     ) -> str:
         """
-        Generate filename for an image operation
+        Generate shortened filename for an image operation
 
         Args:
             operation: Type of operation (inpaint, erase, overlay, etc.)
@@ -310,31 +310,23 @@ class R2Storage:
             extension: File extension
 
         Returns:
-            Generated filename
+            Shortened filename
+
+        Example:
+            generate_image_filename("inpaint", "hero.png", 28)
+            # Returns: "inp_1225_a1b2.png"
         """
         timestamp = time.time()
 
-        # Create timestamp
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        # Create short date part (MMDD)
+        ts = datetime.utcnow().strftime("%m%d")
 
-        # Create hash from source
-        if original_filename:
-            hash_source = f"{operation}_{original_filename}_{timestamp}_{campaign_id}"
-        else:
-            hash_source = f"{operation}_{timestamp}_{campaign_id}"
+        # Create short hash (4 chars)
+        hash_source = f"{operation}_{original_filename}_{timestamp}_{campaign_id}" if original_filename else f"{operation}_{timestamp}_{campaign_id}"
+        hash_part = hashlib.md5(hash_source.encode()).hexdigest()[:4]
 
-        hash_part = hashlib.md5(hash_source.encode()).hexdigest()[:8]
-
-        # Build filename
-        if original_filename:
-            # Extract original name without extension
-            if "." in original_filename:
-                orig_name = original_filename.rsplit(".", 1)[0]
-            else:
-                orig_name = original_filename
-            return f"{operation}_{ts}_{hash_part}_{orig_name}.{extension}"
-        else:
-            return f"{operation}_{ts}_{hash_part}.{extension}"
+        # Build shortened filename (no original name to keep it short)
+        return f"{operation}_{ts}_{hash_part}.{extension}"
 
     async def delete_file(self, r2_path: str) -> bool:
         """
