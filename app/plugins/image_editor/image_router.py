@@ -24,7 +24,8 @@ from .schemas import (
     OperationType
 )
 from .services.stability_service import StabilityAIService
-from .services.r2_service import R2StorageService, get_r2_service
+# Use centralized R2 storage utility
+from app.services.r2_storage import r2_storage, R2Storage
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
 
@@ -61,29 +62,34 @@ async def _process_edit(
         
         # Initialize services
         stability_service = StabilityAIService()
-        r2_service = R2StorageService()
-        
-        # Download original image
+
+        # Download original image using centralized R2 storage
         if image_url.startswith("http"):
-            original_image_data = await r2_service.download_image_from_url(image_url)
-            r2_path = r2_service.extract_r2_path_from_url(image_url)
+            original_image_data = await r2_storage.download_from_url(image_url)
+            r2_path = r2_storage.extract_path_from_url(image_url)
             original_image_path = r2_path or image_url
         else:
-            original_image_data = await r2_service.download_image_from_r2(image_url)
+            original_image_data = await r2_storage.download_file(image_url)
             original_image_path = image_url
-        
+
         # Perform the operation
         edited_image_data, metadata = await operation_func(
             stability_service, original_image_data, **operation_params
         )
-        
-        # Upload edited image
+
+        # Generate filename and upload edited image using centralized R2 storage
         output_format = operation_params.get('output_format', 'png')
-        edited_r2_path, edited_public_url = await r2_service.upload_edited_image(
-            image_data=edited_image_data,
+        filename = R2Storage.generate_image_filename(
+            operation=operation_type,
+            original_filename=original_image_path.split('/')[-1] if original_image_path else None,
             campaign_id=campaign_id,
-            original_filename=original_image_path,
-            operation_type=operation_type,
+            extension=output_format
+        )
+        edited_r2_path, edited_public_url = await r2_storage.upload_image(
+            campaign_id=campaign_id,
+            folder="edited",
+            filename=filename,
+            image_bytes=edited_image_data,
             content_type=f"image/{output_format}"
         )
         
@@ -480,8 +486,7 @@ async def get_edit_statistics(
 async def delete_edit(
     edit_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    r2_service: R2StorageService = Depends(get_r2_service)
+    current_user: User = Depends(get_current_user)
 ):
     """Delete an edited image record"""
 
@@ -501,13 +506,11 @@ async def delete_edit(
     if edit_record.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this edit")
 
-    # Delete the file from R2
+    # Delete the file from R2 using centralized storage
     if edit_record.edited_image_path:
         try:
-            # Construct the full R2 path
             r2_path = edit_record.edited_image_path
-            # Delete from R2
-            await r2_service.delete_file(r2_path)
+            await r2_storage.delete_file(r2_path)
         except Exception as e:
             # Log the error but continue with database deletion
             print(f"Warning: Failed to delete file from R2: {e}")
@@ -592,23 +595,22 @@ async def batch_process_images(
         
         # Initialize services
         stability_service = StabilityAIService()
-        r2_service = R2StorageService()
-        
+
         # Process images
         processed_images = []
         failed_images = []
-        
+
         for idx, image_url in enumerate(urls):
             try:
                 print(f"Processing image {idx + 1}/{len(urls)}: {image_url}")
-                
-                # Download original image
+
+                # Download original image using centralized R2 storage
                 if image_url.startswith("http"):
-                    original_image_data = await r2_service.download_image_from_url(image_url)
-                    r2_path = r2_service.extract_r2_path_from_url(image_url)
+                    original_image_data = await r2_storage.download_from_url(image_url)
+                    r2_path = r2_storage.extract_path_from_url(image_url)
                     original_image_path = r2_path or image_url
                 else:
-                    original_image_data = await r2_service.download_image_from_r2(image_url)
+                    original_image_data = await r2_storage.download_file(image_url)
                     original_image_path = image_url
                 
                 # Route to appropriate operation
@@ -657,14 +659,20 @@ async def batch_process_images(
                 # Add more operations as needed
                 else:
                     raise ValueError(f"Unsupported operation type: {operation_type}")
-                
-                # Upload edited image
+
+                # Upload edited image using centralized R2 storage
                 output_format = params.get('output_format', 'png')
-                edited_r2_path, edited_public_url = await r2_service.upload_edited_image(
-                    image_data=edited_image_data,
+                filename = R2Storage.generate_image_filename(
+                    operation=f"batch_{operation_type}",
+                    original_filename=original_image_path.split('/')[-1] if original_image_path else None,
                     campaign_id=campaign_id,
-                    original_filename=original_image_path,
-                    operation_type=f"batch_{operation_type}",
+                    extension=output_format
+                )
+                edited_r2_path, edited_public_url = await r2_storage.upload_image(
+                    campaign_id=campaign_id,
+                    folder="edited",
+                    filename=filename,
+                    image_bytes=edited_image_data,
                     content_type=f"image/{output_format}"
                 )
                 

@@ -28,7 +28,8 @@ class R2Storage:
     """
 
     # Base path for all campaign-related files
-    BASE_PATH = ""
+    # Matches the existing pattern used throughout the codebase
+    BASE_PATH = "campaignforge-storage/"
 
     # Supported folders
     FOLDERS = {
@@ -176,6 +177,48 @@ class R2Storage:
 
         return file_bytes
 
+    async def download_from_url(self, url: str) -> bytes:
+        """
+        Download a file from a URL (R2 public URL or external)
+
+        Args:
+            url: URL of the file
+
+        Returns:
+            File content as bytes
+        """
+        import httpx
+
+        logger.info(f"Downloading from URL: {url}")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+
+            if response.status_code != 200:
+                raise Exception(f"Failed to download from {url}: {response.status_code}")
+
+            return response.content
+
+    def extract_path_from_url(self, url: str) -> Optional[str]:
+        """
+        Extract R2 path from a public URL
+
+        Args:
+            url: Public URL like https://pub-xxx.r2.dev/campaigns/123/image.png
+
+        Returns:
+            R2 path like campaigns/123/image.png
+        """
+        if self.public_url_base and url.startswith(self.public_url_base):
+            return url.replace(f"{self.public_url_base}/", "")
+
+        # Try to extract path after domain
+        parts = url.split("/", 3)
+        if len(parts) >= 4:
+            return parts[3]
+
+        return None
+
     # Convenience methods for common operations
 
     async def upload_image(
@@ -294,6 +337,39 @@ class R2Storage:
         else:
             return f"{operation}_{ts}_{hash_part}.{extension}"
 
+    async def delete_file(self, r2_path: str) -> bool:
+        """
+        Delete a file from R2
+
+        Args:
+            r2_path: R2 path to the file
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        logger.info(f"Deleting from R2: {r2_path}")
+
+        try:
+            session = aioboto3.Session()
+
+            async with session.client(
+                's3',
+                endpoint_url=f'https://{self.account_id}.r2.cloudflarestorage.com',
+                aws_access_key_id=self.access_key_id,
+                aws_secret_access_key=self.secret_access_key,
+                config=Config(signature_version='s3v4'),
+                region_name='auto'
+            ) as s3_client:
+                await s3_client.delete_object(
+                    Bucket=self.bucket_name,
+                    Key=r2_path
+                )
+
+            logger.info(f"Deleted successfully: {r2_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete {r2_path}: {e}")
+            return False
 
 # Global instance
 r2_storage = R2Storage()

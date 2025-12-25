@@ -61,7 +61,8 @@ class R2StorageService:
             extension = "png"
         
         edited_filename = f"{timestamp}_{operation_type}_{base_name}.{extension}"
-        
+
+        # Path inside bucket - matches pattern used by rest of app
         return f"campaignforge-storage/campaigns/{campaign_id}/edited/{edited_filename}"
     
     async def upload_edited_image(
