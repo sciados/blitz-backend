@@ -28,8 +28,7 @@ class R2Storage:
     """
 
     # Base path for all campaign-related files
-    # Matches the existing pattern used throughout the codebase
-    BASE_PATH = "campaignforge-storage/"
+    BASE_PATH = ""
 
     # Supported folders
     FOLDERS = {
