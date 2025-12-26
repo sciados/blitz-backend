@@ -593,6 +593,10 @@ async def save_draft_image(
     image_generator: ImageGenerator = Depends(get_image_generator)
 ):
     """Save a draft image to the library by downloading and storing it."""
+    logger.info(f"💾 /save-draft endpoint called")
+    logger.info(f"📥 Request data: campaign_id={request.campaign_id}, image_type={request.image_type}, provider={request.provider}")
+    logger.info(f"🔍 Image URL type: {'data URL' if request.image_url.startswith('data:') else 'HTTP URL'}, length={len(request.image_url)}")
+
     # Verify campaign ownership
     result = await db.execute(
         select(Campaign).where(
@@ -603,13 +607,17 @@ async def save_draft_image(
     campaign = result.scalar_one_or_none()
 
     if not campaign:
+        logger.error(f"❌ Campaign not found: {request.campaign_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaign not found"
         )
 
+    logger.info(f"✅ Campaign verified: {campaign.name}")
+
     try:
         # Download the image from the provider URL and save to R2
+        logger.info(f"⬇️ Calling image_generator.save_draft_image()...")
         result = await image_generator.save_draft_image(
             image_url=request.image_url,
             campaign_id=request.campaign_id,
@@ -621,7 +629,9 @@ async def save_draft_image(
             prompt=request.prompt,
             custom_prompt=request.custom_prompt
         )
+        logger.info(f"✅ save_draft_image returned: image_url={result.image_url}, thumbnail_url={result.thumbnail_url}")
     except Exception as e:
+        logger.error(f"❌ save_draft_image failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save draft image: {str(e)}"
@@ -631,6 +641,7 @@ async def save_draft_image(
     # Merge metadata from request (e.g., is_edited flag) with result metadata
     merged_metadata = {**(result.metadata or {}), **(request.metadata or {})}
 
+    logger.info(f"💾 Creating GeneratedImage record...")
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
         image_type=request.image_type,
@@ -652,7 +663,9 @@ async def save_draft_image(
     db.add(image_record)
     await db.commit()
     await db.refresh(image_record)
+    logger.info(f"✅ GeneratedImage saved with id={image_record.id}")
 
+    logger.info(f"📤 Returning ImageResponse: id={image_record.id}, image_url={image_record.image_url}")
     return ImageResponse(
         id=image_record.id,
         campaign_id=image_record.campaign_id,
