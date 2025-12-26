@@ -684,6 +684,51 @@ async def save_draft_image(
     )
 
 
+@router.get("/proxy")
+async def proxy_image(
+    url: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Proxy image requests to avoid CORS issues with R2.
+    Downloads image from R2 and streams it back to the client.
+    """
+    logger.info(f"📸 Proxying image request: {url[:100]}...")
+
+    try:
+        # Download the image from R2 using the centralized utility
+        image_bytes = await r2_storage.download_from_url(url)
+
+        # Determine content type from URL
+        if url.lower().endswith('.png'):
+            content_type = "image/png"
+        elif url.lower().endswith('.jpg') or url.lower().endswith('.jpeg'):
+            content_type = "image/jpeg"
+        elif url.lower().endswith('.webp'):
+            content_type = "image/webp"
+        else:
+            content_type = "image/png"  # Default
+
+        # Return the image with proper headers
+        from fastapi.responses import StreamingResponse
+        return StreamingResponse(
+            iter([image_bytes]),
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Failed to proxy image: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to proxy image: {str(e)}"
+        )
+
+
 @router.post("/upgrade", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
 async def upgrade_image(
     request: ImageUpgradeRequest,
