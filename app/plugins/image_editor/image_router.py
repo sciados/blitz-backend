@@ -11,7 +11,8 @@ LATEST UPDATES (v9.1):
 - Updated get_edit_history() to return new fields
 - Added logger import for proper error handling
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile, Response
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, insert, text
 from typing import Optional
@@ -38,6 +39,21 @@ from app.services.r2_storage import r2_storage, R2Storage
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
+
+
+# CORS preflight handler - ensure CORS headers are always present
+@router.options("/{path:path}")
+async def options_handler(path: str):
+    """Handle CORS preflight requests for all image-editor endpoints."""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+            "Access-Control-Max-Age": "86400",
+        }
+    )
 
 
 async def _process_edit(
@@ -409,7 +425,8 @@ async def get_edit_history(
     current_user: User = Depends(get_current_user)
 ):
     """Get edit history for a campaign"""
-    
+    logger.info(f"📚 Fetching edit history for campaign {campaign_id}")
+
     # Verify campaign access (async)
     result = await db.execute(
         select(Campaign).filter(
@@ -418,21 +435,21 @@ async def get_edit_history(
         )
     )
     campaign = result.scalar_one_or_none()
-    
+
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaign not found or access denied"
         )
-    
+
     # Get total count (async)
     count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id")
     count_result = await db.execute(count_query, {"campaign_id": campaign_id})
     total = count_result.scalar()
-    
+
     # Get paginated results (async)
     offset = (page - 1) * page_size
-    
+
     edits_query = text("""
         SELECT id, user_id, campaign_id, original_image_path, edited_image_path,
                operation_type, operation_params, stability_model, api_cost_credits,
@@ -443,13 +460,13 @@ async def get_edit_history(
         ORDER BY created_at DESC
         LIMIT :limit OFFSET :offset
     """)
-    
+
     edits_result = await db.execute(
         edits_query,
         {"campaign_id": campaign_id, "limit": page_size, "offset": offset}
     )
     edits = edits_result.fetchall()
-    
+
     edit_records = []
     for edit in edits:
         edit_records.append(ImageEditRecord(
@@ -470,13 +487,24 @@ async def get_edit_history(
             created_at=edit.created_at,
             updated_at=edit.updated_at
         ))
-    
-    return EditHistoryResponse(
+
+    response = EditHistoryResponse(
         edits=edit_records,
         total=total,
         page=page,
         page_size=page_size
     )
+
+    # Manually set CORS headers on the response
+    response.headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+        "Access-Control-Max-Age": "86400",
+    }
+
+    logger.info(f"✅ Returning {len(edit_records)} edits for campaign {campaign_id}")
+    return response
 
 
 @router.get("/statistics", response_model=EditStatistics)
