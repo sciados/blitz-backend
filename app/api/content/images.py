@@ -692,14 +692,25 @@ async def proxy_image(
     """
     Proxy image requests to avoid CORS issues with R2.
     Downloads image from R2 and streams it back to the client.
+    Accepts either:
+    - Full R2 URL: https://pub-xxx.r2.dev/campaigns/28/image.png
+    - Just the path: /campaigns/28/image.png
     """
     logger.info(f"📸 Proxying image request: {url[:100]}...")
     logger.info(f"👤 User: {current_user.email}")
 
     try:
+        # If it's just a path, construct the full R2 URL
+        full_url = url
+        if url.startswith("/"):
+            # Remove leading slash and prepend R2 public URL
+            r2_public_url = r2_storage.public_url_base
+            full_url = f"{r2_public_url}{url}"
+            logger.info(f"🔗 Constructed full URL: {full_url}")
+
         # Download the image from R2 using the centralized utility
         logger.info(f"⬇️ Downloading from R2...")
-        image_bytes = await r2_storage.download_from_url(url)
+        image_bytes = await r2_storage.download_from_url(full_url)
         logger.info(f"✅ Downloaded {len(image_bytes)} bytes")
 
         # Determine content type from URL
