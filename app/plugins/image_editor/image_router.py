@@ -833,6 +833,7 @@ async def save_filtered_image(
         )
         
         # Log to database
+        logger.info(f"💾 Saving {operation} to database for campaign {campaign_id}")
         query = text("""
             INSERT INTO image_edits
             (user_id, campaign_id, original_image_path, edited_image_path,
@@ -844,26 +845,28 @@ async def save_filtered_image(
              :op_type, :params, :model, :cost, :time_ms, :success,
              :parent_id, :has_transparency, NOW(), NOW())
         """)
-        
-        await db.execute(
-            query,
-            {
-                "user_id": current_user.id,
-                "campaign_id": int(campaign_id),
-                "original_path": "",  # Client-side operation, no original path
-                "edited_path": r2_path,
-                "op_type": operation,
-                "params": json.dumps({"operation": operation}),
-                "model": "client-side",
-                "cost": 0.0,  # No API cost for client-side operations
-                "time_ms": 0,
-                "success": True,
-                "parent_id": None,  # Collage is a new creation, not an edit of existing image
-                "has_transparency": False  # Collage doesn't create transparency
-            }
-        )
-        
+
+        params = {
+            "user_id": current_user.id,
+            "campaign_id": int(campaign_id),
+            "original_path": "",  # Client-side operation, no original path
+            "edited_path": r2_path,
+            "op_type": operation,
+            "params": json.dumps({"operation": operation}),
+            "model": "client-side",
+            "cost": 0.0,  # No API cost for client-side operations
+            "time_ms": 0,
+            "success": True,
+            "parent_id": None,  # Collage is a new creation, not an edit of existing image
+            "has_transparency": False  # Collage doesn't create transparency
+        }
+
+        logger.info(f"📊 DB params: {params}")
+        result = await db.execute(query, params)
+        logger.info(f"✅ Database insert successful, result: {result.rowcount}")
+
         await db.commit()
+        logger.info(f"✅ Transaction committed for {operation}")
         
         return {
             "success": True,
