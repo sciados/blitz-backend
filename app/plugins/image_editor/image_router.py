@@ -3,6 +3,13 @@
 """
 Image Editor API Router - ALL OPERATIONS (ASYNC SESSIONS)
 FastAPI endpoints for all image editing operations with async SQLAlchemy
+
+LATEST UPDATES (v9.1):
+- Added transparency tracking (has_transparency field)
+- Added parent-child lineage tracking (parent_image_id field)
+- Fixed operation type naming: "background_removal" (not "background-remove")
+- Updated get_edit_history() to return new fields
+- Added logger import for proper error handling
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
