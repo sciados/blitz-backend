@@ -694,10 +694,13 @@ async def proxy_image(
     Downloads image from R2 and streams it back to the client.
     """
     logger.info(f"📸 Proxying image request: {url[:100]}...")
+    logger.info(f"👤 User: {current_user.email}")
 
     try:
         # Download the image from R2 using the centralized utility
+        logger.info(f"⬇️ Downloading from R2...")
         image_bytes = await r2_storage.download_from_url(url)
+        logger.info(f"✅ Downloaded {len(image_bytes)} bytes")
 
         # Determine content type from URL
         if url.lower().endswith('.png'):
@@ -711,6 +714,7 @@ async def proxy_image(
 
         # Return the image with proper headers
         from fastapi.responses import StreamingResponse
+        logger.info(f"📤 Streaming image back to client...")
         return StreamingResponse(
             iter([image_bytes]),
             media_type=content_type,
@@ -722,7 +726,7 @@ async def proxy_image(
             }
         )
     except Exception as e:
-        logger.error(f"❌ Failed to proxy image: {e}")
+        logger.error(f"❌ Failed to proxy image: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to proxy image: {str(e)}"
