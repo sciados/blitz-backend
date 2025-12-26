@@ -834,13 +834,15 @@ async def save_filtered_image(
         
         # Log to database
         query = text("""
-            INSERT INTO image_edits 
-            (user_id, campaign_id, original_image_path, edited_image_path, 
-             operation_type, operation_params, model_used, api_cost_usd, 
-             processing_time_ms, success)
-            VALUES 
-            (:user_id, :campaign_id, :original_path, :edited_path, 
-             :op_type, :params, :model, :cost, :time_ms, :success)
+            INSERT INTO image_edits
+            (user_id, campaign_id, original_image_path, edited_image_path,
+             operation_type, operation_params, stability_model, api_cost_credits,
+             processing_time_ms, success, parent_image_id, has_transparency,
+             created_at, updated_at)
+            VALUES
+            (:user_id, :campaign_id, :original_path, :edited_path,
+             :op_type, :params, :model, :cost, :time_ms, :success,
+             :parent_id, :has_transparency, NOW(), NOW())
         """)
         
         await db.execute(
@@ -855,7 +857,9 @@ async def save_filtered_image(
                 "model": "client-side",
                 "cost": 0.0,  # No API cost for client-side operations
                 "time_ms": 0,
-                "success": True
+                "success": True,
+                "parent_id": None,  # Collage is a new creation, not an edit of existing image
+                "has_transparency": False  # Collage doesn't create transparency
             }
         )
         
