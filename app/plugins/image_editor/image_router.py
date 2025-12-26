@@ -116,7 +116,7 @@ async def _process_edit(
             parent_image_id = None
 
         # Set transparency flag based on operation type
-        has_transparency = operation_type == "background-remove"
+        has_transparency = operation_type == "background_removal"
 
         # Calculate processing time and cost
         processing_time_ms = int((time.time() - start_time) * 1000)
@@ -651,8 +651,8 @@ async def batch_process_images(
                 # Route to appropriate operation
                 edited_image_data = None
                 metadata = {}
-                
-                if operation_type == "background-remove":
+
+                if operation_type == "background_removal":
                     edited_image_data, metadata = await stability_service.remove_background(
                         original_image_data,
                         output_format=params.get('output_format', 'png')
@@ -667,8 +667,8 @@ async def batch_process_images(
                         seed=params.get('seed', 0),
                         output_format=params.get('output_format', 'png')
                     )
-                
-                elif operation_type == "search-replace":
+
+                elif operation_type == "search_replace":
                     edited_image_data, metadata = await stability_service.search_and_replace(
                         original_image_data,
                         search_prompt=params.get('search_prompt', ''),
