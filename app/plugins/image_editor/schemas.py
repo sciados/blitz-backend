@@ -13,6 +13,7 @@ class OperationType(str, Enum):
     OUTPAINTING = "outpainting"
     BACKGROUND_REMOVAL = "background_removal"
     BACKGROUND_ADD = "background_add"
+    BACKGROUND = "background"  # Legacy support for old images
     UPSCALING = "upscaling"
     SEARCH_REPLACE = "search_replace"
     RELIGHT = "relight"
