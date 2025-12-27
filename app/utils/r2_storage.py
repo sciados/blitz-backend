@@ -127,5 +127,43 @@ class R2Storage:
             print(f"Error deleting from R2: {e}")
             return False
 
+    def move_file(self, source_path: str, destination_path: str) -> bool:
+        """
+        Move a file from one path to another in R2
+
+        Args:
+            source_path: Current path/key of the file
+            destination_path: New path/key for the file
+
+        Returns:
+            True if moved successfully, False otherwise
+        """
+        if not self.is_configured():
+            return False
+
+        try:
+            # Copy file to new location
+            copy_source = {
+                'Bucket': self.bucket_name,
+                'Key': source_path
+            }
+            self.client.copy_object(
+                CopySource=copy_source,
+                Bucket=self.bucket_name,
+                Key=destination_path
+            )
+
+            # Delete original file
+            self.client.delete_object(
+                Bucket=self.bucket_name,
+                Key=source_path
+            )
+
+            return True
+
+        except ClientError as e:
+            print(f"Error moving file in R2: {e}")
+            return False
+
 # Global instance
 r2_storage = R2Storage()

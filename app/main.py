@@ -17,6 +17,7 @@ from app.api import auth, campaigns, intelligence, video, compliance, products, 
 from app.api.content import text_router, images_router, unified_content_router, prompt_generator_router
 from app.api.content.video_overlay import router as video_overlay_router
 from app.api.images.ai_erase import router as ai_erase_router
+from app.api.images.move import router as move_images_router
 from app.api.proxy import proxy_router
 from app.api import messages, message_requests, affiliates, upload
 from app.api import connections
@@ -219,6 +220,7 @@ app.include_router(products.router)
 app.include_router(text_router)
 app.include_router(proxy_router)  # Image proxy endpoint (no auth)
 app.include_router(images_router)
+app.include_router(move_images_router, prefix="/api/images")  # Move images to different folders
 app.include_router(ai_erase_router)  # AI image erase/inpainting API
 app.include_router(image_editor_router)  # Image Editor Plugin with 7 AI operations
 app.include_router(unified_content_router)  # Unified content library (text + images)
