@@ -22,6 +22,7 @@ class OperationType(str, Enum):
     COLLAGE = "collage"
     TEMPLATE = "template"
     FRAME = "frame"
+    LANDING_PAGE = "landing_page"
 
 
 class InpaintingRequest(BaseModel):
