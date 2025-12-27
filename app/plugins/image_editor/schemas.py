@@ -19,6 +19,7 @@ class OperationType(str, Enum):
     SKETCH_TO_IMAGE = "sketch_to_image"
     COLLAGE = "collage"
     TEMPLATE = "template"
+    FRAME = "frame"
 
 
 class InpaintingRequest(BaseModel):
