@@ -11,8 +11,7 @@ LATEST UPDATES (v9.1):
 - Updated get_edit_history() to return new fields
 - Added logger import for proper error handling
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile, Response
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, insert, text
 from typing import Optional
@@ -39,21 +38,6 @@ from app.services.r2_storage import r2_storage, R2Storage
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
-
-
-# CORS preflight handler - ensure CORS headers are always present
-@router.options("/{path:path}")
-async def options_handler(path: str):
-    """Handle CORS preflight requests for all image-editor endpoints."""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
-            "Access-Control-Max-Age": "86400",
-        }
-    )
 
 
 async def _process_edit(
@@ -494,14 +478,6 @@ async def get_edit_history(
         page=page,
         page_size=page_size
     )
-
-    # Manually set CORS headers on the response
-    response.headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
-        "Access-Control-Max-Age": "86400",
-    }
 
     logger.info(f"✅ Returning {len(edit_records)} edits for campaign {campaign_id}")
     return response

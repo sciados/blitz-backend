@@ -18,6 +18,7 @@ class OperationType(str, Enum):
     ERASE = "erase"
     SKETCH_TO_IMAGE = "sketch_to_image"
     COLLAGE = "collage"
+    TEMPLATE = "template"
 
 
 class InpaintingRequest(BaseModel):
