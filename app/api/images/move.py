@@ -165,19 +165,37 @@ async def move_images(
                 new_path = destination_path + "/" + filename
 
             # Move file in R2
-            r2_storage.move_file(
+            move_success = r2_storage.move_file(
                 source_path=current_url,
                 destination_path=new_path
             )
 
-            # Update database record
-            await db.execute(
-                update(GeneratedImage)
-                .where(GeneratedImage.id == image.id)
-                .values(image_url=new_path)
-            )
-
-            moved_count += 1
+            # Only update database if move was successful
+            if move_success:
+                # Update database record
+                await db.execute(
+                    update(GeneratedImage)
+                    .where(GeneratedImage.id == image.id)
+                    .values(image_url=new_path)
+                )
+                moved_count += 1
+            else:
+                # Move failed - this means the source file doesn't exist
+                # Check if this is an enhanced image with a base_image_url
+                if hasattr(image, 'metadata') and image.metadata and 'base_image_url' in image.metadata:
+                    original_url = image.metadata.get('base_image_url')
+                    if original_url and original_url != current_url:
+                        # Restore to original location
+                        await db.execute(
+                            update(GeneratedImage)
+                            .where(GeneratedImage.id == image.id)
+                            .values(image_url=original_url)
+                        )
+                        errors.append(f"Image {image.id}: Restored to original location (enhanced images cannot be moved from temp storage)")
+                    else:
+                        errors.append(f"Failed to move image {image.id}: Source file not found at {current_url}")
+                else:
+                    errors.append(f"Failed to move image {image.id}: Source file not found at {current_url}")
 
         except Exception as e:
             errors.append(f"Failed to move image {image.id}: {str(e)}")
