@@ -14,6 +14,62 @@ from app.utils.r2_storage import r2_client
 
 router = APIRouter()
 
+# Whitelist of allowed destination folders
+ALLOWED_FOLDERS = [
+    "campaignforge-storage/stock/",           # Global stock (all users can write)
+    "campaignforge-storage/backgrounds/",     # Backgrounds (all users can write)
+    "campaignforge-storage/overlays/",        # Overlays (all users can write)
+    "campaignforge-storage/frames/",          # Frames (all users can write)
+    "campaignforge-storage/icons/",           # Icons (all users can write)
+    "campaignforge-storage/templates/",       # Templates (all users can write)
+]
+
+def is_allowed_destination(path: str) -> bool:
+    """Check if destination path is in the whitelist"""
+    for allowed_path in ALLOWED_FOLDERS:
+        if path.startswith(allowed_path):
+            return True
+    # Also allow user-specific folders
+    if "campaignforge-storage/users/" in path:
+        return True
+    return False
+
+
+def can_write_to_stock(user: User) -> bool:
+    """
+    Check if user can write to stock/shared folders
+    - Admin: full access
+    - Business/Pro subscription: can add but not delete
+    - Regular users: no access
+    """
+    # Admins have full access
+    if user.role == "admin":
+        return True
+
+    # Check subscription tier
+    if user.subscription_tier in ["pro", "business"]:
+        return True
+
+    # Check user_type (for backward compatibility)
+    if user.user_type in ["Business", "Admin"]:
+        return True
+
+    return False
+
+
+def can_delete_from_stock(user: User) -> bool:
+    """
+    Check if user can delete from stock/shared folders
+    - Only Admin can delete from stock folders
+    - Pro/Business users cannot delete from stock (only add)
+    - Regular users: no access
+    """
+    # Only admins can delete from stock folders
+    if user.role == "admin":
+        return True
+
+    return False
+
 
 @router.post("/move", status_code=status.HTTP_200_OK)
 async def move_images(
@@ -29,6 +85,11 @@ async def move_images(
         "image_ids": [1, 2, 3],
         "destination_path": "campaignforge-storage/stock/"
     }
+
+    Access Control:
+    - Admin: Full access (read/write/delete)
+    - Pro/Business users: Can add to stock folders (read/write)
+    - Regular users: Cannot access stock folders
     """
     image_ids: List[int] = request.get("image_ids", [])
     destination_path: str = request.get("destination_path", "")
@@ -43,6 +104,26 @@ async def move_images(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No destination path provided"
+        )
+
+    # Validate destination path is in whitelist
+    if not is_allowed_destination(destination_path):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Destination path not allowed. Allowed paths: {', '.join(ALLOWED_FOLDERS)} or user-specific folders under campaignforge-storage/users/"
+        )
+
+    # Check if user can write to stock/shared folders
+    is_stock_folder = any(
+        destination_path.startswith(folder.rstrip("/"))
+        for folder in ALLOWED_FOLDERS
+        if "stock" in folder or "backgrounds" in folder or "overlays" in folder
+    )
+
+    if is_stock_folder and not can_write_to_stock(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Stock folders are only accessible to Pro and Business subscribers. Please upgrade your account to add images to shared folders."
         )
 
     # Verify ownership of all images
