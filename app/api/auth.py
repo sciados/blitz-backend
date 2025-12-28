@@ -113,10 +113,15 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token with role
+    # Create access token with role and subscription tier
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role},
+        data={
+            "sub": user.email,
+            "role": user.role,
+            "subscription_tier": user.subscription_tier or "trial",
+            "user_type": user.user_type
+        },
         expires_delta=access_token_expires
     )
 
