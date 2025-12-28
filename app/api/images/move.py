@@ -47,12 +47,12 @@ def can_write_to_stock(user: User) -> bool:
     if user.role == "admin":
         return True
 
-    # Check subscription tier
-    if user.subscription_tier in ["pro", "business", "Pro Marketer"]:
+    # Check subscription tier (lowercase only - matches database schema)
+    if user.subscription_tier in ["pro", "business"]:
         return True
 
-    # Check user_type (for backward compatibility)
-    if user.user_type in ["Business", "Admin", "Pro Marketer"]:
+    # Check user_type (for backward compatibility - lowercase)
+    if user.user_type in ["business", "admin"]:
         return True
 
     return False
