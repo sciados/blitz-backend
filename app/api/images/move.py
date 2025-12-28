@@ -47,11 +47,11 @@ def can_write_to_stock(user: User) -> bool:
         return True
 
     # Check subscription tier
-    if user.subscription_tier in ["pro", "business"]:
+    if user.subscription_tier in ["pro", "business", "Pro Marketer"]:
         return True
 
     # Check user_type (for backward compatibility)
-    if user.user_type in ["Business", "Admin"]:
+    if user.user_type in ["Business", "Admin", "Pro Marketer"]:
         return True
 
     return False
