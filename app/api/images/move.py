@@ -9,7 +9,7 @@ import httpx
 
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedImage
-from app.api.deps import get_current_user
+from app.auth import get_current_user
 from app.utils.r2_storage import r2_client
 
 router = APIRouter()
