@@ -10,7 +10,7 @@ import httpx
 from app.db.session import get_db
 from app.db.models import User, Campaign, GeneratedImage
 from app.auth import get_current_user
-from app.utils.r2_storage import r2_client
+from app.utils.r2_storage import r2_storage
 
 router = APIRouter()
 
@@ -164,7 +164,7 @@ async def move_images(
                 new_path = destination_path + "/" + filename
 
             # Move file in R2
-            await r2_client.move_file(
+            r2_storage.move_file(
                 source_path=current_url,
                 destination_path=new_path
             )
