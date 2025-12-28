@@ -1,14 +1,14 @@
 """
-API endpoint for moving images to different R2 folders
+API endpoint for moving videos to different R2 folders
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import text, select
 from typing import List
 import httpx
 
 from app.db.session import get_db
-from app.db.models import User, Campaign, GeneratedImage
+from app.db.models import User, Campaign, VideoGeneration
 from app.auth import get_current_user
 from app.utils.r2_storage import r2_storage
 
@@ -17,7 +17,6 @@ router = APIRouter()
 # Whitelist of allowed destination folders
 ALLOWED_FOLDERS = [
     "campaignforge-storage/stock/",           # Global stock (all users can write)
-    "campaignforge-storage/stock/images/",    # Stock images subfolder
     "campaignforge-storage/backgrounds/",     # Backgrounds (all users can write)
     "campaignforge-storage/overlays/",        # Overlays (all users can write)
     "campaignforge-storage/frames/",          # Frames (all users can write)
@@ -58,32 +57,18 @@ def can_write_to_stock(user: User) -> bool:
     return False
 
 
-def can_delete_from_stock(user: User) -> bool:
-    """
-    Check if user can delete from stock/shared folders
-    - Only Admin can delete from stock folders
-    - Pro/Business users cannot delete from stock (only add)
-    - Regular users: no access
-    """
-    # Only admins can delete from stock folders
-    if user.role == "admin":
-        return True
-
-    return False
-
-
 @router.post("/move", status_code=status.HTTP_200_OK)
-async def move_images(
+async def move_videos(
     request: dict,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Move selected images to a different R2 folder.
+    Move selected videos to a different R2 folder.
 
     Expected payload:
     {
-        "image_ids": [1, 2, 3],
+        "video_ids": [1, 2, 3],
         "destination_path": "campaignforge-storage/stock/"
     }
 
@@ -92,13 +77,13 @@ async def move_images(
     - Pro/Business users: Can add to stock folders (read/write)
     - Regular users: Cannot access stock folders
     """
-    image_ids: List[int] = request.get("image_ids", [])
+    video_ids: List[int] = request.get("video_ids", [])
     destination_path: str = request.get("destination_path", "")
 
-    if not image_ids:
+    if not video_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No image IDs provided"
+            detail="No video IDs provided"
         )
 
     if not destination_path:
@@ -124,33 +109,34 @@ async def move_images(
     if is_stock_folder and not can_write_to_stock(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Stock folders are only accessible to Pro and Business subscribers. Please upgrade your account to add images to shared folders."
+            detail="Stock folders are only accessible to Pro and Business subscribers. Please upgrade your account to add videos to shared folders."
         )
 
-    # Verify ownership of all images
+    # Verify ownership of all videos
     result = await db.execute(
-        select(GeneratedImage)
-        .join(Campaign)
-        .where(
-            GeneratedImage.id.in_(image_ids),
-            Campaign.user_id == current_user.id
-        )
+        text("""
+            SELECT id, video_url, r2_key
+            FROM video_generations
+            WHERE id = ANY(:video_ids)
+            AND user_id = :user_id
+        """),
+        {"video_ids": video_ids, "user_id": current_user.id}
     )
-    images = result.scalars().all()
+    videos = result.fetchall()
 
-    if len(images) != len(image_ids):
+    if len(videos) != len(video_ids):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="One or more images not found or access denied"
+            detail="One or more videos not found or access denied"
         )
 
     moved_count = 0
     errors = []
 
-    for image in images:
+    for video_id, video_url, r2_key in videos:
         try:
-            # Get current image URL
-            current_url = image.image_url
+            # Get current video URL
+            current_url = video_url or r2_key
 
             # Extract filename from current URL
             if "/" in current_url:
@@ -172,29 +158,36 @@ async def move_images(
 
             # Update database record
             await db.execute(
-                update(GeneratedImage)
-                .where(GeneratedImage.id == image.id)
-                .values(image_url=new_path)
+                text("""
+                    UPDATE video_generations
+                    SET video_url = :new_url, r2_key = :new_key
+                    WHERE id = :video_id
+                """),
+                {
+                    "video_id": video_id,
+                    "new_url": new_path,
+                    "new_key": new_path
+                }
             )
 
             moved_count += 1
 
         except Exception as e:
-            errors.append(f"Failed to move image {image.id}: {str(e)}")
+            errors.append(f"Failed to move video {video_id}: {str(e)}")
 
     await db.commit()
 
     if errors:
         return {
-            "message": f"Moved {moved_count} out of {len(image_ids)} images",
+            "message": f"Moved {moved_count} out of {len(video_ids)} videos",
             "moved_count": moved_count,
-            "total_count": len(image_ids),
+            "total_count": len(video_ids),
             "errors": errors
         }
 
     return {
-        "message": f"Successfully moved {moved_count} images to {destination_path}",
+        "message": f"Successfully moved {moved_count} videos to {destination_path}",
         "moved_count": moved_count,
-        "total_count": len(image_ids),
+        "total_count": len(video_ids),
         "destination_path": destination_path
     }
