@@ -187,11 +187,18 @@ async def move_images(
             else:
                 filename = actual_r2_url
 
-            # Construct new R2 key (not full URL)
-            if destination_path.endswith("/"):
-                new_r2_key = destination_path + filename
+            # Construct new R2 key (not full URL, and NOT including bucket name)
+            # Remove bucket name prefix from destination_path if present
+            bucket_name = r2_storage.bucket_name
+            clean_destination_path = destination_path
+            if destination_path.startswith(bucket_name + "/"):
+                clean_destination_path = destination_path[len(bucket_name + "/"):]
+
+            # Now construct the R2 key with just the path within the bucket
+            if clean_destination_path.endswith("/"):
+                new_r2_key = clean_destination_path + filename
             else:
-                new_r2_key = destination_path + "/" + filename
+                new_r2_key = clean_destination_path + "/" + filename
 
             # Move file in R2 using R2 keys
             move_success = r2_storage.move_file(
