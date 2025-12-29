@@ -201,11 +201,22 @@ async def move_images(
 
             # Only update database if move was successful
             if move_success:
-                # Update database record with the new R2 key (not full URL)
+                # Construct the full public URL for storage in database
+                if r2_storage.public_url:
+                    # Ensure public_url uses https:// protocol
+                    public_url = r2_storage.public_url
+                    if not public_url.startswith(('http://', 'https://')):
+                        public_url = f"https://{public_url}"
+                    new_image_url = f"{public_url}/{new_r2_key}"
+                else:
+                    # Fallback to R2.dev URL with https://
+                    new_image_url = f"https://{r2_storage.bucket_name}.{r2_storage.account_id}.r2.dev/{new_r2_key}"
+
+                # Update database record with the new full URL
                 await db.execute(
                     update(GeneratedImage)
                     .where(GeneratedImage.id == image.id)
-                    .values(image_url=new_r2_key)
+                    .values(image_url=new_image_url)
                 )
                 moved_count += 1
             else:
