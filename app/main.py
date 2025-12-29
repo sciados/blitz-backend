@@ -220,9 +220,9 @@ app.include_router(campaigns.router)
 app.include_router(products.router)
 app.include_router(text_router)
 app.include_router(proxy_router)  # Image proxy endpoint (no auth)
-app.include_router(images_router)
 app.include_router(move_images_router, prefix="/api/images")  # Move images to different folders
 app.include_router(stock_images_router, prefix="/api/images")  # Get stock images for backgrounds
+app.include_router(images_router)
 app.include_router(ai_erase_router)  # AI image erase/inpainting API
 app.include_router(image_editor_router)  # Image Editor Plugin with 7 AI operations
 app.include_router(unified_content_router)  # Unified content library (text + images)
