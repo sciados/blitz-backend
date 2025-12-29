@@ -30,6 +30,56 @@ from app.services.image_provider_config import provider_config
 logger = logging.getLogger(__name__)
 
 
+async def check_image_has_transparency(image_url: str) -> bool:
+    """
+    Check if an image has transparency by downloading and analyzing it.
+    Returns True if the image has an alpha channel with non-opaque pixels.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(image_url)
+            response.raise_for_status()
+
+            # Open image from bytes
+            image = Image.open(io.BytesIO(response.content))
+
+            # Convert to RGBA if not already
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
+
+            # Check if image has alpha channel
+            if image.mode != 'RGBA':
+                return False
+
+            # Sample the image to check for transparency
+            # Get the alpha channel
+            alpha = image.split()[-1] if len(image.split()) == 4 else None
+
+            if alpha is None:
+                return False
+
+            # Sample pixels to check for transparency
+            # Check every 10th pixel to speed up the process
+            width, height = image.size
+            total_samples = 0
+            transparent_samples = 0
+
+            for y in range(0, height, 10):
+                for x in range(0, width, 10):
+                    pixel_alpha = alpha.getpixel((x, y))
+                    if pixel_alpha < 255:  # Any transparency
+                        transparent_samples += 1
+                    total_samples += 1
+
+            # If more than 1% of sampled pixels are transparent, consider it a transparent image
+            return total_samples > 0 and (transparent_samples / total_samples) > 0.01
+
+    except Exception as e:
+        logger.error(f"Error checking image transparency for {image_url}: {e}")
+        # On error, assume no transparency (safer default)
+        return False
+
+
 @dataclass
 class ImageGenerationResult:
     """Result from image generation."""

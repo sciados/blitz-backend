@@ -30,7 +30,7 @@ from app.schemas import (
     ImageTextOverlayRequest,
     ImageTextOverlayResponse
 )
-from app.services.image_generator import ImageGenerator, ImageGenerationResult
+from app.services.image_generator import ImageGenerator, ImageGenerationResult, check_image_has_transparency
 from app.services.image_prompt_builder import ImagePromptBuilder
 from app.services.storage_r2 import r2_storage
 from PIL import Image, ImageDraw, ImageFont
@@ -196,6 +196,9 @@ async def add_text_overlay_pil(
 
         thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
 
+        # Check if the composed image has transparency
+        has_transp = await check_image_has_transparency(image_url)
+
         # Save to database
         image_record = GeneratedImage(
             campaign_id=request.campaign_id,
@@ -207,6 +210,7 @@ async def add_text_overlay_pil(
             prompt=request.prompt,
             style=request.style,
             aspect_ratio=request.aspect_ratio,
+            has_transparency=has_transp,
             meta_data={
                 "text_overlay": True,
                 "original_image_url": request.image_url,

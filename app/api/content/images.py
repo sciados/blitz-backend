@@ -35,7 +35,7 @@ from app.schemas import (
     ImageCompositeRequest,
     ImageCompositeResponse
 )
-from app.services.image_generator import ImageGenerator, ImageGenerationResult
+from app.services.image_generator import ImageGenerator, ImageGenerationResult, check_image_has_transparency
 from app.services.image_prompt_builder import ImagePromptBuilder
 from app.services.storage_r2 import r2_storage
 from app.services.text_renderer import TkinterTextRenderer
@@ -305,6 +305,9 @@ async def generate_image(
             detail=f"Image generation failed: {str(e)}"
         )
 
+    # Check if the generated image has transparency
+    has_transp = await check_image_has_transparency(result.image_url)
+
     # Save to database
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
@@ -316,9 +319,9 @@ async def generate_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        # New generation - no parent, transparency unknown (can be set later)
+        # New generation - no parent, check transparency
         parent_image_id=None,
-        has_transparency=False,
+        has_transparency=has_transp,
         meta_data=result.metadata,
         ai_generation_cost=result.cost
     )
@@ -641,6 +644,9 @@ async def save_draft_image(
     # Merge metadata from request (e.g., is_edited flag) with result metadata
     merged_metadata = {**(result.metadata or {}), **(request.metadata or {})}
 
+    # Check if the draft image has transparency
+    has_transp = await check_image_has_transparency(result.image_url)
+
     logger.info(f"💾 Creating GeneratedImage record...")
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
@@ -652,9 +658,9 @@ async def save_draft_image(
         prompt=result.prompt,
         style=request.style,
         aspect_ratio=request.aspect_ratio,
-        # New generation - no parent, transparency unknown (can be set later)
+        # New generation - no parent, check transparency
         parent_image_id=None,
-        has_transparency=False,
+        has_transparency=has_transp,
         meta_data=merged_metadata,
         ai_generation_cost=0.0,  # Draft images are free
         content_id=None
@@ -882,6 +888,9 @@ async def upgrade_image(
             detail=f"Image enhancement failed: {str(e)}"
         )
 
+    # Check if the enhanced image has transparency
+    has_transp = await check_image_has_transparency(result.image_url)
+
     # Save enhanced image to database
     image_record = GeneratedImage(
         campaign_id=request.campaign_id,
@@ -895,7 +904,7 @@ async def upgrade_image(
         aspect_ratio=request.aspect_ratio,
         # Enhancement - track parent relationship
         parent_image_id=None,  # Could be enhanced to track original if available
-        has_transparency=False,
+        has_transparency=has_transp,
         meta_data=result.metadata,
         ai_generation_cost=result.cost,
         content_id=None
@@ -1020,6 +1029,9 @@ async def batch_generate_images(
     # Save to database
     image_records = []
     for i, result in enumerate(results):
+        # Check if the generated image has transparency
+        has_transp = await check_image_has_transparency(result.image_url)
+
         image_record = GeneratedImage(
             campaign_id=request.campaign_id,
             image_type=generation_requests[i]["image_type"],
@@ -1030,9 +1042,9 @@ async def batch_generate_images(
             prompt=result.prompt,
             style=result.style,
             aspect_ratio=result.aspect_ratio,
-            # New generation - no parent, transparency unknown (can be set later)
+            # New generation - no parent, check transparency
             parent_image_id=None,
-            has_transparency=False,
+            has_transparency=has_transp,
             meta_data=result.metadata,
             ai_generation_cost=result.cost
         )
@@ -1653,6 +1665,9 @@ async def add_text_overlay(
         thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
 
         # Save to database
+        # Check if the composed image has transparency
+        has_transp = await check_image_has_transparency(image_url)
+
         image_record = GeneratedImage(
             campaign_id=request.campaign_id,
             image_type=request.image_type,
@@ -1665,7 +1680,7 @@ async def add_text_overlay(
             aspect_ratio=request.aspect_ratio,
             # Text overlay - parent tracking could be added if original image ID is available
             parent_image_id=None,
-            has_transparency=False,
+            has_transparency=has_transp,
             meta_data={
                 "text_overlay": True,
                 "original_image_url": request.image_url,
@@ -1849,6 +1864,9 @@ async def add_image_overlay(
         thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
 
         # Save to database
+        # Check if the composed image has transparency
+        has_transp = await check_image_has_transparency(image_url)
+
         image_record = GeneratedImage(
             campaign_id=request.campaign_id,
             image_type=request.image_type,
@@ -1861,7 +1879,7 @@ async def add_image_overlay(
             aspect_ratio=request.aspect_ratio,
             # Image overlay - parent tracking could be added if original image ID is available
             parent_image_id=None,
-            has_transparency=False,
+            has_transparency=has_transp,
             meta_data={
                 "image_overlay": True,
                 "original_image_url": request.image_url,
@@ -2341,6 +2359,9 @@ async def composite_image(
         thumbnail_url = await generate_thumbnail(image_url, request.campaign_id or 0)
 
         # Save to database
+        # Check if the composed image has transparency
+        has_transp = await check_image_has_transparency(image_url)
+
         image_record = GeneratedImage(
             campaign_id=request.campaign_id,
             image_type=request.image_type,
@@ -2353,7 +2374,7 @@ async def composite_image(
             aspect_ratio=request.aspect_ratio,
             # Composite - parent tracking could be added if original image ID is available
             parent_image_id=None,
-            has_transparency=False,
+            has_transparency=has_transp,
             meta_data={
                 "composite": True,
                 "original_image_url": request.image_url,
