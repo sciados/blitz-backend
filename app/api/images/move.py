@@ -5,6 +5,7 @@ API endpoint for moving images to different R2 folders
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import urllib.parse
 from sqlalchemy import select, update
 from typing import List
 import httpx
@@ -154,31 +155,57 @@ async def move_images(
             # Get current image URL
             current_url = image.image_url
 
-            # Extract filename from current URL
-            if "/" in current_url:
-                filename = current_url.split("/")[-1]
+            # Handle proxied URLs - extract the actual R2 URL from the proxy parameter
+            if "/api/images/proxy?" in current_url:
+                # Extract the actual R2 URL from the proxy parameter
+                # e.g., /api/images/proxy?url=https://pub-xxx.r2.dev/campaigns/33/generated_images/image.png
+                parsed = urllib.parse.urlparse(current_url)
+                query_params = urllib.parse.parse_qs(parsed.query)
+                if 'url' in query_params:
+                    actual_r2_url = query_params['url'][0]
+                else:
+                    actual_r2_url = current_url
             else:
-                filename = current_url
+                actual_r2_url = current_url
 
-            # Construct new path
+            # Extract the R2 key (path) from the actual URL
+            if r2_storage.public_url and actual_r2_url.startswith(r2_storage.public_url):
+                # Remove public URL prefix to get R2 key
+                r2_key = actual_r2_url.replace(f"{r2_storage.public_url}/", "")
+            else:
+                # Parse from R2.dev URL
+                parts = actual_r2_url.split(".r2.dev/")
+                if len(parts) > 1:
+                    r2_key = parts[1]
+                else:
+                    # Fallback: treat as filename only
+                    r2_key = actual_r2_url.split("/")[-1]
+
+            # Extract filename for destination
+            if "/" in actual_r2_url:
+                filename = actual_r2_url.split("/")[-1]
+            else:
+                filename = actual_r2_url
+
+            # Construct new R2 key (not full URL)
             if destination_path.endswith("/"):
-                new_path = destination_path + filename
+                new_r2_key = destination_path + filename
             else:
-                new_path = destination_path + "/" + filename
+                new_r2_key = destination_path + "/" + filename
 
-            # Move file in R2
+            # Move file in R2 using R2 keys
             move_success = r2_storage.move_file(
-                source_path=current_url,
-                destination_path=new_path
+                source_path=r2_key,
+                destination_path=new_r2_key
             )
 
             # Only update database if move was successful
             if move_success:
-                # Update database record
+                # Update database record with the new R2 key (not full URL)
                 await db.execute(
                     update(GeneratedImage)
                     .where(GeneratedImage.id == image.id)
-                    .values(image_url=new_path)
+                    .values(image_url=new_r2_key)
                 )
                 moved_count += 1
             else:
@@ -195,13 +222,11 @@ async def move_images(
                         )
                         errors.append(f"Image {image.id}: Restored to original location (enhanced images cannot be moved from temp storage)")
                     else:
-                        errors.append(f"Failed to move image {image.id}: Source file not found at {current_url}")
+                        errors.append(f"Failed to move image {image.id}: Source file not found at {r2_key}")
                 else:
-                    errors.append(f"Failed to move image {image.id}: Source file not found at {current_url}")
-
+                    errors.append(f"Failed to move image {image.id}: Source file not found at {r2_key}")
         except Exception as e:
             errors.append(f"Failed to move image {image.id}: {str(e)}")
-
     await db.commit()
 
     if errors:
