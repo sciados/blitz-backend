@@ -200,6 +200,19 @@ async def move_images(
             else:
                 new_r2_key = clean_destination_path + "/" + filename
 
+            # Check if this is an enhanced image (these can't be moved)
+            if hasattr(image, 'metadata') and image.metadata and 'base_image_url' in image.metadata:
+                original_url = image.metadata.get('base_image_url')
+                if original_url and original_url != current_url:
+                    # This is an enhanced image - restore to original location instead of moving
+                    await db.execute(
+                        update(GeneratedImage)
+                        .where(GeneratedImage.id == image.id)
+                        .values(image_url=original_url)
+                    )
+                    errors.append(f"Image {image.id}: Restored to original location (enhanced images cannot be moved from temp storage)")
+                    continue
+
             # Move file in R2 using R2 keys
             move_success = r2_storage.move_file(
                 source_path=r2_key,
@@ -227,7 +240,7 @@ async def move_images(
                 )
                 moved_count += 1
             else:
-                # Move failed - this means the source file doesn't exist
+                # Move failed - this means the source file doesn't exist or the move operation failed
                 # Check if this is an enhanced image with a base_image_url
                 if hasattr(image, 'metadata') and image.metadata and 'base_image_url' in image.metadata:
                     original_url = image.metadata.get('base_image_url')
@@ -240,9 +253,9 @@ async def move_images(
                         )
                         errors.append(f"Image {image.id}: Restored to original location (enhanced images cannot be moved from temp storage)")
                     else:
-                        errors.append(f"Failed to move image {image.id}: Source file not found at {r2_key}")
+                        errors.append(f"Failed to move image {image.id}: Source file not found at R2 key '{r2_key}' - Image URL: {current_url}")
                 else:
-                    errors.append(f"Failed to move image {image.id}: Source file not found at {r2_key}")
+                    errors.append(f"Failed to move image {image.id}: Source file not found at R2 key '{r2_key}' - Image URL: {current_url}")
         except Exception as e:
             errors.append(f"Failed to move image {image.id}: {str(e)}")
     await db.commit()
