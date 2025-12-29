@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 import re
+from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models import User, GeneratedImage, Campaign
@@ -14,8 +15,8 @@ router = APIRouter()
 
 # List of stock folder paths to search
 STOCK_FOLDER_PATHS = [
-    "stock/images",
     "backgrounds",
+    "stock/images",
     "overlays",
     "frames",
     "icons",
@@ -32,21 +33,22 @@ async def get_stock_images(
     Get all images from stock folders in R2 that users can use as backgrounds.
 
     Returns images from:
-    - stock/images
     - backgrounds
+    - stock/images
     - overlays
     - frames
     - icons
     - templates
 
-    Note: This returns images from the database that have been moved to stock folders.
-    The actual image retrieval is done via the proxy endpoint using the stored URLs.
+    This endpoint scans both:
+    1. Database records for images that have been moved to stock folders
+    2. Direct R2 folder listing to find existing stock images
     """
     stock_images = []
+    seen_urls = set()
 
     try:
-        # Query database for images in stock folders
-        # We look for images whose image_url contains stock folder paths
+        # First, get database records for images in stock folders
         for stock_path in STOCK_FOLDER_PATHS:
             # Search for images with URLs containing the stock path
             query = select(GeneratedImage).where(
@@ -57,33 +59,72 @@ async def get_stock_images(
             images = result.scalars().all()
 
             for img in images:
-                # Extract just the filename from the full URL
                 image_url = img.image_url
-                # Get filename from URL
-                if "/" in image_url:
-                    filename = image_url.split("/")[-1]
-                else:
-                    filename = image_url
+                if image_url not in seen_urls:
+                    # Get filename from URL
+                    if "/" in image_url:
+                        filename = image_url.split("/")[-1]
+                    else:
+                        filename = image_url
 
-                stock_images.append({
-                    "id": f"stock-{img.id}",
-                    "url": image_url,
-                    "prompt": getattr(img, 'prompt', f'Stock image: {filename}'),
-                    "provider": getattr(img, 'provider', 'unknown'),
-                    "created_at": img.created_at.isoformat() if img.created_at else None,
-                })
+                    stock_images.append({
+                        "id": f"stock-{img.id}",
+                        "url": image_url,
+                        "prompt": getattr(img, 'prompt', f'Stock image: {filename}'),
+                        "provider": getattr(img, 'provider', 'unknown'),
+                        "created_at": img.created_at.isoformat() if img.created_at else None,
+                    })
+                    seen_urls.add(image_url)
 
-        # Remove duplicates based on URL
-        unique_images = []
-        seen_urls = set()
-        for img in stock_images:
-            if img["url"] not in seen_urls:
-                unique_images.append(img)
-                seen_urls.add(img["url"])
+        # Second, scan R2 folders directly to find images not in database
+        if r2_storage.is_configured():
+            import boto3
+            from botocore.exceptions import ClientError
+
+            for stock_path in STOCK_FOLDER_PATHS:
+                try:
+                    # List objects in this stock folder
+                    paginator = r2_storage.client.get_paginator('list_objects_v2')
+                    page_iterator = paginator.paginate(
+                        Bucket=r2_storage.bucket_name,
+                        Prefix=f"{stock_path}/"
+                    )
+
+                    for page in page_iterator:
+                        if 'Contents' in page:
+                            for obj in page['Contents']:
+                                key = obj['Key']
+                                # Skip if this is a folder marker
+                                if key.endswith('/'):
+                                    continue
+
+                                # Construct the full URL
+                                if r2_storage.public_url:
+                                    image_url = f"{r2_storage.public_url}/{key}"
+                                else:
+                                    image_url = f"https://{r2_storage.bucket_name}.{r2_storage.account_id}.r2.dev/{key}"
+
+                                # Only add if not already in the list
+                                if image_url not in seen_urls:
+                                    # Get filename from key
+                                    filename = key.split('/')[-1]
+
+                                    stock_images.append({
+                                        "id": f"r2-{key}",
+                                        "url": image_url,
+                                        "prompt": f'Stock image: {filename}',
+                                        "provider": 'r2-storage',
+                                        "created_at": obj.get('LastModified', datetime.utcnow()).isoformat() if obj.get('LastModified') else None,
+                                    })
+                                    seen_urls.add(image_url)
+
+                except ClientError as e:
+                    print(f"Error scanning R2 folder {stock_path}: {e}")
+                    # Continue with other folders even if one fails
 
         return {
-            "images": unique_images,
-            "total": len(unique_images),
+            "images": stock_images,
+            "total": len(stock_images),
             "folders_searched": STOCK_FOLDER_PATHS,
         }
 
