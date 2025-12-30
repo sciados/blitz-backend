@@ -64,12 +64,41 @@ async def get_stock_images(
                     # Get filename from URL
                     if "/" in image_url:
                         filename = image_url.split("/")[-1]
+                        # Extract folder path to determine category
+                        folder_path = "/".join(image_url.split("/")[:-1])
                     else:
                         filename = image_url
+                        folder_path = ""
+
+                    # Determine folder category from path
+                    folder_category = "Uncategorized"
+                    for stock_path in STOCK_FOLDER_PATHS:
+                        if stock_path in folder_path:
+                            # Convert path to readable category name
+                            if stock_path == "backgrounds":
+                                folder_category = "Backgrounds"
+                            elif stock_path == "stock/images":
+                                folder_category = "Stock Images"
+                            elif stock_path == "overlays":
+                                folder_category = "Overlays"
+                            elif stock_path == "frames":
+                                folder_category = "Frames"
+                            elif stock_path == "icons":
+                                folder_category = "Icons"
+                            elif stock_path == "templates":
+                                folder_category = "Templates"
+                            break
+
+                    # Remove extension from filename for display name
+                    name = filename
+                    if "." in filename:
+                        name = filename.rsplit(".", 1)[0]
 
                     stock_images.append({
                         "id": f"stock-{img.id}",
                         "url": image_url,
+                        "name": name,
+                        "folder": folder_category,
                         "prompt": getattr(img, 'prompt', f'Stock image: {filename}'),
                         "provider": getattr(img, 'provider', 'unknown'),
                         "created_at": img.created_at.isoformat() if img.created_at else None,
@@ -109,9 +138,35 @@ async def get_stock_images(
                                     # Get filename from key
                                     filename = key.split('/')[-1]
 
+                                    # Determine folder category from the stock path
+                                    folder_category = "Uncategorized"
+                                    for stock_path in STOCK_FOLDER_PATHS:
+                                        if key.startswith(f"{stock_path}/"):
+                                            # Convert path to readable category name
+                                            if stock_path == "backgrounds":
+                                                folder_category = "Backgrounds"
+                                            elif stock_path == "stock/images":
+                                                folder_category = "Stock Images"
+                                            elif stock_path == "overlays":
+                                                folder_category = "Overlays"
+                                            elif stock_path == "frames":
+                                                folder_category = "Frames"
+                                            elif stock_path == "icons":
+                                                folder_category = "Icons"
+                                            elif stock_path == "templates":
+                                                folder_category = "Templates"
+                                            break
+
+                                    # Remove extension from filename for display name
+                                    name = filename
+                                    if "." in filename:
+                                        name = filename.rsplit(".", 1)[0]
+
                                     stock_images.append({
                                         "id": f"r2-{key}",
                                         "url": image_url,
+                                        "name": name,
+                                        "folder": folder_category,
                                         "prompt": f'Stock image: {filename}',
                                         "provider": 'r2-storage',
                                         "created_at": obj.get('LastModified', datetime.utcnow()).isoformat() if obj.get('LastModified') else None,

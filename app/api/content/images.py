@@ -179,6 +179,73 @@ async def create_image_from_existing(
         created_at=new_image.created_at
     )
 
+
+@router.post("/campaign", response_model=ImageResponse, status_code=status.HTTP_201_CREATED)
+async def add_shared_image_to_campaign(
+    request: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add a shared/stock image to a campaign"""
+
+    campaign_id = request["campaign_id"]
+    image_url = request["image_url"]
+    prompt = request.get("prompt", "Shared image")
+    metadata = request.get("metadata", {})
+
+    # Verify campaign ownership
+    result = await db.execute(
+        select(Campaign).where(
+            Campaign.id == campaign_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    campaign = result.scalar_one_or_none()
+
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    # Create new image record for the shared image
+    new_image = GeneratedImage(
+        campaign_id=campaign_id,
+        image_type="variation",  # Shared images are variations
+        image_url=image_url,
+        provider="shared",  # Mark as shared
+        model="shared",
+        prompt=prompt,
+        style="shared",
+        aspect_ratio="1:1",  # Default, can be updated later
+        has_transparency=False,  # Assume no transparency unless specified
+        metadata={
+            "source": "shared",
+            **metadata
+        },
+        ai_generation_cost=0.0,  # No cost for shared images
+    )
+
+    db.add(new_image)
+    await db.commit()
+    await db.refresh(new_image)
+
+    return ImageResponse(
+        id=new_image.id,
+        campaign_id=new_image.campaign_id,
+        image_type=new_image.image_type,
+        image_url=new_image.image_url,
+        thumbnail_url=new_image.thumbnail_url,
+        provider=new_image.provider,
+        model=new_image.model,
+        prompt=new_image.prompt,
+        style=new_image.style,
+        aspect_ratio=new_image.aspect_ratio,
+        metadata=new_image.metadata,
+        created_at=new_image.created_at
+    )
+
+
 # Text Overlay - Simple direct positioning using bbox[1] offset
 
 
