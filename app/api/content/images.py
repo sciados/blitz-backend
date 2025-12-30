@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, 
 from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 import logging
 import random
@@ -1343,7 +1343,15 @@ async def list_campaign_images(
         )
 
     # Sort all images by created_at descending
-    all_images.sort(key=lambda x: x.created_at, reverse=True)
+    # Normalize all datetimes to UTC timezone for comparison
+    def get_sort_key(img):
+        dt = img.created_at
+        # If datetime is timezone-naive, assume it's UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    all_images.sort(key=get_sort_key, reverse=True)
 
     # Apply pagination
     total = len(all_images)
