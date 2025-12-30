@@ -1174,9 +1174,6 @@ async def list_campaign_images(
             detail="Campaign not found"
         )
 
-    # Import ImageEdit model here to avoid circular imports
-    from app.db.models import ImageEdit
-
     # Query generated_images table
     gen_query = select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
     if image_type:
@@ -1186,17 +1183,36 @@ async def list_campaign_images(
     if parent_image_id is not None:
         gen_query = gen_query.where(GeneratedImage.parent_image_id == parent_image_id)
 
-    # Query image_edits table
-    edit_query = select(ImageEdit).where(ImageEdit.campaign_id == campaign_id)
-    if has_transparency is not None:
-        edit_query = edit_query.where(ImageEdit.has_transparency == has_transparency)
-
-    # Get results from both tables
+    # Get results from generated_images
     gen_result = await db.execute(gen_query.order_by(GeneratedImage.created_at.desc()))
     gen_images = gen_result.scalars().all()
 
-    edit_result = await db.execute(edit_query.order_by(ImageEdit.created_at.desc()))
-    edit_images = edit_result.scalars().all()
+    # Query image_edits table using raw SQL (no SQLAlchemy model exists)
+    from sqlalchemy import text
+
+    edit_sql = text("""
+        SELECT id, user_id, campaign_id, original_image_path, edited_image_path,
+               operation_type, operation_params, stability_model, api_cost_credits,
+               processing_time_ms, success, error_message, parent_image_id,
+               has_transparency, created_at, updated_at
+        FROM image_edits
+        WHERE campaign_id = :campaign_id
+    """)
+    params = {"campaign_id": campaign_id}
+
+    if has_transparency is not None:
+        edit_sql = text("""
+            SELECT id, user_id, campaign_id, original_image_path, edited_image_path,
+                   operation_type, operation_params, stability_model, api_cost_credits,
+                   processing_time_ms, success, error_message, parent_image_id,
+                   has_transparency, created_at, updated_at
+            FROM image_edits
+            WHERE campaign_id = :campaign_id AND has_transparency = :has_transparency
+        """)
+        params["has_transparency"] = has_transparency
+
+    edit_result = await db.execute(edit_sql, params)
+    edit_records = edit_result.fetchall()
 
     # Combine and convert results
     all_images = []
@@ -1225,7 +1241,7 @@ async def list_campaign_images(
         )
 
     # Add image edits (convert to ImageResponse format)
-    for edit in edit_images:
+    for edit in edit_records:
         all_images.append(
             ImageResponse(
                 id=edit.id,
