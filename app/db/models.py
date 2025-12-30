@@ -240,8 +240,9 @@ class GeneratedImage(Base):
     content_id = Column(Integer, ForeignKey("generated_content.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    # Relationship for parent-child hierarchy
-    parent = relationship("GeneratedImage", remote_side=[id], backref="edits")
+    # Relationship for parent-child hierarchy (one-way relationship to avoid circular reference)
+    parent_image_id = Column(Integer, ForeignKey("generated_images.id", ondelete="SET NULL"), nullable=True, index=True)
+    parent = relationship("GeneratedImage", foreign_keys=[parent_image_id], remote_side=[id])
 
 
 # ============================================================================
@@ -282,7 +283,7 @@ class ImageEdit(Base):
 
     # Relationships
     campaign = relationship("Campaign", back_populates="image_edits")
-    parent_image = relationship("GeneratedImage", foreign_keys=[parent_image_id], back_populates="edits")
+    parent_image = relationship("GeneratedImage", foreign_keys=[parent_image_id])
 
 
 # ============================================================================

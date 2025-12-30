@@ -15,7 +15,7 @@ import httpx
 import io
 
 from app.db.session import get_db
-from app.db.models import User, Campaign, GeneratedImage, ProductIntelligence
+from app.db.models import User, Campaign, GeneratedImage, ImageEdit, ProductIntelligence
 from app.auth import get_current_user
 from app.schemas import (
     ImageGenerateRequest,
