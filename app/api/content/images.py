@@ -216,10 +216,10 @@ async def add_shared_image_to_campaign(
         provider="shared",  # Mark as shared
         model="shared",
         prompt=prompt,
-        style="shared",
+        style="photorealistic",  # Use valid enum value
         aspect_ratio="1:1",  # Default, can be updated later
         has_transparency=False,  # Assume no transparency unless specified
-        metadata={
+        meta_data={  # Note: Python attribute is meta_data, DB column is metadata
             "source": "shared",
             **metadata
         },
@@ -241,7 +241,7 @@ async def add_shared_image_to_campaign(
         prompt=new_image.prompt,
         style=new_image.style,
         aspect_ratio=new_image.aspect_ratio,
-        metadata=new_image.metadata,
+        metadata=new_image.meta_data,  # Note: Python attribute is meta_data
         created_at=new_image.created_at
     )
 

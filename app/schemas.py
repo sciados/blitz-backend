@@ -420,8 +420,8 @@ class ImageResponse(BaseModel):
     provider: str
     model: str
     prompt: str
-    style: ImageStyle
-    aspect_ratio: AspectRatio
+    style: Optional[ImageStyle] = None  # Made Optional for image_edits compatibility
+    aspect_ratio: Optional[AspectRatio] = None  # Made Optional for image_edits compatibility
     # Parent-child relationship for tracking image lineage
     parent_image_id: Optional[int] = None
     # Transparency detection
