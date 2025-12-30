@@ -1284,8 +1284,16 @@ async def list_campaign_images(
     # Combine and convert results
     all_images = []
 
+    # Valid style values for the enum
+    valid_styles = {'photorealistic', 'artistic', 'minimalist', 'lifestyle', 'product', 'illustration', 'retro', 'modern'}
+    valid_aspect_ratios = {'1:1', '16:9', '9:16', '4:3', '3:4', '21:9'}
+
     # Add generated images
     for image in gen_images:
+        # Handle invalid style values gracefully (e.g., 'shared' from old records)
+        style_value = image.style if image.style in valid_styles else None
+        aspect_ratio_value = image.aspect_ratio if image.aspect_ratio in valid_aspect_ratios else None
+
         all_images.append(
             ImageResponse(
                 id=image.id,
@@ -1296,8 +1304,8 @@ async def list_campaign_images(
                 provider=image.provider,
                 model=image.model,
                 prompt=image.prompt,
-                style=image.style,
-                aspect_ratio=image.aspect_ratio,
+                style=style_value,
+                aspect_ratio=aspect_ratio_value,
                 parent_image_id=image.parent_image_id,
                 has_transparency=image.has_transparency,
                 metadata=image.meta_data or {},
