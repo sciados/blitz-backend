@@ -133,6 +133,9 @@ async def create_image_from_existing(
     original_image = result_tuple[0]
 
     # Create a NEW image record with the same metadata but new URL
+    # Check if the new image has transparency (background removal creates transparency)
+    has_transp = await check_image_has_transparency(new_image_url)
+
     new_image = GeneratedImage(
         campaign_id=original_image.campaign_id,
         image_type=original_image.image_type,
@@ -146,8 +149,8 @@ async def create_image_from_existing(
         aspect_ratio=original_image.aspect_ratio,
         # Track parent-child relationship
         parent_image_id=original_image_id,
-        # Track transparency (default to parent's value, can be updated later)
-        has_transparency=original_image.has_transparency,
+        # Background removal creates transparency
+        has_transparency=has_transp,
         meta_data={
             **original_image.meta_data,
             "edited_from_image_id": original_image_id,
@@ -1155,7 +1158,7 @@ async def list_campaign_images(
     skip: int = 0,
     limit: int = 50
 ):
-    """List all generated images for a campaign with optional filters."""
+    """List all images for a campaign from both generated_images and image_edits tables."""
     # Verify campaign ownership
     result = await db.execute(
         select(Campaign).where(
@@ -1171,32 +1174,36 @@ async def list_campaign_images(
             detail="Campaign not found"
         )
 
-    # Build query
-    query = select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
+    # Import ImageEdit model here to avoid circular imports
+    from app.db.models import ImageEdit
 
+    # Query generated_images table
+    gen_query = select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
     if image_type:
-        query = query.where(GeneratedImage.image_type == image_type)
-
+        gen_query = gen_query.where(GeneratedImage.image_type == image_type)
     if has_transparency is not None:
-        query = query.where(GeneratedImage.has_transparency == has_transparency)
-
+        gen_query = gen_query.where(GeneratedImage.has_transparency == has_transparency)
     if parent_image_id is not None:
-        query = query.where(GeneratedImage.parent_image_id == parent_image_id)
+        gen_query = gen_query.where(GeneratedImage.parent_image_id == parent_image_id)
 
-    # Get total count
-    count_result = await db.execute(
-        select(GeneratedImage).where(GeneratedImage.campaign_id == campaign_id)
-    )
-    total = len(count_result.scalars().all())
+    # Query image_edits table
+    edit_query = select(ImageEdit).where(ImageEdit.campaign_id == campaign_id)
+    if has_transparency is not None:
+        edit_query = edit_query.where(ImageEdit.has_transparency == has_transparency)
 
-    # Get paginated results
-    query = query.offset(skip).limit(limit).order_by(GeneratedImage.created_at.desc())
+    # Get results from both tables
+    gen_result = await db.execute(gen_query.order_by(GeneratedImage.created_at.desc()))
+    gen_images = gen_result.scalars().all()
 
-    result = await db.execute(query)
-    images = result.scalars().all()
+    edit_result = await db.execute(edit_query.order_by(ImageEdit.created_at.desc()))
+    edit_images = edit_result.scalars().all()
 
-    return ImageListResponse(
-        images=[
+    # Combine and convert results
+    all_images = []
+
+    # Add generated images
+    for image in gen_images:
+        all_images.append(
             ImageResponse(
                 id=image.id,
                 campaign_id=image.campaign_id,
@@ -1215,8 +1222,40 @@ async def list_campaign_images(
                 content_id=image.content_id,
                 created_at=image.created_at
             )
-            for image in images
-        ],
+        )
+
+    # Add image edits (convert to ImageResponse format)
+    for edit in edit_images:
+        all_images.append(
+            ImageResponse(
+                id=edit.id,
+                campaign_id=edit.campaign_id,
+                image_type=edit.operation_type,
+                image_url=edit.edited_image_path,
+                thumbnail_url=None,  # image_edits doesn't have thumbnail_url
+                provider=edit.stability_model or "stability",
+                model=edit.stability_model or "unknown",
+                prompt=f"Edited: {edit.operation_type}",
+                style=None,
+                aspect_ratio=None,
+                parent_image_id=edit.parent_image_id,
+                has_transparency=edit.has_transparency,
+                metadata=edit.operation_params or {},
+                ai_generation_cost=float(edit.api_cost_credits) if edit.api_cost_credits else 0.0,
+                content_id=None,
+                created_at=edit.created_at
+            )
+        )
+
+    # Sort all images by created_at descending
+    all_images.sort(key=lambda x: x.created_at, reverse=True)
+
+    # Apply pagination
+    total = len(all_images)
+    paginated_images = all_images[skip:skip + limit]
+
+    return ImageListResponse(
+        images=paginated_images,
         total=total,
         page=skip // limit + 1,
         per_page=limit
