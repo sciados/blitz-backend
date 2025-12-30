@@ -13,7 +13,7 @@ LATEST UPDATES (v9.1):
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, insert, text
+from sqlalchemy import select, func, insert, text, case
 from typing import Optional
 import base64
 import time
@@ -22,7 +22,7 @@ import logging
 
 from app.db.session import get_db  # Your async session dependency
 from app.auth import get_current_user
-from app.db.models import User, Campaign, GeneratedImage
+from app.db.models import User, Campaign, GeneratedImage, ImageEdit
 
 from .schemas import (
     InpaintingResponse,
@@ -129,39 +129,25 @@ async def _process_edit(
         processing_time_ms = int((time.time() - start_time) * 1000)
         api_cost = stability_service.estimate_cost_credits(operation_type)
 
-        # Save to database (async)
-        query = text("""
-            INSERT INTO image_edits
-            (user_id, campaign_id, original_image_path, edited_image_path,
-             operation_type, operation_params, stability_model, api_cost_credits,
-             processing_time_ms, success, parent_image_id, has_transparency,
-             created_at, updated_at)
-            VALUES
-            (:user_id, :campaign_id, :original_path, :edited_path,
-             :op_type, :params, :model, :cost,
-             :time_ms, :success, :parent_id, :has_transparency,
-             NOW(), NOW())
-            RETURNING id
-        """)
-
-        result = await db.execute(
-            query,
-            {
-                "user_id": current_user.id,
-                "campaign_id": campaign_id,
-                "original_path": original_image_path,
-                "edited_path": edited_r2_path,
-                "op_type": operation_type,
-                "params": json.dumps(operation_params),
-                "model": metadata.get("model"),
-                "cost": api_cost,
-                "time_ms": processing_time_ms,
-                "success": True,
-                "parent_id": parent_image_id,
-                "has_transparency": has_transparency
-            }
+        # Save to database using SQLAlchemy model
+        edit_record = ImageEdit(
+            user_id=current_user.id,
+            campaign_id=campaign_id,
+            original_image_path=original_image_path,
+            edited_image_path=edited_r2_path,
+            operation_type=operation_type,
+            operation_params=operation_params,
+            stability_model=metadata.get("model"),
+            api_cost_credits=api_cost,
+            processing_time_ms=processing_time_ms,
+            success=True,
+            parent_image_id=parent_image_id,
+            has_transparency=has_transparency
         )
-        edit_id = result.scalar_one()
+
+        db.add(edit_record)
+        await db.flush()  # Get the ID without committing
+        edit_id = edit_record.id
         await db.commit()
         
         return InpaintingResponse(
@@ -175,38 +161,28 @@ async def _process_edit(
         
     except Exception as e:
         await db.rollback()
-        
+
         # Log failed edit
         processing_time_ms = int((time.time() - start_time) * 1000)
-        
+
         try:
-            query = text("""
-                INSERT INTO image_edits
-                (user_id, campaign_id, original_image_path, edited_image_path,
-                 operation_type, operation_params, processing_time_ms, success, error_message,
-                 created_at, updated_at)
-                VALUES
-                (:user_id, :campaign_id, :original_path, NULL,
-                 :op_type, :params, :time_ms, false, :error,
-                 NOW(), NOW())
-            """)
-            
-            await db.execute(
-                query,
-                {
-                    "user_id": current_user.id,
-                    "campaign_id": campaign_id,
-                    "original_path": image_url,
-                    "op_type": operation_type,
-                    "params": json.dumps(operation_params),
-                    "time_ms": processing_time_ms,
-                    "error": str(e)
-                }
+            edit_record = ImageEdit(
+                user_id=current_user.id,
+                campaign_id=campaign_id,
+                original_image_path=image_url,
+                edited_image_path=None,
+                operation_type=operation_type,
+                operation_params=operation_params,
+                processing_time_ms=processing_time_ms,
+                success=False,
+                error_message=str(e)
             )
+
+            db.add(edit_record)
             await db.commit()
-        except:
-            pass
-        
+        except Exception:
+            pass  # Don't fail if we can't log the error
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"{operation_type} failed: {str(e)}"
@@ -426,34 +402,27 @@ async def get_edit_history(
             detail="Campaign not found or access denied"
         )
 
-    # Get total count (async)
-    count_query = text("SELECT COUNT(*) FROM image_edits WHERE campaign_id = :campaign_id")
-    count_result = await db.execute(count_query, {"campaign_id": campaign_id})
+    # Get total count using SQLAlchemy
+    count_query = select(func.count(ImageEdit.id)).where(ImageEdit.campaign_id == campaign_id)
+    count_result = await db.execute(count_query)
     total = count_result.scalar()
 
-    # Get paginated results (async)
+    # Get paginated results using SQLAlchemy
     offset = (page - 1) * page_size
-
-    edits_query = text("""
-        SELECT id, user_id, campaign_id, original_image_path, edited_image_path,
-               operation_type, operation_params, stability_model, api_cost_credits,
-               processing_time_ms, success, error_message, parent_image_id,
-               has_transparency, created_at, updated_at
-        FROM image_edits
-        WHERE campaign_id = :campaign_id
-        ORDER BY created_at DESC
-        LIMIT :limit OFFSET :offset
-    """)
-
-    edits_result = await db.execute(
-        edits_query,
-        {"campaign_id": campaign_id, "limit": page_size, "offset": offset}
+    edits_query = (
+        select(ImageEdit)
+        .where(ImageEdit.campaign_id == campaign_id)
+        .order_by(ImageEdit.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
     )
-    edits = edits_result.fetchall()
 
-    edit_records = []
-    for edit in edits:
-        edit_records.append(ImageEditRecord(
+    edits_result = await db.execute(edits_query)
+    edits = edits_result.scalars().all()
+
+    # Convert to response schema
+    edit_records = [
+        ImageEditRecord(
             id=edit.id,
             user_id=edit.user_id,
             campaign_id=edit.campaign_id,
@@ -470,7 +439,9 @@ async def get_edit_history(
             has_transparency=edit.has_transparency if edit.has_transparency is not None else False,
             created_at=edit.created_at,
             updated_at=edit.updated_at
-        ))
+        )
+        for edit in edits
+    ]
 
     response = EditHistoryResponse(
         edits=edit_records,
@@ -489,35 +460,34 @@ async def get_edit_statistics(
     current_user: User = Depends(get_current_user)
 ):
     """Get editing statistics for the current user"""
-    
-    # Get overall stats (async)
-    stats_query = text("""
-        SELECT 
-            COUNT(*) as total_edits,
-            COUNT(CASE WHEN success = true THEN 1 END) as successful_edits,
-            COUNT(CASE WHEN success = false THEN 1 END) as failed_edits,
-            COALESCE(SUM(api_cost_credits), 0) as total_credits_used,
-            COALESCE(AVG(processing_time_ms), 0) as avg_processing_time_ms
-        FROM image_edits
-        WHERE user_id = :user_id
-    """)
-    
-    stats_result = await db.execute(stats_query, {"user_id": current_user.id})
+
+    # Get overall stats using SQLAlchemy aggregation
+    stats_query = (
+        select(
+            func.count(ImageEdit.id).label("total_edits"),
+            func.sum(case((ImageEdit.success == True, 1), else_=0)).label("successful_edits"),
+            func.sum(case((ImageEdit.success == False, 1), else_=0)).label("failed_edits"),
+            func.coalesce(func.sum(ImageEdit.api_cost_credits), 0).label("total_credits_used"),
+            func.coalesce(func.avg(ImageEdit.processing_time_ms), 0).label("avg_processing_time_ms")
+        )
+        .where(ImageEdit.user_id == current_user.id)
+    )
+
+    stats_result = await db.execute(stats_query)
     stats = stats_result.fetchone()
-    
-    # Get edits by type (async)
-    by_type_query = text("""
-        SELECT operation_type, COUNT(*) as count
-        FROM image_edits
-        WHERE user_id = :user_id 
-        GROUP BY operation_type
-    """)
-    
-    by_type_result = await db.execute(by_type_query, {"user_id": current_user.id})
+
+    # Get edits by type using SQLAlchemy
+    by_type_query = (
+        select(ImageEdit.operation_type, func.count(ImageEdit.id).label("count"))
+        .where(ImageEdit.user_id == current_user.id)
+        .group_by(ImageEdit.operation_type)
+    )
+
+    by_type_result = await db.execute(by_type_query)
     edits_by_type = by_type_result.fetchall()
-    
+
     edits_by_type_dict = {row.operation_type: row.count for row in edits_by_type}
-    
+
     return EditStatistics(
         total_edits=stats.total_edits,
         successful_edits=stats.successful_edits,

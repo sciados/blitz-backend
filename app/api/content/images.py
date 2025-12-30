@@ -1242,11 +1242,15 @@ async def list_campaign_images(
 
     # Add image edits (convert to ImageResponse format)
     for edit in edit_records:
+        # Map operation_type to a valid image_type
+        # Edited images are variations of the original, so we use "variation"
+        image_type = "variation"
+
         all_images.append(
             ImageResponse(
                 id=edit.id,
                 campaign_id=edit.campaign_id,
-                image_type=edit.operation_type,
+                image_type=image_type,
                 image_url=edit.edited_image_path,
                 thumbnail_url=None,  # image_edits doesn't have thumbnail_url
                 provider=edit.stability_model or "stability",

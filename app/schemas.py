@@ -440,6 +440,28 @@ class ImageListResponse(BaseModel):
     page: int
     per_page: int
 
+class ImageEditResponse(BaseModel):
+    """Response schema for image edit operations."""
+    id: int
+    user_id: int
+    campaign_id: int
+    original_image_path: str
+    edited_image_path: str
+    operation_type: str
+    operation_params: Optional[Dict[str, Any]] = None
+    stability_model: Optional[str] = None
+    api_cost_credits: Optional[float] = None
+    processing_time_ms: Optional[int] = None
+    success: bool = True
+    error_message: Optional[str] = None
+    parent_image_id: Optional[int] = None
+    has_transparency: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class ImageDeleteResponse(BaseModel):
     message: str
     deleted_id: int

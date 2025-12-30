@@ -175,6 +175,7 @@ class Campaign(Base):
     product_intelligence = relationship("ProductIntelligence", back_populates="campaigns")
     generated_content = relationship("GeneratedContent", back_populates="campaign", cascade="all, delete-orphan")
     generated_images = relationship("GeneratedImage", cascade="all, delete-orphan")
+    image_edits = relationship("ImageEdit", back_populates="campaign", cascade="all, delete-orphan")
     generated_videos = relationship("GeneratedVideo", back_populates="campaign", cascade="all, delete-orphan")
     knowledge_base = relationship("KnowledgeBase", back_populates="campaign")  # No cascade - KB owned by product
     media_assets = relationship("MediaAsset", back_populates="campaign", cascade="all, delete-orphan")
@@ -241,6 +242,47 @@ class GeneratedImage(Base):
 
     # Relationship for parent-child hierarchy
     parent = relationship("GeneratedImage", remote_side=[id], backref="edits")
+
+
+# ============================================================================
+# IMAGE EDITS MODEL
+# ============================================================================
+
+class ImageEdit(Base):
+    __tablename__ = "image_edits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Image paths
+    original_image_path = Column(Text, nullable=False)  # Path or URL to original image
+    edited_image_path = Column(Text, nullable=False)    # Path or URL to edited image
+
+    # Operation details
+    operation_type = Column(String(50), nullable=False)  # background_removal, inpainting, etc.
+    operation_params = Column(JSONB, nullable=True)      # Store operation-specific parameters
+
+    # Processing details
+    stability_model = Column(String(100), nullable=True)  # Model used for editing
+    api_cost_credits = Column(Float, nullable=True)
+    processing_time_ms = Column(Integer, nullable=True)
+    success = Column(Boolean, default=True, nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Parent-child relationship for tracking image lineage
+    parent_image_id = Column(Integer, ForeignKey("generated_images.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Transparency detection
+    has_transparency = Column(Boolean, default=False, nullable=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    campaign = relationship("Campaign", back_populates="image_edits")
+    parent_image = relationship("GeneratedImage", foreign_keys=[parent_image_id], back_populates="edits")
 
 
 # ============================================================================
