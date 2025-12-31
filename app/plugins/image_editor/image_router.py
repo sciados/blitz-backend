@@ -79,8 +79,36 @@ async def _process_edit(
             r2_path = r2_storage.extract_path_from_url(image_url)
             original_image_path = r2_path or image_url
         else:
-            original_image_data = await r2_storage.download_file(image_url)
-            original_image_path = image_url
+            try:
+                original_image_data = await r2_storage.download_file(image_url)
+                original_image_path = image_url
+            except Exception as download_error:
+                # Check if the error is because the file doesn't exist
+                if "NoSuchKey" in str(download_error) or "does not exist" in str(download_error):
+                    # Try to clean up orphaned database record
+                    try:
+                        # Look for an ImageEdit record with this path
+                        edit_query = select(ImageEdit).where(
+                            ImageEdit.edited_image_path == image_url,
+                            ImageEdit.campaign_id == campaign_id
+                        )
+                        edit_result = await db.execute(edit_query)
+                        orphaned_edit = edit_result.scalar_one_or_none()
+
+                        if orphaned_edit:
+                            await db.delete(orphaned_edit)
+                            await db.commit()
+                            logger.info(f"🧹 Deleted orphaned ImageEdit record: {image_url}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to cleanup orphaned record: {cleanup_error}")
+
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Image not found in storage. The image may have been moved or deleted. Please refresh the Content Library. Image path: {image_url}"
+                    )
+                else:
+                    # Re-raise other errors
+                    raise
 
         # Perform the operation
         edited_image_data, metadata = await operation_func(
