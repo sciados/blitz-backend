@@ -1331,11 +1331,8 @@ async def list_campaign_images(
     # Add image edits (convert to ImageResponse format)
     for edit in edit_records:
         # Map operation_type to a valid image_type
-        # Use the actual operation_type for proper labeling in frontend
-        if edit.operation_type == "background_removal" or edit.has_transparency:
-            image_type = "background_removal"
-        else:
-            image_type = edit.operation_type or "variation"
+        # Edited images are variations of the original, so we use "variation"
+        image_type = "variation"
 
         # Convert edited_image_path to proxy-compatible format
         # Use proxy path format (starting with /) for consistent image retrieval
