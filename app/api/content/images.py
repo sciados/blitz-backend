@@ -1334,12 +1334,23 @@ async def list_campaign_images(
         # Edited images are variations of the original, so we use "variation"
         image_type = "variation"
 
-        # Construct full image URL from edited_image_path
+        # Convert edited_image_path to proxy-compatible format
+        # Use proxy path format (starting with /) for consistent image retrieval
         if edit.edited_image_path:
-            if r2_storage.public_url:
-                full_image_url = f"{r2_storage.public_url}/{edit.edited_image_path}"
+            # If it's already a full URL, extract the path
+            if edit.edited_image_path.startswith("http"):
+                # Extract path from full URL
+                path_start = edit.edited_image_path.find("/", edit.edited_image_path.find("//") + 2)
+                if path_start > 0:
+                    full_image_url = edit.edited_image_path[path_start:]
+                else:
+                    full_image_url = f"/{edit.edited_image_path}"
+            elif edit.edited_image_path.startswith("/"):
+                # Already a proxy path
+                full_image_url = edit.edited_image_path
             else:
-                full_image_url = f"https://{r2_storage.bucket_name}.{r2_storage.account_id}.r2.dev/{edit.edited_image_path}"
+                # Relative path - prepend /
+                full_image_url = f"/{edit.edited_image_path}"
         else:
             full_image_url = ""
 
