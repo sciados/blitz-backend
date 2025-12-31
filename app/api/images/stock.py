@@ -188,3 +188,92 @@ async def get_stock_images(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch stock images: {str(e)}"
         )
+
+
+@router.delete("/stock", status_code=status.HTTP_200_OK)
+async def delete_stock_image(
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a stock image from R2 storage.
+
+    Expects a JSON body with:
+    {
+        "url": "full_url_to_image_in_r2"
+    }
+
+    Only accessible by admin users.
+    """
+    # Check if user is admin
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can delete stock images"
+        )
+
+    # Get the image URL from request body
+    image_url = request.get("url")
+    if not image_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image URL is required"
+        )
+
+    try:
+        # Extract the R2 key from the full URL
+        # URLs are in format: https://pub-c0ddba9f039845bda33be436955187cb.r2.dev/{key}
+        # or: https://{bucket}.{account}.r2.dev/{key}
+        if "/r2.dev/" in image_url:
+            r2_key = image_url.split("/r2.dev/")[1]
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid image URL format"
+            )
+
+        # Delete from R2 storage if configured
+        if r2_storage.is_configured():
+            import boto3
+            from botocore.exceptions import ClientError
+
+            try:
+                r2_storage.client.delete_object(
+                    Bucket=r2_storage.bucket_name,
+                    Key=r2_key
+                )
+            except ClientError as e:
+                # If the file doesn't exist, that's okay (idempotent)
+                if e.response['Error']['Code'] != 'NoSuchKey':
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to delete image from storage: {str(e)}"
+                    )
+
+        # Also check if there's a database record and delete it
+        # Look for the image URL in generated_images table
+        query = select(GeneratedImage).where(
+            GeneratedImage.image_url == image_url
+        )
+        result = await db.execute(query)
+        db_image = result.scalar_one_or_none()
+
+        if db_image:
+            await db.delete(db_image)
+            await db.commit()
+
+        return {
+            "success": True,
+            "message": "Stock image deleted successfully",
+            "deleted_url": image_url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete stock image: {str(e)}"
+        )
