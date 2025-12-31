@@ -1294,12 +1294,25 @@ async def list_campaign_images(
         style_value = image.style if image.style in valid_styles else None
         aspect_ratio_value = image.aspect_ratio if image.aspect_ratio in valid_aspect_ratios else None
 
+        # Normalize image URL to proxy-compatible format
+        # Extract path from full R2 URL or use as-is if it's already a path
+        normalized_image_url = image.image_url
+        if image.image_url and image.image_url.startswith("http"):
+            # Extract path from full URL
+            # e.g., https://bucket.account.r2.dev/campaigns/28/image.png -> /campaigns/28/image.png
+            if "/campaigns/" in image.image_url or "/generated_files/" in image.image_url:
+                # Extract everything after the domain
+                path_start = image.image_url.find("/", image.image_url.find("//") + 2)
+                if path_start > 0:
+                    normalized_image_url = image.image_url[path_start:]
+        # If it's already a path (starts with /), use as-is
+
         all_images.append(
             ImageResponse(
                 id=image.id,
                 campaign_id=image.campaign_id,
                 image_type=image.image_type,
-                image_url=image.image_url,
+                image_url=normalized_image_url,
                 thumbnail_url=image.thumbnail_url,
                 provider=image.provider,
                 model=image.model,
