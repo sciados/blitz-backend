@@ -1321,12 +1321,21 @@ async def list_campaign_images(
         # Edited images are variations of the original, so we use "variation"
         image_type = "variation"
 
+        # Construct full image URL from edited_image_path
+        if edit.edited_image_path:
+            if r2_storage.public_url:
+                full_image_url = f"{r2_storage.public_url}/{edit.edited_image_path}"
+            else:
+                full_image_url = f"https://{r2_storage.bucket_name}.{r2_storage.account_id}.r2.dev/{edit.edited_image_path}"
+        else:
+            full_image_url = ""
+
         all_images.append(
             ImageResponse(
                 id=edit.id,
                 campaign_id=edit.campaign_id,
                 image_type=image_type,
-                image_url=edit.edited_image_path,
+                image_url=full_image_url,
                 thumbnail_url=None,  # image_edits doesn't have thumbnail_url
                 provider=edit.stability_model or "stability",
                 model=edit.stability_model or "unknown",
@@ -1454,14 +1463,90 @@ async def get_image(
     )
 
 
+@router.delete("/cleanup-orphaned", response_model=dict)
+async def cleanup_orphaned_images(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clean up orphaned image records where the file doesn't exist in storage."""
+    import httpx
+
+    logger.info("🧹 Starting orphaned image cleanup...")
+
+    deleted_count = 0
+    errors = []
+
+    # Get all user's images from both tables
+    # Generated Images
+    result = await db.execute(
+        select(GeneratedImage, Campaign)
+        .join(Campaign, GeneratedImage.campaign_id == Campaign.id)
+        .where(Campaign.user_id == current_user.id)
+    )
+    records = result.all()
+
+    for gen_image, campaign in records:
+        try:
+            # Try to fetch the image URL
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(gen_image.image_url)
+                if response.status_code == 404:
+                    # File doesn't exist, delete the record
+                    await db.delete(gen_image)
+                    deleted_count += 1
+                    logger.info(f"🗑️ Deleted orphaned GeneratedImage id={gen_image.id}, url={gen_image.image_url}")
+        except Exception as e:
+            errors.append(f"GeneratedImage {gen_image.id}: {str(e)}")
+
+    # Image Edits
+    result = await db.execute(
+        select(ImageEdit, Campaign)
+        .join(Campaign, ImageEdit.campaign_id == Campaign.id)
+        .where(Campaign.user_id == current_user.id)
+    )
+    edit_records = result.all()
+
+    for edit_image, campaign in edit_records:
+        try:
+            # Try to fetch the image URL
+            if edit_image.edited_image_path:
+                # Construct full URL
+                if r2_storage.public_url:
+                    image_url = f"{r2_storage.public_url}/{edit_image.edited_image_path}"
+                else:
+                    image_url = f"https://{r2_storage.bucket_name}.{r2_storage.account_id}.r2.dev/{edit_image.edited_image_path}"
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(image_url)
+                    if response.status_code == 404:
+                        # File doesn't exist, delete the record
+                        await db.delete(edit_image)
+                        deleted_count += 1
+                        logger.info(f"🗑️ Deleted orphaned ImageEdit id={edit_image.id}, path={edit_image.edited_image_path}")
+        except Exception as e:
+            errors.append(f"ImageEdit {edit_image.id}: {str(e)}")
+
+    await db.commit()
+
+    result = {
+        "deleted_count": deleted_count,
+        "message": f"Successfully deleted {deleted_count} orphaned image records"
+    }
+
+    if errors:
+        result["errors"] = errors
+
+    return result
+
+
 @router.delete("/{image_id}", response_model=ImageDeleteResponse)
 async def delete_image(
     image_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete generated image."""
-    # Get image and verify ownership
+    """Delete generated image or edited image."""
+    # First try to find in GeneratedImage table
     result = await db.execute(
         select(GeneratedImage)
         .join(Campaign)
@@ -1472,18 +1557,41 @@ async def delete_image(
     )
     image = result.scalar_one_or_none()
 
-    if not image:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Image not found"
+    if image:
+        # Delete from GeneratedImage table
+        await db.delete(image)
+        await db.commit()
+        logger.info(f"✅ Deleted GeneratedImage id={image_id}")
+        return ImageDeleteResponse(
+            message="Image deleted successfully",
+            deleted_id=image_id
         )
 
-    await db.delete(image)
-    await db.commit()
+    # If not found in GeneratedImage, try ImageEdit table
+    result = await db.execute(
+        select(ImageEdit)
+        .join(Campaign)
+        .where(
+            ImageEdit.id == image_id,
+            Campaign.user_id == current_user.id
+        )
+    )
+    edit_image = result.scalar_one_or_none()
 
-    return ImageDeleteResponse(
-        message="Image deleted successfully",
-        deleted_id=image_id
+    if edit_image:
+        # Delete from ImageEdit table
+        await db.delete(edit_image)
+        await db.commit()
+        logger.info(f"✅ Deleted ImageEdit id={image_id}")
+        return ImageDeleteResponse(
+            message="Image deleted successfully",
+            deleted_id=image_id
+        )
+
+    # Not found in either table
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Image not found"
     )
 
 
