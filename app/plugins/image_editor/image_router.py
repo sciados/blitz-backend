@@ -80,7 +80,7 @@ async def _process_edit(
         if image_url.startswith("http"):
             # Full URL - extract path and use proxy
             r2_path = r2_storage.extract_path_from_url(image_url)
-            proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
+            proxy_url = f"{settings.API_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(proxy_url)
                 response.raise_for_status()
@@ -88,7 +88,7 @@ async def _process_edit(
                 original_image_path = r2_path or image_url
         else:
             # Relative path - use proxy directly
-            proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={image_url}"
+            proxy_url = f"{settings.API_BASE_URL}/api/images/proxy?url={image_url}"
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(proxy_url)
                 response.raise_for_status()
@@ -637,7 +637,7 @@ async def batch_process_images(
                 if image_url.startswith("http"):
                     # Full URL - extract path and use proxy
                     r2_path = r2_storage.extract_path_from_url(image_url)
-                    proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
+                    proxy_url = f"{settings.API_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
                     async with httpx.AsyncClient(timeout=30.0) as client:
                         response = await client.get(proxy_url)
                         response.raise_for_status()
@@ -645,7 +645,7 @@ async def batch_process_images(
                         original_image_path = r2_path or image_url
                 else:
                     # Relative path - use proxy directly
-                    proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={image_url}"
+                    proxy_url = f"{settings.API_BASE_URL}/api/images/proxy?url={image_url}"
                     async with httpx.AsyncClient(timeout=30.0) as client:
                         response = await client.get(proxy_url)
                         response.raise_for_status()
