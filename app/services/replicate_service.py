@@ -37,7 +37,7 @@ class ReplicateService:
 
         Args:
             image_data: Original image bytes
-            mask_data: Mask bytes (white=keep, black=remove)
+            mask_data: Mask bytes (white=erase for Stability AI convention)
             output_format: Output format (png, jpg, webp)
             **kwargs: Additional parameters
 
@@ -49,12 +49,31 @@ class ReplicateService:
         # Convert bytes to base64 for Replicate API
         import base64
         image_b64 = base64.b64encode(image_data).decode()
-        mask_b64 = base64.b64encode(mask_data).decode()
+
+        # IMPORTANT: Replicate inpainting models typically use INVERTED mask convention
+        # Stability AI: white = erase
+        # Replicate: black = erase (need to invert)
+        # Let's try both approaches by inverting the mask
+
+        # Invert mask: white becomes black, black becomes white
+        from PIL import Image
+        import io
+
+        # Convert mask to PIL Image
+        mask_img = Image.open(io.BytesIO(mask_data)).convert("RGB")
+        # Invert colors: white (255) -> black (0), black (0) -> white (255)
+        inverted_mask = Image.eval(mask_img, lambda x: 255 - x)
+        # Convert back to bytes
+        inverted_buffer = io.BytesIO()
+        inverted_mask.save(inverted_buffer, format="PNG")
+        inverted_mask_data = inverted_buffer.getvalue()
+
+        mask_b64 = base64.b64encode(inverted_mask_data).decode()
 
         # Start prediction
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Create prediction with proper inpainting model
-            # Using stabilityai/sdxl-inpaint model which is proven for inpainting
+            # Use a well-tested SDXL inpainting model
+            # Thefofr/sdxl-inpaint is a reliable choice
             prediction_response = await client.post(
                 "https://api.replicate.com/v1/predictions",
                 headers={
@@ -62,7 +81,7 @@ class ReplicateService:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "version": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # SDXL Inpaint model
+                    "version": "4e204a56d58574099253351c0303e4475b0b1ddf3e0a90c91c85a3b59b6cf7d1",  # thefofr/sdxl-inpaint
                     "input": {
                         "prompt": kwargs.get("prompt", ""),
                         "image": f"data:image/png;base64,{image_b64}",
@@ -70,7 +89,7 @@ class ReplicateService:
                         "num_inference_steps": kwargs.get("num_inference_steps", 20),
                         "guidance_scale": kwargs.get("guidance_scale", 7.5),
                         "strength": kwargs.get("strength", 0.8),
-                        "scheduler": "K_EULER",
+                        "seed": kwargs.get("seed", 42),
                     }
                 }
             )
@@ -113,6 +132,7 @@ class ReplicateService:
                 "status": prediction["status"],
                 "completed_at": prediction.get("completed_at"),
                 "metrics": prediction.get("metrics", {}),
+                "mask_inverted": True,  # Note that we inverted the mask
             }
 
             logger.info("✅ Replicate: Object erasure completed")

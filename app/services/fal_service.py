@@ -36,7 +36,7 @@ class FALService:
 
         Args:
             image_data: Original image bytes
-            mask_data: Mask bytes (white=keep, black=remove)
+            mask_data: Mask bytes (white=erase for Stability convention, will be inverted internally)
             output_format: Output format (png, jpg, webp)
             **kwargs: Additional parameters
 
@@ -45,9 +45,25 @@ class FALService:
         """
         logger.info("🎨 FAL: Erasing objects...")
 
+        # IMPORTANT: FAL inpainting models use INVERTED mask convention
+        # Stability AI: white = erase
+        # FAL: black = erase (need to invert)
+        # Invert mask: white becomes black, black becomes white
+        from PIL import Image
+        import io
+
+        # Convert mask to PIL Image
+        mask_img = Image.open(io.BytesIO(mask_data)).convert("RGB")
+        # Invert colors: white (255) -> black (0), black (0) -> white (255)
+        inverted_mask = Image.eval(mask_img, lambda x: 255 - x)
+        # Convert back to bytes
+        inverted_buffer = io.BytesIO()
+        inverted_mask.save(inverted_buffer, format="PNG")
+        inverted_mask_data = inverted_buffer.getvalue()
+
         # Convert bytes to base64 for FAL API
         image_b64 = base64.b64encode(image_data).decode()
-        mask_b64 = base64.b64encode(mask_data).decode()
+        mask_b64 = base64.b64encode(inverted_mask_data).decode()
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             # Use the official FAL SDXL Inpaint model

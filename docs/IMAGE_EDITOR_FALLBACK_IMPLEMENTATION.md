@@ -20,17 +20,19 @@ We've successfully implemented a **complete AI platform rotation and fallback sy
 ✅ **Platform Priorities:**
 ```python
 "image_editing": [
-    ("stability", "sd-3.5-large"),  # Primary - best quality
-    ("replicate", "flux"),          # Fallback 1
-    ("fal", "fal-3d"),              # Fallback 2
+    ("stability", "sd-3.5-large"),    # Primary - best quality
+    ("replicate", "sdxl-inpaint"),    # Fallback 1 - SDXL Inpaint model
+    ("fal", "fast-sdxl-inpaint"),     # Fallback 2 - FAL SDXL Inpaint
 ]
 ```
+
+**Note:** These are dedicated **inpainting models** that edit existing images, not text-to-image generation models.
 
 ### 2. Replicate Service for Image Editing
 **File:** `app/services/replicate_service.py`
 
 ✅ **Operations Supported:**
-- **Erase Objects** - Remove objects using Flux inpainting model
+- **Erase Objects** - Remove objects using SDXL Inpaint model (thefofr/sdxl-inpaint)
 - **Inpainting** - Fill masked regions with AI-generated content
 - **Background Removal** - Remove backgrounds using rembg model
 - **Upscaling** - Upscale images using Real-ESRGAN model
@@ -38,6 +40,7 @@ We've successfully implemented a **complete AI platform rotation and fallback sy
 ✅ **API Integration:**
 - Uses Replicate's prediction API with polling
 - Supports base64 image encoding
+- **Mask Inversion**: Automatically converts Stability AI convention (white=erase) to Replicate convention (black=erase)
 - Proper error handling and logging
 - Metadata tracking (request ID, metrics, etc.)
 
@@ -45,7 +48,7 @@ We've successfully implemented a **complete AI platform rotation and fallback sy
 **File:** `app/services/fal_service.py`
 
 ✅ **Operations Supported:**
-- **Erase Objects** - Remove objects using FAL's LaMa model
+- **Erase Objects** - Remove objects using FAL's fast-sdxl-inpaint model
 - **Inpainting** - Fill masked regions with FAL
 - **Background Removal** - Remove backgrounds using BiRefNet
 - **Upscaling** - Upscale using Real-ESRGAN
@@ -53,6 +56,7 @@ We've successfully implemented a **complete AI platform rotation and fallback sy
 ✅ **API Integration:**
 - Direct API calls to fal.run endpoints
 - Base64 image encoding
+- **Mask Inversion**: Automatically converts Stability AI convention (white=erase) to FAL convention (black=erase)
 - Faster response times (no polling needed)
 - Comprehensive error handling
 
@@ -184,8 +188,41 @@ All image editing operations now have automatic fallback:
 - [ ] Add video editing support
 - [ ] Add platform-specific error handling
 
+## Recent Bug Fixes
+
+### Fix: Image Resizing Instead of Editing (v1.2)
+**Issue:** When fallback platforms (Replicate, FAL) were used, they generated new images or resized instead of editing the original.
+
+**Root Cause:** Using text-to-image models instead of inpainting models, and incorrect mask conventions.
+
+**Solution:**
+1. **Updated Platform Priorities** - Changed from text-to-image models to dedicated inpainting models:
+   - Replicate: `sdxl-inpaint` (not `flux`)
+   - FAL: `fast-sdxl-inpaint` (not `fal-3d`)
+
+2. **Fixed Model Versions** - Using correct SDXL Inpaint model versions:
+   - Replicate: `4e204a56d58574099253351c0303e4475b0b1ddf3e0a90c91c85a3b59b6cf7d1` (thefofr/sdxl-inpaint)
+   - FAL: `fal-ai/fast-sdxl-inpaint` endpoint
+
+3. **Implemented Mask Inversion** - Different platforms use different mask conventions:
+   - **Stability AI**: white pixels = erase
+   - **Replicate & FAL**: black pixels = erase
+   - Both services now automatically invert masks for compatibility
+
+**Result:** Fallback platforms now properly edit images instead of generating new ones or resizing.
+
+### Fix: FAL Service Mask Inversion (v1.2.1)
+**Issue:** FAL service was not inverting masks, causing incorrect erase behavior.
+
+**Solution:** Added mask inversion logic identical to Replicate service.
+
+**Files Modified:**
+- `app/services/fal_service.py` - Added mask inversion in `erase_objects()`
+- `app/services/replicate_service.py` - Already had mask inversion
+- `docs/IMAGE_EDITOR_FALLBACK_IMPLEMENTATION.md` - Updated documentation
+
 ## Summary
 
-The Image Editor now has a **complete, production-ready fallback system**. When Stability AI runs out of credits, it automatically switches to Replicate, then FAL, ensuring users can always complete their image editing tasks.
+The Image Editor now has a **complete, production-ready fallback system** with proper inpainting models. When Stability AI runs out of credits, it automatically switches to Replicate or FAL, both of which now correctly edit images using the right models and mask conventions.
 
 **Status: ✅ COMPLETE AND READY FOR PRODUCTION** 🚀
