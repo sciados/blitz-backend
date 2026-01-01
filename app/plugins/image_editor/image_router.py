@@ -37,10 +37,68 @@ from .schemas import (
 from .services.stability_service import StabilityAIService
 # Use centralized R2 storage utility
 from app.services.r2_storage import r2_storage, R2Storage
+# Use central AI Platform Manager for automatic fallback
+from app.services.ai_platform_manager import ai_platform_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/image-editor", tags=["image-editor"])
+
+
+async def _execute_with_platform_fallback(
+    operation_type: str,
+    operation_func,
+    original_image_data: bytes,
+    operation_params: dict
+) -> tuple[bytes, dict, str]:
+    """
+    Execute image editing operation with automatic platform fallback
+
+    Args:
+        operation_type: Type of operation ("erase", "inpaint", etc.)
+        operation_func: Function to execute with platform
+        original_image_data: Image bytes to edit
+        operation_params: Parameters for the operation
+
+    Returns:
+        Tuple of (edited_image_data, metadata, platform_used)
+
+    Raises:
+        RuntimeError: If all platforms fail
+    """
+    def _execute_with_platform(platform, image_data, **params):
+        """Wrapper to call operation_func with the appropriate service"""
+        if platform.name == "stability":
+            service = StabilityAIService()
+            return operation_func(service, image_data, **params)
+        elif platform.name == "replicate":
+            # TODO: Implement Replicate service for image editing
+            # For now, raise NotImplementedError
+            raise NotImplementedError(f"Replicate service not yet implemented for {operation_type}")
+        elif platform.name == "fal":
+            # TODO: Implement FAL service for image editing
+            raise NotImplementedError(f"FAL service not yet implemented for {operation_type}")
+        else:
+            raise ValueError(f"Unsupported platform: {platform.name}")
+
+    # Use the AI Platform Manager's fallback system
+    try:
+        result, platform = await ai_platform_manager.with_fallback(
+            operation_type="image_editing",
+            operation_func=_execute_with_platform,
+            image_data=original_image_data,
+            **operation_params
+        )
+
+        edited_image_data, metadata = result
+        platform_used = platform.name
+
+        logger.info(f"✅ Image editing completed using {platform_used}")
+        return edited_image_data, metadata, platform_used
+
+    except Exception as e:
+        logger.error(f"❌ All platforms failed for {operation_type}: {e}")
+        raise
 
 
 async def _process_edit(
@@ -73,9 +131,6 @@ async def _process_edit(
                 detail="Campaign not found or access denied"
             )
         
-        # Initialize services
-        stability_service = StabilityAIService()
-
         # Download original image using proxy endpoint (consistent with frontend)
         if image_url.startswith("http"):
             # Full URL - extract path and use proxy
@@ -95,9 +150,10 @@ async def _process_edit(
                 original_image_data = response.content
                 original_image_path = image_url.lstrip('/')
 
-        # Perform the operation
-        edited_image_data, metadata = await operation_func(
-            stability_service, original_image_data, **operation_params
+        # Perform the operation with automatic fallback to next platform
+        # The ai_platform_manager will try Stability → Replicate → Fal automatically
+        edited_image_data, metadata, platform_used = await _execute_with_platform_fallback(
+            operation_type, operation_func, original_image_data, operation_params
         )
 
         # Generate filename and upload edited image using centralized R2 storage
@@ -140,7 +196,14 @@ async def _process_edit(
 
         # Calculate processing time and cost
         processing_time_ms = int((time.time() - start_time) * 1000)
-        api_cost = stability_service.estimate_cost_credits(operation_type)
+
+        # Estimate cost based on platform used
+        # TODO: Add cost estimation to AI Platform Manager
+        api_cost = 2.0  # Default cost per operation (credits)
+
+        # Add platform info to metadata
+        metadata["platform_used"] = platform_used
+        metadata["operation_type"] = operation_type
 
         # Save to database using SQLAlchemy model
         edit_record = ImageEdit(
