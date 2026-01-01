@@ -71,7 +71,7 @@ class AIPlatformManager:
         "image_editing": [
             ("stability", "sd-3.5-large"),  # Primary - best quality
             ("replicate", "sdxl-inpaint"),  # Fallback 1 - SDXL Inpaint model
-            ("fal", "fast-sdxl-inpaint"),  # Fallback 2 - FAL SDXL Inpaint
+            ("fal", "stable-diffusion-xl-1.0-inpainting"),  # Fallback 2 - FAL SDXL Inpaint
         ],
         "text_generation": [
             ("groq", "llama-3.3-70b-versatile"),  # Free, fast

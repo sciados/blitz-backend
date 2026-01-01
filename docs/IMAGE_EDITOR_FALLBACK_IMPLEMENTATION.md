@@ -198,11 +198,11 @@ All image editing operations now have automatic fallback:
 **Solution:**
 1. **Updated Platform Priorities** - Changed from text-to-image models to dedicated inpainting models:
    - Replicate: `sdxl-inpaint` (not `flux`)
-   - FAL: `fast-sdxl-inpaint` (not `fal-3d`)
+   - FAL: `stable-diffusion-xl-1.0-inpainting` (not `fal-3d`)
 
 2. **Fixed Model Versions** - Using correct SDXL Inpaint model versions:
    - Replicate: `4e204a56d58574099253351c0303e4475b0b1ddf3e0a90c91c85a3b59b6cf7d1` (thefofr/sdxl-inpaint)
-   - FAL: `fal-ai/fast-sdxl-inpaint` endpoint
+   - FAL: `fal-ai/stable-diffusion-xl-1.0-inpainting` endpoint
 
 3. **Implemented Mask Inversion** - Different platforms use different mask conventions:
    - **Stability AI**: white pixels = erase
@@ -216,9 +216,17 @@ All image editing operations now have automatic fallback:
 
 **Solution:** Added mask inversion logic identical to Replicate service.
 
+### Fix: FAL Service Endpoint (v1.2.2)
+**Issue:** FAL service used non-existent endpoint `fal-ai/fast-sdxl-inpaint`, causing "Application not found" errors.
+
+**Solution:** Updated to correct FAL inpainting endpoint:
+- Endpoint: `fal-ai/stable-diffusion-xl-1.0-inpainting`
+- Updated AI Platform Manager model name to match
+- Updated service metadata to reflect correct model
+
 **Files Modified:**
-- `app/services/fal_service.py` - Added mask inversion in `erase_objects()`
-- `app/services/replicate_service.py` - Already had mask inversion
+- `app/services/fal_service.py` - Fixed endpoint and metadata
+- `app/services/ai_platform_manager.py` - Updated model name
 - `docs/IMAGE_EDITOR_FALLBACK_IMPLEMENTATION.md` - Updated documentation
 
 ## Summary

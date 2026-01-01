@@ -69,7 +69,7 @@ class FALService:
             # Use the official FAL SDXL Inpaint model
             # This is the most reliable model for inpainting
             response = await client.post(
-                "https://fal.run/fal-ai/fast-sdxl-inpaint",
+                "https://fal.run/fal-ai/stable-diffusion-xl-1.0-inpainting",
                 headers={"Authorization": f"Key {self.api_key}"},
                 json={
                     "image_url": f"data:image/png;base64,{image_b64}",
@@ -103,7 +103,7 @@ class FALService:
 
             metadata = {
                 "provider": "fal",
-                "model": "fast-sdxl-inpaint",
+                "model": "stable-diffusion-xl-1.0-inpainting",
                 "operation": "erase",
                 "fal_request_id": result.get("request_id"),
                 "metrics": result.get("metrics", {}),
