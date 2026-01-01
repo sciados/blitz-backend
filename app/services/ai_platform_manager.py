@@ -268,37 +268,65 @@ class AIPlatformManager:
         """
         last_error = None
         platforms_tried = []
-        tried_platform_names = set()  # Track tried platform names to exclude
 
-        for attempt in range(5):  # Try up to 5 platforms
-            try:
-                # Pass exclude_platforms to get_platform so it doesn't return already-tried platforms
-                platform = await self.get_platform(
-                    operation_type,
-                    attempt=attempt,
-                    exclude_platforms=tried_platform_names
+        for retry_cycle in range(5):  # Try up to 5 full retry cycles
+            last_error = None
+            platforms_tried_in_cycle = []
+
+            # Get all available platforms for this operation
+            available_platforms = self.PLATFORM_PRIORITIES.get(operation_type, [])
+
+            for platform_name, model_name in available_platforms:
+                # Check platform health
+                health = self.health.get(platform_name)
+                if health and not self._is_platform_healthy(health):
+                    logger.warning(f"⏭️ Skipping unhealthy platform: {platform_name}")
+                    continue
+
+                # Create platform spec
+                platform = PlatformSpec(
+                    name=platform_name,
+                    model=model_name,
+                    operation_types=[operation_type],
+                    priority=available_platforms.index((platform_name, model_name)),
+                    estimated_cost=self._get_estimated_cost(platform_name, operation_type),
+                    estimated_time=self._get_estimated_time(platform_name, operation_type),
+                    api_key_env=self._get_api_key_env(platform_name)
                 )
 
-                platforms_tried.append(platform)  # Store the PlatformSpec OBJECT
-                tried_platform_names.add(platform.name)  # Track by name
+                logger.info(f"🎯 Selected platform for {operation_type}: {platform_name} ({model_name})")
 
-                start_time = time.time()
-                result = await operation_func(platform, *args, **kwargs)
-                response_time = time.time() - start_time
+                try:
+                    platforms_tried.append(platform)
+                    platforms_tried_in_cycle.append(platform)
 
-                await self.report_success(platform, operation_type, response_time)
-                return result, platform
+                    start_time = time.time()
+                    result = await operation_func(platform, *args, **kwargs)
+                    response_time = time.time() - start_time
 
-            except Exception as e:
-                last_error = e
-                platform = platforms_tried[-1] if platforms_tried else None  # Now platform is a PlatformSpec object
-                if platform:
+                    await self.report_success(platform, operation_type, response_time)
+                    return result, platform
+
+                except NotImplementedError as e:
+                    # Platform not implemented, try next platform
+                    logger.warning(f"⚠️ Platform {platform_name} not implemented: {e}")
+                    last_error = e
+                    continue
+
+                except Exception as e:
+                    # Platform failed, report and try next platform
+                    last_error = e
                     await self.report_failure(platform, operation_type, e)
-                # Loop continues, get_platform will skip the failed platform
-                continue
+                    continue
 
-        # If we get here, all platforms failed
-        platform_names = [p.name for p in platforms_tried]  # Extract platform names for error message
+            # If we get here, all platforms in this cycle failed
+            # Reset health cache and try again (this gives temporary failures a chance to recover)
+            if retry_cycle < 4:  # Don't reset on the last cycle
+                logger.warning(f"⚠️ Retry cycle {retry_cycle + 1} failed, resetting health cache...")
+                self._reset_health_cache()
+
+        # If we get here, all platforms failed across all cycles
+        platform_names = [p.name for p in platforms_tried]
         raise RuntimeError(
             f"All platforms failed for {operation_type}. "
             f"Tried: {', '.join(platform_names)}. Last error: {last_error}"
