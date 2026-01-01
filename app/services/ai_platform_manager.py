@@ -267,7 +267,7 @@ class AIPlatformManager:
         for attempt in range(5):  # Try up to 5 platforms
             try:
                 platform = await self.get_platform(operation_type, attempt=attempt)
-                platforms_tried.append(platform.name)
+                platforms_tried.append(platform)  # Store the PlatformSpec OBJECT, not the name
 
                 start_time = time.time()
                 result = await operation_func(platform, *args, **kwargs)
@@ -278,7 +278,7 @@ class AIPlatformManager:
 
             except Exception as e:
                 last_error = e
-                platform = platforms_tried[-1] if platforms_tried else None
+                platform = platforms_tried[-1] if platforms_tried else None  # Now platform is a PlatformSpec object
                 if platform:
                     await self.report_failure(platform, operation_type, e)
                 continue
