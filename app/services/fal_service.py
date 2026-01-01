@@ -50,9 +50,10 @@ class FALService:
         mask_b64 = base64.b64encode(mask_data).decode()
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # FAL inpainting endpoint
+            # Use the official FAL SDXL Inpaint model
+            # This is the most reliable model for inpainting
             response = await client.post(
-                "https://fal.run/fal-ai/lama",
+                "https://fal.run/fal-ai/fast-sdxl-inpaint",
                 headers={"Authorization": f"Key {self.api_key}"},
                 json={
                     "image_url": f"data:image/png;base64,{image_b64}",
@@ -61,6 +62,7 @@ class FALService:
                     "num_inference_steps": kwargs.get("num_inference_steps", 20),
                     "guidance_scale": kwargs.get("guidance_scale", 7.5),
                     "strength": kwargs.get("strength", 0.8),
+                    "seed": kwargs.get("seed", 42),
                 }
             )
 
@@ -85,7 +87,7 @@ class FALService:
 
             metadata = {
                 "provider": "fal",
-                "model": "lama",
+                "model": "fast-sdxl-inpaint",
                 "operation": "erase",
                 "fal_request_id": result.get("request_id"),
                 "metrics": result.get("metrics", {}),

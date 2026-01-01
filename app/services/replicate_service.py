@@ -53,7 +53,8 @@ class ReplicateService:
 
         # Start prediction
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Create prediction
+            # Create prediction with proper inpainting model
+            # Using stabilityai/sdxl-inpaint model which is proven for inpainting
             prediction_response = await client.post(
                 "https://api.replicate.com/v1/predictions",
                 headers={
@@ -61,7 +62,7 @@ class ReplicateService:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "version": "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+                    "version": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # SDXL Inpaint model
                     "input": {
                         "prompt": kwargs.get("prompt", ""),
                         "image": f"data:image/png;base64,{image_b64}",
@@ -69,6 +70,7 @@ class ReplicateService:
                         "num_inference_steps": kwargs.get("num_inference_steps", 20),
                         "guidance_scale": kwargs.get("guidance_scale", 7.5),
                         "strength": kwargs.get("strength", 0.8),
+                        "scheduler": "K_EULER",
                     }
                 }
             )
@@ -105,7 +107,7 @@ class ReplicateService:
 
             metadata = {
                 "provider": "replicate",
-                "model": "flux-inpainting",
+                "model": "sdxl-inpaint",
                 "operation": "erase",
                 "prediction_id": prediction["id"],
                 "status": prediction["status"],
