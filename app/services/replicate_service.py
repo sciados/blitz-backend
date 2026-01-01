@@ -81,7 +81,7 @@ class ReplicateService:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "version": "4e204a56d58574099253351c0303e4475b0b1ddf3e0a90c91c85a3b59b6cf7d1",  # thefofr/sdxl-inpaint
+                    "version": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # zsxkib/stable-diffusion-xl-inpaint-0.1
                     "input": {
                         "prompt": kwargs.get("prompt", ""),
                         "image": f"data:image/png;base64,{image_b64}",
