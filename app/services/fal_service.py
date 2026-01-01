@@ -73,7 +73,7 @@ class FALService:
                 headers={"Authorization": f"Key {self.api_key}"},
                 json={
                     "image_url": f"data:image/png;base64,{image_b64}",
-                    "mask_url": f"data:image/png;base64,{mask_b64}",
+                    "mask_image_url": f"data:image/png;base64,{mask_b64}",
                     "prompt": kwargs.get("prompt", ""),
                     "num_inference_steps": kwargs.get("num_inference_steps", 20),
                     "guidance_scale": kwargs.get("guidance_scale", 7.5),
