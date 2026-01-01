@@ -327,10 +327,26 @@ class AIPlatformManager:
 
         # If we get here, all platforms failed across all cycles
         platform_names = [p.name for p in platforms_tried]
-        raise RuntimeError(
-            f"All platforms failed for {operation_type}. "
-            f"Tried: {', '.join(platform_names)}. Last error: {last_error}"
-        )
+
+        # Count failures by type
+        not_implemented = sum(1 for p in platforms_tried if last_error and "not yet implemented" in str(last_error))
+        real_failures = len(platforms_tried) - not_implemented
+
+        # Build helpful error message
+        if not_implemented > 0 and real_failures == 0:
+            error_msg = (
+                f"All platforms for {operation_type} are not yet implemented. "
+                f"Tried: {', '.join(set(platform_names))}. "
+                f"Need to implement: {', '.join(set(platform_names))}"
+            )
+        else:
+            error_msg = (
+                f"All platforms failed for {operation_type}. "
+                f"Tried: {', '.join(platform_names)}. "
+                f"Last error: {last_error}"
+            )
+
+        raise RuntimeError(error_msg)
 
     def _is_platform_healthy(self, health: PlatformHealth) -> bool:
         """Check if a platform is currently healthy"""

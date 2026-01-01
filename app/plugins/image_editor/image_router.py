@@ -39,6 +39,9 @@ from .services.stability_service import StabilityAIService
 from app.services.r2_storage import r2_storage, R2Storage
 # Use central AI Platform Manager for automatic fallback
 from app.services.ai_platform_manager import ai_platform_manager
+# Import Replicate and FAL services for fallback
+from app.services.replicate_service import ReplicateService
+from app.services.fal_service import FALService
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +75,11 @@ async def _execute_with_platform_fallback(
             service = StabilityAIService()
             return operation_func(service, image_data, **params)
         elif platform.name == "replicate":
-            # TODO: Implement Replicate service for image editing
-            # For now, raise NotImplementedError
-            raise NotImplementedError(f"Replicate service not yet implemented for {operation_type}")
+            service = ReplicateService()
+            return operation_func(service, image_data, **params)
         elif platform.name == "fal":
-            # TODO: Implement FAL service for image editing
-            raise NotImplementedError(f"FAL service not yet implemented for {operation_type}")
+            service = FALService()
+            return operation_func(service, image_data, **params)
         else:
             raise ValueError(f"Unsupported platform: {platform.name}")
 
