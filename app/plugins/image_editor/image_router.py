@@ -79,10 +79,21 @@ async def _process_edit(
             r2_path = r2_storage.extract_path_from_url(image_url)
             original_image_path = r2_path or image_url
         else:
+            # Handle relative paths (e.g., "/campaigns/28/generated_images/image.png")
+            # Normalize path by removing leading slash and constructing full URL
+            normalized_path = image_url.lstrip('/')
+            full_url = f"{r2_storage.public_url_base}/{normalized_path}"
+
             try:
-                original_image_data = await r2_storage.download_file(image_url)
-                original_image_path = image_url
-            except Exception as download_error:
+                # Try downloading using the full URL first
+                original_image_data = await r2_storage.download_from_url(full_url)
+                original_image_path = normalized_path
+            except Exception as url_error:
+                # If that fails, try downloading directly with the normalized path
+                try:
+                    original_image_data = await r2_storage.download_file(normalized_path)
+                    original_image_path = normalized_path
+                except Exception as download_error:
                 # Check if the error is because the file doesn't exist
                 if "NoSuchKey" in str(download_error) or "does not exist" in str(download_error):
                     # Try to clean up orphaned database record
@@ -654,8 +665,19 @@ async def batch_process_images(
                     r2_path = r2_storage.extract_path_from_url(image_url)
                     original_image_path = r2_path or image_url
                 else:
-                    original_image_data = await r2_storage.download_file(image_url)
-                    original_image_path = image_url
+                    # Handle relative paths (e.g., "/campaigns/28/generated_images/image.png")
+                    # Normalize path by removing leading slash and constructing full URL
+                    normalized_path = image_url.lstrip('/')
+                    full_url = f"{r2_storage.public_url_base}/{normalized_path}"
+
+                    try:
+                        # Try downloading using the full URL first
+                        original_image_data = await r2_storage.download_from_url(full_url)
+                        original_image_path = normalized_path
+                    except Exception:
+                        # If that fails, try downloading directly with the normalized path
+                        original_image_data = await r2_storage.download_file(normalized_path)
+                        original_image_path = normalized_path
                 
                 # Route to appropriate operation
                 edited_image_data = None
