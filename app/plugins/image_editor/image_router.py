@@ -19,6 +19,9 @@ import base64
 import time
 import json
 import logging
+import httpx
+
+from app.core.config.settings import settings
 
 from app.db.session import get_db  # Your async session dependency
 from app.auth import get_current_user
@@ -73,53 +76,24 @@ async def _process_edit(
         # Initialize services
         stability_service = StabilityAIService()
 
-        # Download original image using centralized R2 storage
+        # Download original image using proxy endpoint (consistent with frontend)
         if image_url.startswith("http"):
-            original_image_data = await r2_storage.download_from_url(image_url)
+            # Full URL - extract path and use proxy
             r2_path = r2_storage.extract_path_from_url(image_url)
-            original_image_path = r2_path or image_url
+            proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(proxy_url)
+                response.raise_for_status()
+                original_image_data = response.content
+                original_image_path = r2_path or image_url
         else:
-            # Handle relative paths (e.g., "/campaigns/28/generated_images/image.png")
-            # Normalize path by removing leading slash and constructing full URL
-            normalized_path = image_url.lstrip('/')
-            full_url = f"{r2_storage.public_url_base}/{normalized_path}"
-
-            try:
-                # Try downloading using the full URL first
-                original_image_data = await r2_storage.download_from_url(full_url)
-                original_image_path = normalized_path
-            except Exception as url_error:
-                # If that fails, try downloading directly with the normalized path
-                try:
-                    original_image_data = await r2_storage.download_file(normalized_path)
-                    original_image_path = normalized_path
-                except Exception as download_error:
-                # Check if the error is because the file doesn't exist
-                if "NoSuchKey" in str(download_error) or "does not exist" in str(download_error):
-                    # Try to clean up orphaned database record
-                    try:
-                        # Look for an ImageEdit record with this path
-                        edit_query = select(ImageEdit).where(
-                            ImageEdit.edited_image_path == image_url,
-                            ImageEdit.campaign_id == campaign_id
-                        )
-                        edit_result = await db.execute(edit_query)
-                        orphaned_edit = edit_result.scalar_one_or_none()
-
-                        if orphaned_edit:
-                            await db.delete(orphaned_edit)
-                            await db.commit()
-                            logger.info(f"🧹 Deleted orphaned ImageEdit record: {image_url}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"Failed to cleanup orphaned record: {cleanup_error}")
-
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Image not found in storage. The image may have been moved or deleted. Please refresh the Content Library. Image path: {image_url}"
-                    )
-                else:
-                    # Re-raise other errors
-                    raise
+            # Relative path - use proxy directly
+            proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={image_url}"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(proxy_url)
+                response.raise_for_status()
+                original_image_data = response.content
+                original_image_path = image_url.lstrip('/')
 
         # Perform the operation
         edited_image_data, metadata = await operation_func(
@@ -659,25 +633,24 @@ async def batch_process_images(
             try:
                 print(f"Processing image {idx + 1}/{len(urls)}: {image_url}")
 
-                # Download original image using centralized R2 storage
+                # Download original image using proxy endpoint (consistent with frontend)
                 if image_url.startswith("http"):
-                    original_image_data = await r2_storage.download_from_url(image_url)
+                    # Full URL - extract path and use proxy
                     r2_path = r2_storage.extract_path_from_url(image_url)
-                    original_image_path = r2_path or image_url
+                    proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={r2_path or image_url}"
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        response = await client.get(proxy_url)
+                        response.raise_for_status()
+                        original_image_data = response.content
+                        original_image_path = r2_path or image_url
                 else:
-                    # Handle relative paths (e.g., "/campaigns/28/generated_images/image.png")
-                    # Normalize path by removing leading slash and constructing full URL
-                    normalized_path = image_url.lstrip('/')
-                    full_url = f"{r2_storage.public_url_base}/{normalized_path}"
-
-                    try:
-                        # Try downloading using the full URL first
-                        original_image_data = await r2_storage.download_from_url(full_url)
-                        original_image_path = normalized_path
-                    except Exception:
-                        # If that fails, try downloading directly with the normalized path
-                        original_image_data = await r2_storage.download_file(normalized_path)
-                        original_image_path = normalized_path
+                    # Relative path - use proxy directly
+                    proxy_url = f"{settings.BACKEND_BASE_URL}/api/images/proxy?url={image_url}"
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        response = await client.get(proxy_url)
+                        response.raise_for_status()
+                        original_image_data = response.content
+                        original_image_path = image_url.lstrip('/')
                 
                 # Route to appropriate operation
                 edited_image_data = None
