@@ -70,7 +70,7 @@ class AIPlatformManager:
         ],
         "image_editing": [
             ("stability", "sd-3.5-large"),  # Primary - best quality
-            ("replicate", "zsxkib/stable-diffusion-xl-inpaint-0.1"),  # Fallback 1 - SDXL Inpaint model
+            ("replicate", "lama"),  # Fallback 1 - LaMa inpainting model
             ("fal", "lama"),  # Fallback 2 - FAL LaMa model
         ],
         "text_generation": [

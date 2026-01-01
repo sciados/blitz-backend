@@ -72,8 +72,8 @@ class ReplicateService:
 
         # Start prediction
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Use a well-tested SDXL inpainting model
-            # Thefofr/sdxl-inpaint is a reliable choice
+            # Use Replicate's LaMa inpainting model
+            # LaMa is specifically designed for inpainting and object removal
             prediction_response = await client.post(
                 "https://api.replicate.com/v1/predictions",
                 headers={
@@ -81,7 +81,7 @@ class ReplicateService:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "version": "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # zsxkib/stable-diffusion-xl-inpaint-0.1
+                    "version": "e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",  # jinaai/lama
                     "input": {
                         "prompt": kwargs.get("prompt", ""),
                         "image": f"data:image/png;base64,{image_b64}",
