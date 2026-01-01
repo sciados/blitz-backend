@@ -114,6 +114,7 @@ class AIPlatformManager:
         operation_type: str,
         attempt: int = 0,
         max_attempts: int = 5,
+        exclude_platforms: Optional[set] = None,
         **kwargs
     ) -> PlatformSpec:
         """
@@ -123,6 +124,7 @@ class AIPlatformManager:
             operation_type: Type of operation ("image_editing", "image_generation", etc.)
             attempt: Current attempt number (internal use)
             max_attempts: Maximum fallback attempts
+            exclude_platforms: Set of platform names to skip (already tried)
             **kwargs: Additional context (quality_boost, budget, etc.)
 
         Returns:
@@ -135,16 +137,13 @@ class AIPlatformManager:
             raise ValueError(f"Unknown operation type: {operation_type}")
 
         platforms = self.PLATFORM_PRIORITIES[operation_type]
-
-        # Track which platforms we've tried
-        tried_platforms = set()
+        exclude_platforms = exclude_platforms or set()
 
         for platform_name, model_name in platforms:
             # Skip if we've already tried this platform
-            if platform_name in tried_platforms:
+            if platform_name in exclude_platforms:
+                logger.debug(f"⏭️ Skipping already-tried platform: {platform_name}")
                 continue
-
-            tried_platforms.add(platform_name)
 
             # Check platform health
             health = self.health.get(platform_name)
@@ -171,12 +170,18 @@ class AIPlatformManager:
             logger.warning(f"⚠️ All platforms unhealthy for {operation_type}, retrying...")
             # Reset health cache and try again
             self._reset_health_cache()
-            return await self.get_platform(operation_type, attempt + 1, max_attempts, **kwargs)
+            return await self.get_platform(
+                operation_type,
+                attempt + 1,
+                max_attempts,
+                exclude_platforms=exclude_platforms,
+                **kwargs
+            )
 
         # All platforms failed
         raise RuntimeError(
             f"All AI platforms failed for operation '{operation_type}'. "
-            f"Tried: {', '.join(tried_platforms)}"
+            f"Excluded: {', '.join(exclude_platforms)}"
         )
 
     async def report_success(
@@ -263,11 +268,19 @@ class AIPlatformManager:
         """
         last_error = None
         platforms_tried = []
+        tried_platform_names = set()  # Track tried platform names to exclude
 
         for attempt in range(5):  # Try up to 5 platforms
             try:
-                platform = await self.get_platform(operation_type, attempt=attempt)
-                platforms_tried.append(platform)  # Store the PlatformSpec OBJECT, not the name
+                # Pass exclude_platforms to get_platform so it doesn't return already-tried platforms
+                platform = await self.get_platform(
+                    operation_type,
+                    attempt=attempt,
+                    exclude_platforms=tried_platform_names
+                )
+
+                platforms_tried.append(platform)  # Store the PlatformSpec OBJECT
+                tried_platform_names.add(platform.name)  # Track by name
 
                 start_time = time.time()
                 result = await operation_func(platform, *args, **kwargs)
@@ -281,12 +294,14 @@ class AIPlatformManager:
                 platform = platforms_tried[-1] if platforms_tried else None  # Now platform is a PlatformSpec object
                 if platform:
                     await self.report_failure(platform, operation_type, e)
+                # Loop continues, get_platform will skip the failed platform
                 continue
 
         # If we get here, all platforms failed
+        platform_names = [p.name for p in platforms_tried]  # Extract platform names for error message
         raise RuntimeError(
             f"All platforms failed for {operation_type}. "
-            f"Tried: {', '.join(platforms_tried)}. Last error: {last_error}"
+            f"Tried: {', '.join(platform_names)}. Last error: {last_error}"
         )
 
     def _is_platform_healthy(self, health: PlatformHealth) -> bool:
