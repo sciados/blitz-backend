@@ -1,325 +1,339 @@
+# app/plugins/image_editor/services/replicate_service.py
 """
-Replicate Service for Image Editing
-Supports erase, inpaint, background removal, and other editing operations
+Replicate AI Service for Image Editing Operations
+Handles all interactions with Replicate API
+Uses LaMa, BiRefNet, Real-ESRGAN, and other open-source models
+
+UPDATED: Now uses jinaai/lama (newer, better maintained version)
 """
 
-from __future__ import annotations
-
-import os
-import io
 import asyncio
-import logging
-from typing import Optional, Tuple, Dict, Any
-
+import os
 import httpx
-
-logger = logging.getLogger(__name__)
+import base64
+import time
+from typing import Optional, Tuple
+from io import BytesIO
 
 
 class ReplicateService:
-    """Replicate service for AI image editing operations"""
-
+    """Service for interacting with Replicate API"""
+    
+    # Best models for each operation (UPDATED - Latest versions)
+    MODELS = {
+        "inpaint": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",
+        "erase": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",
+        "background_remove": "cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003",
+        "upscale": "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+        "outpaint": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+    }
+    
     def __init__(self):
-        """Initialize Replicate service"""
-        self.api_key = os.getenv("REPLICATE_API_TOKEN")
-        if not self.api_key:
-            raise ValueError("REPLICATE_API_TOKEN not set")
-
+        self.api_token = os.getenv("REPLICATE_API_TOKEN")
+        if not self.api_token:
+            raise ValueError("REPLICATE_API_TOKEN environment variable not set")
+        
+        self.base_url = "https://api.replicate.com/v1"
+        self.headers = {
+            "Authorization": f"Token {self.api_token}",
+            "Content-Type": "application/json"
+        }
+    
+    async def _create_prediction(self, version: str, input_params: dict) -> dict:
+        """
+        Create a prediction on Replicate
+        
+        Args:
+            version: Model version hash
+            input_params: Input parameters for the model
+        
+        Returns:
+            Prediction response
+        """
+        endpoint = f"{self.base_url}/predictions"
+        
+        payload = {
+            "version": version,
+            "input": input_params
+        }
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                endpoint,
+                headers=self.headers,
+                json=payload
+            )
+            
+            if response.status_code != 201:
+                error_detail = response.text if response.content else "Unknown error"
+                raise Exception(f"Replicate API error: {response.status_code} - {error_detail}")
+            
+            return response.json()
+    
+    async def _wait_for_prediction(self, prediction_id: str, max_wait: int = 120) -> dict:
+        """
+        Poll prediction until complete or timeout
+        
+        Args:
+            prediction_id: Prediction ID to poll
+            max_wait: Maximum seconds to wait
+        
+        Returns:
+            Completed prediction response
+        """
+        endpoint = f"{self.base_url}/predictions/{prediction_id}"
+        
+        start_time = time.time()
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            while True:
+                if time.time() - start_time > max_wait:
+                    raise Exception(f"Prediction timeout after {max_wait} seconds")
+                
+                response = await client.get(endpoint, headers=self.headers)
+                
+                if response.status_code != 200:
+                    error_detail = response.text if response.content else "Unknown error"
+                    raise Exception(f"Replicate API error: {response.status_code} - {error_detail}")
+                
+                result = response.json()
+                status = result.get("status")
+                
+                if status == "succeeded":
+                    return result
+                elif status == "failed":
+                    error = result.get("error", "Unknown error")
+                    raise Exception(f"Prediction failed: {error}")
+                elif status == "canceled":
+                    raise Exception("Prediction was canceled")
+                
+                # Wait before polling again
+                await asyncio.sleep(1)
+    
+    async def inpaint_image(
+        self,
+        image_data: bytes,
+        mask_data: bytes,
+        prompt: str = "inpaint",
+        output_format: str = "png"
+    ) -> Tuple[bytes, dict]:
+        """
+        Perform inpainting using jinaai/lama model (newer version)
+        
+        Args:
+            image_data: Original image bytes
+            mask_data: Mask image bytes (white areas will be inpainted)
+            prompt: Not used by LaMa but kept for compatibility
+            output_format: Output format (png, jpeg, webp)
+        
+        Returns:
+            Tuple of (edited_image_bytes, metadata_dict)
+        """
+        # Convert bytes to base64 data URLs
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        mask_b64 = base64.b64encode(mask_data).decode('utf-8')
+        
+        image_url = f"data:image/png;base64,{image_b64}"
+        mask_url = f"data:image/png;base64,{mask_b64}"
+        
+        # jinaai/lama model parameters (simplified - no HD strategy needed)
+        input_params = {
+            "image": image_url,
+            "mask": mask_url,
+        }
+        
+        try:
+            # Create prediction
+            prediction = await self._create_prediction(
+                self.MODELS["inpaint"],
+                input_params
+            )
+            
+            # Wait for completion
+            result = await self._wait_for_prediction(prediction["id"])
+            
+            # Get output image URL
+            output_url = result.get("output")
+            if not output_url:
+                raise Exception("No output in Replicate response")
+            
+            # Download result image
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                img_response = await client.get(output_url)
+                if img_response.status_code != 200:
+                    raise Exception(f"Failed to download result image: {img_response.status_code}")
+                
+                image_bytes = img_response.content
+            
+            metadata = {
+                "model": "jinaai/lama",
+                "platform": "replicate",
+                "prediction_id": prediction["id"],
+            }
+            
+            return image_bytes, metadata
+            
+        except Exception as e:
+            # Log error for debugging
+            print(f"Replicate inpaint error: {str(e)}")
+            raise
+    
     async def erase_objects(
         self,
         image_data: bytes,
         mask_data: bytes,
-        output_format: str = "png",
-        **kwargs
-    ) -> Tuple[bytes, Dict[str, Any]]:
+        output_format: str = "png"
+    ) -> Tuple[bytes, dict]:
         """
-        Erase objects from image using Replicate's inpainting model
-
+        Erase objects using jinaai/lama model (same as inpaint)
+        
         Args:
             image_data: Original image bytes
-            mask_data: Mask bytes (white=erase for Stability AI convention)
-            output_format: Output format (png, jpg, webp)
-            **kwargs: Additional parameters
-
-        Returns:
-            Tuple of (edited_image_data, metadata)
-        """
-        logger.info("🎨 Replicate: Erasing objects...")
-
-        # Convert bytes to base64 for Replicate API
-        import base64
-        image_b64 = base64.b64encode(image_data).decode()
-
-        # IMPORTANT: Replicate inpainting models typically use INVERTED mask convention
-        # Stability AI: white = erase
-        # Replicate: black = erase (need to invert)
-        # Let's try both approaches by inverting the mask
-
-        # Invert mask: white becomes black, black becomes white
-        from PIL import Image
-        import io
-
-        # Convert mask to PIL Image
-        mask_img = Image.open(io.BytesIO(mask_data)).convert("RGB")
-        # Invert colors: white (255) -> black (0), black (0) -> white (255)
-        inverted_mask = Image.eval(mask_img, lambda x: 255 - x)
-        # Convert back to bytes
-        inverted_buffer = io.BytesIO()
-        inverted_mask.save(inverted_buffer, format="PNG")
-        inverted_mask_data = inverted_buffer.getvalue()
-
-        mask_b64 = base64.b64encode(inverted_mask_data).decode()
-
-        # Start prediction
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            # Use Replicate's LaMa inpainting model
-            # LaMa is specifically designed for inpainting and object removal
-            prediction_response = await client.post(
-                "https://api.replicate.com/v1/predictions",
-                headers={
-                    "Authorization": f"Token {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "version": "e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",  # jinaai/lama
-                    "input": {
-                        "prompt": kwargs.get("prompt", ""),
-                        "image": f"data:image/png;base64,{image_b64}",
-                        "mask": f"data:image/png;base64,{mask_b64}",
-                        "num_inference_steps": kwargs.get("num_inference_steps", 20),
-                        "guidance_scale": kwargs.get("guidance_scale", 7.5),
-                        "strength": kwargs.get("strength", 0.8),
-                        "seed": kwargs.get("seed", 42),
-                    }
-                }
-            )
-
-            if prediction_response.status_code != 201:
-                error_msg = f"Replicate API error: {prediction_response.text}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            prediction = prediction_response.json()
-            logger.info(f"Replicate prediction started: {prediction['id']}")
-
-            # Poll for completion
-            while prediction["status"] not in ["succeeded", "failed", "canceled"]:
-                await asyncio.sleep(2)
-                result = await client.get(
-                    f"https://api.replicate.com/v1/predictions/{prediction['id']}",
-                    headers={"Authorization": f"Token {self.api_key}"}
-                )
-                prediction = result.json()
-                logger.debug(f"Replicate status: {prediction['status']}")
-
-            if prediction["status"] != "succeeded":
-                error_msg = f"Replicate prediction failed: {prediction.get('error', 'Unknown error')}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            # Get result
-            result_url = prediction["output"][0]
-
-            # Download result
-            image_response = await client.get(result_url)
-            edited_data = image_response.content
-
-            metadata = {
-                "provider": "replicate",
-                "model": "sdxl-inpaint",
-                "operation": "erase",
-                "prediction_id": prediction["id"],
-                "status": prediction["status"],
-                "completed_at": prediction.get("completed_at"),
-                "metrics": prediction.get("metrics", {}),
-                "mask_inverted": True,  # Note that we inverted the mask
-            }
-
-            logger.info("✅ Replicate: Object erasure completed")
-            return edited_data, metadata
-
-    async def inpaint(
-        self,
-        image_data: bytes,
-        mask_data: bytes,
-        prompt: str,
-        output_format: str = "png",
-        **kwargs
-    ) -> Tuple[bytes, Dict[str, Any]]:
-        """
-        Inpaint (fill) regions of image using Replicate
-
-        Args:
-            image_data: Original image bytes
-            mask_data: Mask bytes (white=masked area to fill)
-            prompt: Text prompt for inpainting
+            mask_data: Mask image bytes
             output_format: Output format
-            **kwargs: Additional parameters
-
+        
         Returns:
-            Tuple of (edited_image_data, metadata)
+            Tuple of (edited_image_bytes, metadata_dict)
         """
-        logger.info("🎨 Replicate: Inpainting...")
-
-        # Use the same erase_objects method with a prompt
-        return await self.erase_objects(
-            image_data=image_data,
-            mask_data=mask_data,
-            output_format=output_format,
-            prompt=prompt,
-            **kwargs
-        )
-
+        return await self.inpaint_image(image_data, mask_data, output_format=output_format)
+    
     async def remove_background(
         self,
         image_data: bytes,
-        output_format: str = "png",
-        **kwargs
-    ) -> Tuple[bytes, Dict[str, Any]]:
+        output_format: str = "png"
+    ) -> Tuple[bytes, dict]:
         """
-        Remove background from image using Replicate
-
+        Remove background using RMBG model
+        
         Args:
-            image_data: Image bytes
+            image_data: Original image bytes
             output_format: Output format
-            **kwargs: Additional parameters
-
+        
         Returns:
-            Tuple of (edited_image_data, metadata)
+            Tuple of (edited_image_bytes, metadata_dict)
         """
-        logger.info("🎨 Replicate: Removing background...")
-
-        # Replicate background removal using rembg model
-        import base64
-        image_b64 = base64.b64encode(image_data).decode()
-
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            prediction_response = await client.post(
-                "https://api.replicate.com/v1/predictions",
-                headers={
-                    "Authorization": f"Token {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "version": "bg removal:09f0abdb8b4e1f4a6e4f3f5e0d5f0b9c7f9a0b8c9d8e7f6a5b4c3d2e1f0a",  # rembg model version
-                    "input": {
-                        "image": f"data:image/png;base64,{image_b64}",
-                    }
-                }
+        # Convert bytes to base64 data URL
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        image_url = f"data:image/png;base64,{image_b64}"
+        
+        input_params = {
+            "image": image_url
+        }
+        
+        try:
+            # Create prediction
+            prediction = await self._create_prediction(
+                self.MODELS["background_remove"],
+                input_params
             )
-
-            if prediction_response.status_code != 201:
-                error_msg = f"Replicate API error: {prediction_response.text}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            prediction = prediction_response.json()
-
-            # Poll for completion
-            while prediction["status"] not in ["succeeded", "failed", "canceled"]:
-                await asyncio.sleep(2)
-                result = await client.get(
-                    f"https://api.replicate.com/v1/predictions/{prediction['id']}",
-                    headers={"Authorization": f"Token {self.api_key}"}
-                )
-                prediction = result.json()
-
-            if prediction["status"] != "succeeded":
-                raise Exception(f"Background removal failed: {prediction.get('error')}")
-
-            # Get result
-            result_url = prediction["output"][0]
-            image_response = await client.get(result_url)
-            edited_data = image_response.content
-
+            
+            # Wait for completion
+            result = await self._wait_for_prediction(prediction["id"])
+            
+            # Get output image URL
+            output_url = result.get("output")
+            if not output_url:
+                raise Exception("No output in Replicate response")
+            
+            # Download result image
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                img_response = await client.get(output_url)
+                if img_response.status_code != 200:
+                    raise Exception(f"Failed to download result image: {img_response.status_code}")
+                
+                image_bytes = img_response.content
+            
             metadata = {
-                "provider": "replicate",
                 "model": "rembg",
-                "operation": "background_removal",
+                "platform": "replicate",
                 "prediction_id": prediction["id"],
-                "status": prediction["status"],
-                "completed_at": prediction.get("completed_at"),
-                "metrics": prediction.get("metrics", {}),
             }
-
-            logger.info("✅ Replicate: Background removal completed")
-            return edited_data, metadata
-
-    async def upscale(
+            
+            return image_bytes, metadata
+            
+        except Exception as e:
+            print(f"Replicate background removal error: {str(e)}")
+            raise
+    
+    async def upscale_image(
         self,
         image_data: bytes,
         scale: int = 2,
-        output_format: str = "png",
-        **kwargs
-    ) -> Tuple[bytes, Dict[str, Any]]:
+        output_format: str = "png"
+    ) -> Tuple[bytes, dict]:
         """
-        Upscale image using Replicate's Real-ESRGAN model
-
+        Upscale image using Real-ESRGAN
+        
         Args:
-            image_data: Image bytes
-            scale: Upscale factor (2, 4, 8)
+            image_data: Original image bytes
+            scale: Upscaling factor (2 or 4)
             output_format: Output format
-            **kwargs: Additional parameters
-
+        
         Returns:
-            Tuple of (edited_image_data, metadata)
+            Tuple of (edited_image_bytes, metadata_dict)
         """
-        logger.info(f"🎨 Replicate: Upscaling image by {scale}x...")
-
-        import base64
-        image_b64 = base64.b64encode(image_data).decode()
-
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            prediction_response = await client.post(
-                "https://api.replicate.com/v1/predictions",
-                headers={
-                    "Authorization": f"Token {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "version": "real-esrgan:1:0.0.1",
-                    "input": {
-                        "image": f"data:image/png;base64,{image_b64}",
-                        "scale": scale,
-                        "face_enhance": kwargs.get("face_enhance", True),
-                    }
-                }
+        # Convert bytes to base64 data URL
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        image_url = f"data:image/png;base64,{image_b64}"
+        
+        input_params = {
+            "image": image_url,
+            "scale": scale,
+            "face_enhance": False,
+        }
+        
+        try:
+            # Create prediction
+            prediction = await self._create_prediction(
+                self.MODELS["upscale"],
+                input_params
             )
-
-            if prediction_response.status_code != 201:
-                error_msg = f"Replicate API error: {prediction_response.text}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            prediction = prediction_response.json()
-
-            # Poll for completion
-            while prediction["status"] not in ["succeeded", "failed", "canceled"]:
-                await asyncio.sleep(2)
-                result = await client.get(
-                    f"https://api.replicate.com/v1/predictions/{prediction['id']}",
-                    headers={"Authorization": f"Token {self.api_key}"}
-                )
-                prediction = result.json()
-
-            if prediction["status"] != "succeeded":
-                raise Exception(f"Upscaling failed: {prediction.get('error')}")
-
-            # Get result
-            result_url = prediction["output"][0]
-            image_response = await client.get(result_url)
-            edited_data = image_response.content
-
+            
+            # Wait for completion (longer timeout for upscaling)
+            result = await self._wait_for_prediction(prediction["id"], max_wait=180)
+            
+            # Get output image URL
+            output_url = result.get("output")
+            if not output_url:
+                raise Exception("No output in Replicate response")
+            
+            # Download result image
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                img_response = await client.get(output_url)
+                if img_response.status_code != 200:
+                    raise Exception(f"Failed to download result image: {img_response.status_code}")
+                
+                image_bytes = img_response.content
+            
             metadata = {
-                "provider": "replicate",
                 "model": "real-esrgan",
-                "operation": "upscale",
-                "scale": scale,
+                "platform": "replicate",
                 "prediction_id": prediction["id"],
-                "status": prediction["status"],
-                "completed_at": prediction.get("completed_at"),
-                "metrics": prediction.get("metrics", {}),
+                "scale": scale,
             }
-
-            logger.info("✅ Replicate: Upscaling completed")
-            return edited_data, metadata
+            
+            return image_bytes, metadata
+            
+        except Exception as e:
+            print(f"Replicate upscale error: {str(e)}")
+            raise
+    
+    def estimate_cost_usd(self, operation_type: str) -> float:
+        """
+        Estimate the cost in USD for an operation
+        
+        Args:
+            operation_type: Type of operation
+        
+        Returns:
+            Estimated cost in USD
+        """
+        cost_map = {
+            "inpaint": 0.008,
+            "erase": 0.008,
+            "background_remove": 0.005,
+            "upscale": 0.01,
+            "outpaint": 0.01,
+        }
+        
+        return cost_map.get(operation_type, 0.008)
