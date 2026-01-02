@@ -174,13 +174,23 @@ async def log_requests(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors."""
+    # Don't try to serialize FormData or other non-JSON request bodies
+    error_content = {
+        "error": "Validation Error",
+        "detail": exc.errors()
+    }
+    
+    # Only include body if it's already JSON-serializable
+    try:
+        if exc.body is not None and not isinstance(exc.body, (bytes, bytearray)):
+            error_content["body"] = exc.body
+    except:
+        # Skip body if it can't be serialized
+        pass
+    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "error": "Validation Error",
-            "detail": exc.errors(),
-            "body": exc.body
-        }
+        content=error_content
     )
 
 @app.exception_handler(Exception)
