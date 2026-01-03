@@ -114,7 +114,7 @@ class ReplicateService:
         self,
         image_data: bytes,
         mask_data: bytes,
-        prompt: str = "inpaint",
+        prompt: str = "remove the masked area",
         output_format: str = "png"
     ) -> Tuple[bytes, dict]:
         """
@@ -123,7 +123,7 @@ class ReplicateService:
         Args:
             image_data: Original image bytes
             mask_data: Mask image bytes (white areas will be inpainted)
-            prompt: Not used by LaMa but kept for compatibility
+            prompt: Prompt for inpainting (required by jinaai/lama)
             output_format: Output format (png, jpeg, webp)
         
         Returns:
@@ -136,10 +136,11 @@ class ReplicateService:
         image_url = f"data:image/png;base64,{image_b64}"
         mask_url = f"data:image/png;base64,{mask_b64}"
         
-        # jinaai/lama model parameters (simplified - no HD strategy needed)
+        # jinaai/lama model parameters (requires prompt)
         input_params = {
             "image": image_url,
             "mask": mask_url,
+            "prompt": prompt,  # Required by jinaai/lama
         }
         
         try:
@@ -195,7 +196,13 @@ class ReplicateService:
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
-        return await self.inpaint_image(image_data, mask_data, output_format=output_format)
+        # Use inpaint with a generic prompt for erasing
+        return await self.inpaint_image(
+            image_data, 
+            mask_data, 
+            prompt="remove the masked area",
+            output_format=output_format
+        )
     
     async def remove_background(
         self,
