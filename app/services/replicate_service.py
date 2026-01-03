@@ -1,6 +1,7 @@
 # app/plugins/image_editor/services/replicate_service.py
+# Replicate AI Service for Image Editing Operations
+
 """
-Replicate AI Service for Image Editing Operations
 Handles all interactions with Replicate API
 Uses LaMa, BiRefNet, Real-ESRGAN, and other open-source models
 """
