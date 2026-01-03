@@ -85,19 +85,16 @@ class ImageEditRecord(BaseModel):
         from_attributes = True
 
 
-class EditHistoryResponse(BaseModel):
-    """Response for fetching edit history"""
-    edits: list[ImageEditRecord]
-    total: int
-    page: int
-    page_size: int
-
-
 class EditStatistics(BaseModel):
     """Statistics for user's editing activity"""
     total_edits: int
     successful_edits: int
     failed_edits: int
-    total_credits_used: float
-    avg_processing_time_ms: float
-    edits_by_type: Dict[str, int]
+    total_api_cost_credits: float  # Changed from total_credits_used
+    average_processing_time_ms: int  # Changed from avg_processing_time_ms (float → int)
+
+
+class EditHistoryResponse(BaseModel):
+    """Response for fetching edit history"""
+    edits: list[ImageEditRecord]
+    statistics: EditStatistics

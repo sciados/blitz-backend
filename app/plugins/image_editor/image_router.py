@@ -961,6 +961,7 @@ async def get_edit_history(
         edit_records = [
             ImageEditRecord(
                 id=edit.id,
+                user_id=edit.user_id,  # ✅ Added
                 campaign_id=edit.campaign_id,
                 original_image_path=edit.original_image_path,
                 edited_image_path=edit.edited_image_path,
@@ -970,6 +971,7 @@ async def get_edit_history(
                 success=edit.success,
                 error_message=edit.error_message,
                 created_at=edit.created_at,
+                updated_at=edit.updated_at,  # ✅ Added
                 parent_image_id=edit.parent_image_id,
                 has_transparency=edit.has_transparency
             )
