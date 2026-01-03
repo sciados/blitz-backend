@@ -363,7 +363,7 @@ async def inpaint_image(
         operation_type="inpainting",
         operation_func=operation,
         operation_params={
-            'mask_data': mask_data,
+            # Don't store mask_data bytes - not JSON serializable
             'prompt': prompt,
             'negative_prompt': negative_prompt,
             'seed': seed,
@@ -608,7 +608,7 @@ async def erase_objects(
         operation_type="erase",
         operation_func=operation,
         operation_params={
-            'mask_data': mask_data,
+            # Don't store mask_data bytes - not JSON serializable
             'seed': seed,
             'output_format': output_format
         },
