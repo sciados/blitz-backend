@@ -219,12 +219,12 @@ class ReplicateService:
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
-        # Use inpaint with a generic prompt for erasing
-        # Note: seed is not used by LaMa model
+        # Use inpaint with a prompt that emphasizes filling with background
+        # LaMa will do content-aware fill based on surrounding pixels
         return await self.inpaint_image(
             image_data, 
             mask_data, 
-            prompt="remove the masked area",
+            prompt="fill with surrounding background texture, seamless inpainting",
             output_format=output_format
         )
     
