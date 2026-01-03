@@ -3,8 +3,6 @@
 Replicate AI Service for Image Editing Operations
 Handles all interactions with Replicate API
 Uses LaMa, BiRefNet, Real-ESRGAN, and other open-source models
-
-UPDATED: Now uses jinaai/lama (newer, better maintained version)
 """
 
 import asyncio
@@ -21,7 +19,7 @@ class ReplicateService:
     
     # Best models for each operation
     MODELS = {
-        "inpaint": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",  # Prompt-based inpainting
+        "inpaint": "andreasjansson/lama-cleaner:6c8f5a21ec10eee2cb24b3a44348850c6fc92117ee0af578e05f0e3d08463255",  # Pure content-aware fill (no prompt)
         "erase": "andreasjansson/lama-cleaner:6c8f5a21ec10eee2cb24b3a44348850c6fc92117ee0af578e05f0e3d08463255",  # Pure content-aware fill (no prompt)
         "background_remove": "cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003",
         "upscale": "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
@@ -188,7 +186,7 @@ class ReplicateService:
                 image_bytes = img_response.content
             
             metadata = {
-                "model": "jinaai/lama",
+                "model": "lama-cleaner",
                 "platform": "replicate",
                 "prediction_id": prediction["id"],
             }
