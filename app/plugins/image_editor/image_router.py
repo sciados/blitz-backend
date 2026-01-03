@@ -341,6 +341,10 @@ async def inpaint_image(
 ):
     """Inpaint masked areas in an image"""
     
+    # Strip data URL prefix if present (data:image/png;base64,...)
+    if mask_data_base64.startswith('data:'):
+        mask_data_base64 = mask_data_base64.split(',', 1)[1]
+    
     mask_data = base64.b64decode(mask_data_base64)
     
     async def operation(service, image_data, **params):
@@ -583,6 +587,10 @@ async def erase_objects(
     db: AsyncSession = Depends(get_db)
 ):
     """Erase objects from image using mask"""
+    
+    # Strip data URL prefix if present (data:image/png;base64,...)
+    if mask_data_base64.startswith('data:'):
+        mask_data_base64 = mask_data_base64.split(',', 1)[1]
     
     mask_data = base64.b64decode(mask_data_base64)
     
