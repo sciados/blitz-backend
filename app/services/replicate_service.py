@@ -204,6 +204,7 @@ class ReplicateService:
         self,
         image_data: bytes,
         mask_data: bytes,
+        seed: int = 0,
         output_format: str = "png"
     ) -> Tuple[bytes, dict]:
         """
@@ -212,12 +213,14 @@ class ReplicateService:
         Args:
             image_data: Original image bytes
             mask_data: Mask image bytes
+            seed: Random seed (not used by LaMa but accepted for compatibility)
             output_format: Output format
         
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
         # Use inpaint with a generic prompt for erasing
+        # Note: seed is not used by LaMa model
         return await self.inpaint_image(
             image_data, 
             mask_data, 
