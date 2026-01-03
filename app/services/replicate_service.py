@@ -110,6 +110,29 @@ class ReplicateService:
                 # Wait before polling again
                 await asyncio.sleep(1)
     
+    def _get_output_url(self, result: dict) -> str:
+        """
+        Extract output URL from Replicate result
+        Handles both list and string outputs
+        
+        Args:
+            result: Replicate prediction result
+            
+        Returns:
+            Output image URL
+        """
+        output = result.get("output")
+        if not output:
+            raise Exception("No output in Replicate response")
+        
+        # Replicate can return a list or a single URL
+        if isinstance(output, list):
+            if len(output) == 0:
+                raise Exception("Empty output list from Replicate")
+            return output[0]  # Return first URL
+        
+        return output  # Return single URL
+    
     async def inpaint_image(
         self,
         image_data: bytes,
@@ -153,10 +176,8 @@ class ReplicateService:
             # Wait for completion
             result = await self._wait_for_prediction(prediction["id"])
             
-            # Get output image URL
-            output_url = result.get("output")
-            if not output_url:
-                raise Exception("No output in Replicate response")
+            # Get output image URL (handles list or string)
+            output_url = self._get_output_url(result)
             
             # Download result image
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -237,10 +258,8 @@ class ReplicateService:
             # Wait for completion
             result = await self._wait_for_prediction(prediction["id"])
             
-            # Get output image URL
-            output_url = result.get("output")
-            if not output_url:
-                raise Exception("No output in Replicate response")
+            # Get output image URL (handles list or string)
+            output_url = self._get_output_url(result)
             
             # Download result image
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -299,10 +318,8 @@ class ReplicateService:
             # Wait for completion (longer timeout for upscaling)
             result = await self._wait_for_prediction(prediction["id"], max_wait=180)
             
-            # Get output image URL
-            output_url = result.get("output")
-            if not output_url:
-                raise Exception("No output in Replicate response")
+            # Get output image URL (handles list or string)
+            output_url = self._get_output_url(result)
             
             # Download result image
             async with httpx.AsyncClient(timeout=60.0) as client:
