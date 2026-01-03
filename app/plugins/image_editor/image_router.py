@@ -140,40 +140,12 @@ async def _process_edit(
                 # Route to appropriate service
                 if platform == AIPlatform.REPLICATE:
                     service = ReplicateService()
-                    
-                    # Call appropriate Replicate method based on operation
-                    if operation_type == "inpainting":
-                        edited_image_data, metadata = await service.inpaint_image(
-                            original_image_data,
-                            operation_params.get('mask_data'),
-                            prompt=operation_params.get('prompt', 'inpaint'),
-                            output_format=operation_params.get('output_format', 'png')
-                        )
-                    elif operation_type == "erase":
-                        edited_image_data, metadata = await service.erase_objects(
-                            original_image_data,
-                            operation_params.get('mask_data'),
-                            output_format=operation_params.get('output_format', 'png')
-                        )
-                    elif operation_type == "background_removal":
-                        edited_image_data, metadata = await service.remove_background(
-                            original_image_data,
-                            output_format=operation_params.get('output_format', 'png')
-                        )
-                    elif operation_type == "upscaling":
-                        edited_image_data, metadata = await service.upscale_image(
-                            original_image_data,
-                            scale=operation_params.get('scale', 2),
-                            output_format=operation_params.get('output_format', 'png')
-                        )
-                    else:
-                        # Fall back to Stability for operations not yet in Replicate
-                        logger.info(f"⚠️ {operation_type} not implemented in Replicate, using Stability")
-                        stability_service = StabilityAIService()
-                        edited_image_data, metadata = await operation_func(
-                            stability_service, original_image_data, **operation_params
-                        )
-                        platform_used = "stability"
+                    # Use the operation_func passed from endpoint (has mask_data in closure)
+                    edited_image_data, metadata = await operation_func(
+                        service,
+                        original_image_data,
+                        **operation_params
+                    )
                 
                 elif platform == AIPlatform.STABILITY:
                     # Use Stability AI (original behavior)
@@ -641,7 +613,9 @@ async def erase_objects(
     
     try:
         mask_data = base64.b64decode(mask_data_base64)
+        logger.info(f"✅ Decoded mask_data: {len(mask_data) if mask_data else 'None'} bytes")
     except Exception as e:
+        logger.error(f"❌ Base64 decode failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid base64 data for mask: {str(e)}"
@@ -649,6 +623,7 @@ async def erase_objects(
     
     async def operation(service, image_data, **params):
         # Use mask_data from closure (not from params)
+        logger.info(f"🔍 In operation function - mask_data type: {type(mask_data)}, len: {len(mask_data) if mask_data else 'None'}")
         return await service.erase_objects(
             image_data=image_data,
             mask_data=mask_data,  # From closure, not params
