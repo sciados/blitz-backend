@@ -374,9 +374,10 @@ async def inpaint_image(
         )
     
     async def operation(service, image_data, **params):
+        # Use mask_data from closure (not from params)
         return await service.inpaint_image(
             image_data=image_data,
-            mask_data=params['mask_data'],
+            mask_data=mask_data,  # From closure, not params
             prompt=params['prompt'],
             negative_prompt=params.get('negative_prompt'),
             seed=params.get('seed', 0),
@@ -647,9 +648,10 @@ async def erase_objects(
         )
     
     async def operation(service, image_data, **params):
+        # Use mask_data from closure (not from params)
         return await service.erase_objects(
             image_data=image_data,
-            mask_data=params['mask_data'],
+            mask_data=mask_data,  # From closure, not params
             seed=params.get('seed', 0),
             output_format=params.get('output_format', 'png')
         )
