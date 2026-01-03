@@ -341,11 +341,37 @@ async def inpaint_image(
 ):
     """Inpaint masked areas in an image"""
     
+    # Validate mask data
+    if not mask_data_base64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mask_data_base64 is required"
+        )
+    
     # Strip data URL prefix if present (data:image/png;base64,...)
     if mask_data_base64.startswith('data:'):
-        mask_data_base64 = mask_data_base64.split(',', 1)[1]
+        parts = mask_data_base64.split(',', 1)
+        if len(parts) != 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid data URL format for mask"
+            )
+        mask_data_base64 = parts[1]
     
-    mask_data = base64.b64decode(mask_data_base64)
+    # Validate we have base64 data after stripping
+    if not mask_data_base64 or mask_data_base64.strip() == '':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mask_data_base64 is empty after processing"
+        )
+    
+    try:
+        mask_data = base64.b64decode(mask_data_base64)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid base64 data for mask: {str(e)}"
+        )
     
     async def operation(service, image_data, **params):
         return await service.inpaint_image(
@@ -588,11 +614,37 @@ async def erase_objects(
 ):
     """Erase objects from image using mask"""
     
+    # Validate mask data
+    if not mask_data_base64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mask_data_base64 is required"
+        )
+    
     # Strip data URL prefix if present (data:image/png;base64,...)
     if mask_data_base64.startswith('data:'):
-        mask_data_base64 = mask_data_base64.split(',', 1)[1]
+        parts = mask_data_base64.split(',', 1)
+        if len(parts) != 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid data URL format for mask"
+            )
+        mask_data_base64 = parts[1]
     
-    mask_data = base64.b64decode(mask_data_base64)
+    # Validate we have base64 data after stripping
+    if not mask_data_base64 or mask_data_base64.strip() == '':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="mask_data_base64 is empty after processing"
+        )
+    
+    try:
+        mask_data = base64.b64decode(mask_data_base64)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid base64 data for mask: {str(e)}"
+        )
     
     async def operation(service, image_data, **params):
         return await service.erase_objects(
