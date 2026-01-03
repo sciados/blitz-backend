@@ -2,9 +2,17 @@
 Pydantic schemas for Image Editor Plugin
 """
 from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
 from enum import Enum
+
+
+class ImageSource(str, Enum):
+    """Image source types for unified image responses"""
+    GENERATED = "generated"  # AI-generated from prompt
+    EDITED = "edited"        # Edited from another image
+    UPLOADED = "uploaded"    # User-uploaded (future)
+    STOCK = "stock"          # Stock library (future)
 
 
 class OperationType(str, Enum):
@@ -63,6 +71,7 @@ class InpaintingResponse(BaseModel):
 class ImageEditRecord(BaseModel):
     """Database record for an image edit"""
     id: int
+    source: str = "edited"  # Image source type (for unified responses)
     user_id: int
     campaign_id: int
     original_image_path: str
@@ -98,3 +107,38 @@ class EditHistoryResponse(BaseModel):
     """Response for fetching edit history"""
     edits: list[ImageEditRecord]
     statistics: EditStatistics
+
+
+class UnifiedImageResponse(BaseModel):
+    """
+    Unified response for all image types (generated + edited)
+    Provides consistent interface with source type identification
+    """
+    # Core fields (all images)
+    id: int
+    source: ImageSource              # Type identifier (generated/edited)
+    image_url: str
+    thumbnail_url: Optional[str] = None
+    campaign_id: int
+    created_at: datetime
+    has_transparency: bool = False
+    
+    # Generated-specific fields (optional)
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    prompt: Optional[str] = None
+    style: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    
+    # Edited-specific fields (optional)
+    operation_type: Optional[str] = None
+    parent_image_id: Optional[int] = None
+    processing_time_ms: Optional[int] = None
+    original_image_path: Optional[str] = None
+    
+    # Common metadata
+    cost_credits: Optional[float] = None
+    
+    class Config:
+        use_enum_values = True
+        from_attributes = True
