@@ -19,10 +19,10 @@ from io import BytesIO
 class ReplicateService:
     """Service for interacting with Replicate API"""
     
-    # Best models for each operation (UPDATED - Latest versions)
+    # Best models for each operation
     MODELS = {
-        "inpaint": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",
-        "erase": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",
+        "inpaint": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",  # Prompt-based inpainting
+        "erase": "andreasjansson/lama-cleaner:6c8f5a21ec10eee2cb24b3a44348850c6fc92117ee0af578e05f0e3d08463255",  # Pure content-aware fill (no prompt)
         "background_remove": "cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003",
         "upscale": "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
         "outpaint": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
@@ -208,25 +208,68 @@ class ReplicateService:
         output_format: str = "png"
     ) -> Tuple[bytes, dict]:
         """
-        Erase objects using jinaai/lama model (same as inpaint)
+        Erase objects using lama-cleaner model (pure content-aware fill, no prompt)
         
         Args:
             image_data: Original image bytes
-            mask_data: Mask image bytes
-            seed: Random seed (not used by LaMa but accepted for compatibility)
+            mask_data: Mask image bytes (white areas will be erased)
+            seed: Random seed (not used but accepted for compatibility)
             output_format: Output format
         
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
-        # Use inpaint with a prompt that emphasizes filling with background
-        # LaMa will do content-aware fill based on surrounding pixels
-        return await self.inpaint_image(
-            image_data, 
-            mask_data, 
-            prompt="fill with surrounding background texture, seamless inpainting",
-            output_format=output_format
-        )
+        # Convert bytes to base64 data URLs
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        mask_b64 = base64.b64encode(mask_data).decode('utf-8')
+        
+        image_url = f"data:image/png;base64,{image_b64}"
+        mask_url = f"data:image/png;base64,{mask_b64}"
+        
+        # lama-cleaner parameters (no prompt - pure content-aware fill)
+        input_params = {
+            "image": image_url,
+            "mask": mask_url,
+            "ldm_steps": 25,
+            "hd_strategy": "Crop",
+            "hd_strategy_crop_margin": 128,
+            "hd_strategy_crop_trigger_size": 1280,
+            "hd_strategy_resize_limit": 2048,
+        }
+        
+        try:
+            # Create prediction
+            prediction = await self._create_prediction(
+                self.MODELS["erase"],
+                input_params
+            )
+            
+            # Wait for completion
+            result = await self._wait_for_prediction(prediction["id"])
+            
+            # Get output image URL (handles list or string)
+            output_url = self._get_output_url(result)
+            
+            # Download result image
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                img_response = await client.get(output_url)
+                if img_response.status_code != 200:
+                    raise Exception(f"Failed to download result image: {img_response.status_code}")
+                
+                image_bytes = img_response.content
+            
+            metadata = {
+                "model": "lama-cleaner",
+                "platform": "replicate",
+                "prediction_id": prediction["id"],
+            }
+            
+            return image_bytes, metadata
+            
+        except Exception as e:
+            # Log error for debugging
+            print(f"Replicate erase error: {str(e)}")
+            raise
     
     async def remove_background(
         self,
