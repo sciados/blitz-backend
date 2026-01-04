@@ -1,9 +1,10 @@
 # app/plugins/image_editor/services/replicate_service.py
-# Replicate AI Service for Image Editing Operations
-
 """
+Replicate AI Service for Image Editing Operations
 Handles all interactions with Replicate API
 Uses LaMa, BiRefNet, Real-ESRGAN, and other open-source models
+
+UPDATED: Now uses jinaai/lama (newer, better maintained version)
 """
 
 import asyncio
@@ -20,8 +21,8 @@ class ReplicateService:
     
     # Best models for each operation
     MODELS = {
-        "inpaint": "black-forest-labs/flux-fill-pro:2d4197724d8ed13cc78191e794ebbe6aeedcfe4c5b36f464794732d5ccb9735f",  # Fill masked area with prompt
-        "erase": "bria/eraser:893e924eecc119a0c5fbfa5d98401118dcbf0662574eb8d2c01be5749756cbd4",  # SOTA Object removal (no prompt)
+        "inpaint": "jinaai/lama:e440909d3512c31646ee2e0c7d6f6f4923224863a6a10c494606e79fb5844497",  # Prompt-based inpainting
+        "erase": "andreasjansson/lama-cleaner:6c8f5a21ec10eee2cb24b3a44348850c6fc92117ee0af578e05f0e3d08463255",  # Pure content-aware fill (no prompt)
         "background_remove": "cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003",
         "upscale": "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
         "outpaint": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
@@ -137,33 +138,36 @@ class ReplicateService:
         image_data: bytes,
         mask_data: bytes,
         prompt: str = "remove the masked area",
+        negative_prompt: str = None,  # Added for compatibility (not used by LaMa)
+        seed: int = 0,  # Added for compatibility (not used by LaMa)
         output_format: str = "png"
     ) -> Tuple[bytes, dict]:
         """
-        Perform inpainting using FLUX.1 Fill [pro] model
-
+        Perform inpainting using jinaai/lama model (newer version)
+        
         Args:
             image_data: Original image bytes
             mask_data: Mask image bytes (white areas will be inpainted)
-            prompt: Prompt for inpainting (required by flux-fill-pro)
+            prompt: Prompt for inpainting (required by jinaai/lama)
+            negative_prompt: Negative prompt (not used by LaMa but accepted for API compatibility)
+            seed: Random seed (not used by LaMa but accepted for API compatibility)
             output_format: Output format (png, jpeg, webp)
-
+        
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
         # Convert bytes to base64 data URLs
         image_b64 = base64.b64encode(image_data).decode('utf-8')
         mask_b64 = base64.b64encode(mask_data).decode('utf-8')
-
+        
         image_url = f"data:image/png;base64,{image_b64}"
         mask_url = f"data:image/png;base64,{mask_b64}"
-
-        # FLUX.1 Fill [pro] parameters (requires prompt)
+        
+        # jinaai/lama model parameters (requires prompt)
         input_params = {
             "image": image_url,
             "mask": mask_url,
-            "prompt": prompt,
-            "output_format": output_format if output_format in ["jpg", "png"] else "png",
+            "prompt": prompt,  # Required by jinaai/lama
         }
         
         try:
@@ -188,18 +192,18 @@ class ReplicateService:
                 image_bytes = img_response.content
             
             metadata = {
-                "model": "flux-fill-pro",
+                "model": "jinaai/lama",
                 "platform": "replicate",
                 "prediction_id": prediction["id"],
             }
-
+            
             return image_bytes, metadata
-
+            
         except Exception as e:
             # Log error for debugging
             print(f"Replicate inpaint error: {str(e)}")
             raise
-
+    
     async def erase_objects(
         self,
         image_data: bytes,
@@ -208,28 +212,33 @@ class ReplicateService:
         output_format: str = "png"
     ) -> Tuple[bytes, dict]:
         """
-        Erase objects using Bria Eraser model (SOTA object removal, no prompt)
-
+        Erase objects using lama-cleaner model (pure content-aware fill, no prompt)
+        
         Args:
             image_data: Original image bytes
             mask_data: Mask image bytes (white areas will be erased)
             seed: Random seed (not used but accepted for compatibility)
             output_format: Output format
-
+        
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
         # Convert bytes to base64 data URLs
         image_b64 = base64.b64encode(image_data).decode('utf-8')
         mask_b64 = base64.b64encode(mask_data).decode('utf-8')
-
+        
         image_url = f"data:image/png;base64,{image_b64}"
         mask_url = f"data:image/png;base64,{mask_b64}"
-
-        # Bria Eraser parameters (no prompt - SOTA object removal)
+        
+        # lama-cleaner parameters (no prompt - pure content-aware fill)
         input_params = {
             "image": image_url,
             "mask": mask_url,
+            "ldm_steps": 25,
+            "hd_strategy": "Crop",
+            "hd_strategy_crop_margin": 128,
+            "hd_strategy_crop_trigger_size": 1280,
+            "hd_strategy_resize_limit": 2048,
         }
         
         try:
@@ -254,18 +263,18 @@ class ReplicateService:
                 image_bytes = img_response.content
             
             metadata = {
-                "model": "bria-eraser",
+                "model": "lama-cleaner",
                 "platform": "replicate",
                 "prediction_id": prediction["id"],
             }
-
+            
             return image_bytes, metadata
-
+            
         except Exception as e:
             # Log error for debugging
             print(f"Replicate erase error: {str(e)}")
             raise
-
+    
     async def remove_background(
         self,
         image_data: bytes,
