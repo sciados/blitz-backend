@@ -147,7 +147,7 @@ class ReplicateService:
         
         Args:
             image_data: Original image bytes
-            mask_data: Mask image bytes (white areas will be inpainted)
+            mask_data: Mask image bytes (black areas from canvas will be inverted to white for inpainting)
             prompt: Prompt for inpainting (required by jinaai/lama)
             negative_prompt: Negative prompt (not used by LaMa but accepted for API compatibility)
             seed: Random seed (not used by LaMa but accepted for API compatibility)
@@ -156,6 +156,18 @@ class ReplicateService:
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
+        # Invert mask: Canvas sends black=paint, LaMa expects white=paint
+        from PIL import Image, ImageOps
+        import io
+        
+        mask_image = Image.open(io.BytesIO(mask_data))
+        inverted_mask = ImageOps.invert(mask_image.convert('L'))
+        
+        # Convert back to bytes
+        mask_buffer = io.BytesIO()
+        inverted_mask.save(mask_buffer, format='PNG')
+        mask_data = mask_buffer.getvalue()
+        
         # Convert bytes to base64 data URLs
         image_b64 = base64.b64encode(image_data).decode('utf-8')
         mask_b64 = base64.b64encode(mask_data).decode('utf-8')
