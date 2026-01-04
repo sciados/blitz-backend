@@ -199,15 +199,35 @@ async def _process_edit(
         # Try to find parent image ID
         parent_image_id = None
         try:
-            r2_path_for_lookup = r2_path if 'r2_path' in locals() else original_image_path
-            parent_query = select(GeneratedImage).where(
-                GeneratedImage.image_url.like(f'%{r2_path_for_lookup.split("/")[-1]}%'),
-                GeneratedImage.campaign_id == campaign_id
-            ).limit(1)
-            parent_result = await db.execute(parent_query)
-            parent_image = parent_result.scalar_one_or_none()
-            if parent_image:
-                parent_image_id = parent_image.id
+            # Extract filename from the original_image_path
+            filename = original_image_path.split("/")[-1] if original_image_path else None
+            
+            if filename:
+                # First try to find in GeneratedImage (AI-generated images)
+                parent_query = select(GeneratedImage).where(
+                    GeneratedImage.image_url.like(f'%{filename}%'),
+                    GeneratedImage.campaign_id == campaign_id
+                ).limit(1)
+                parent_result = await db.execute(parent_query)
+                parent_image = parent_result.scalar_one_or_none()
+                
+                if parent_image:
+                    parent_image_id = parent_image.id
+                    logger.info(f"Found parent in GeneratedImage: {parent_image.id}")
+                else:
+                    # If not found, try ImageEdit (previously edited images)
+                    # Look for the most recent edit with this filename
+                    edit_query = select(ImageEdit).where(
+                        ImageEdit.edited_image_path.like(f'%{filename}%'),
+                        ImageEdit.campaign_id == campaign_id
+                    ).order_by(ImageEdit.created_at.desc()).limit(1)
+                    edit_result = await db.execute(edit_query)
+                    parent_edit = edit_result.scalar_one_or_none()
+                    
+                    if parent_edit:
+                        # If this is an edited image, use its parent_image_id or find the original
+                        parent_image_id = parent_edit.parent_image_id
+                        logger.info(f"Found parent via ImageEdit: {parent_edit.id}, parent_image_id: {parent_image_id}")
         except Exception as e:
             logger.warning(f"Could not find parent image: {e}")
             parent_image_id = None
