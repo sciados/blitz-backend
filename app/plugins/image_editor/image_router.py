@@ -319,7 +319,7 @@ async def _process_edit(
 # INDIVIDUAL OPERATION ENDPOINTS
 # ===========================
 
-@router.post("/inpainting", response_model=InpaintingResponse)
+@router.post("/inpaint", response_model=InpaintingResponse)
 async def inpaint_image(
     image_url: str = Form(...),
     mask_data_base64: str = Form(...),
