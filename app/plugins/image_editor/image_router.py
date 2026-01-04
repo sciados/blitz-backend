@@ -980,6 +980,57 @@ async def get_platform_stats(
     return AIPlatformRouter.get_platform_stats()
 
 
+@router.delete("/{image_id}")
+async def delete_edited_image(
+    image_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete an edited image from both R2 storage and database
+    """
+    try:
+        # Find the edit record
+        result = await db.execute(
+            select(ImageEdit).where(
+                ImageEdit.id == image_id,
+                ImageEdit.user_id == current_user.id
+            )
+        )
+        edit_record = result.scalar_one_or_none()
+
+        if not edit_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Image not found or access denied"
+            )
+
+        # Delete from R2 storage if edited_image_path exists
+        if edit_record.edited_image_path:
+            try:
+                await r2_storage.delete_file(edit_record.edited_image_path)
+                logger.info(f"✅ Deleted from R2: {edit_record.edited_image_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to delete from R2: {str(e)}")
+
+        # Delete from database
+        await db.delete(edit_record)
+        await db.commit()
+
+        logger.info(f"✅ Deleted image edit {image_id} for user {current_user.id}")
+        return {"success": True, "message": "Image deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting image {image_id}: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete image: {str(e)}"
+        )
+
+
 @router.get("/history/{campaign_id}")
 async def get_edit_history(
     campaign_id: int,
