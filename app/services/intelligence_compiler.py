@@ -1,6 +1,8 @@
 """
 Intelligence Compiler - Aggregates and structures intelligence data
 Compiles product research, competitor analysis, and market insights
+
+UPDATED: Now includes Business DNA extraction (Pomelli-like brand intelligence)
 """
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -9,6 +11,7 @@ from sqlalchemy import select, and_, desc
 from app.db.models import Campaign, KnowledgeBase, GeneratedContent
 from app.services.crawler import CrawlerService
 from app.services.rag import RAGService
+from app.services.business_dna_extractor import business_dna_extractor  # NEW IMPORT
 import logging
 import json
 
@@ -44,7 +47,7 @@ class IntelligenceCompiler:
             logger.info(f"Compiling product intelligence for: {product_url}")
             
             # Crawl product page
-            product_data = await self.crawler.crawl_url(product_url)
+            product_data = await self.crawler.crawl_page(product_url)
             
             if not product_data.get('success'):
                 return {
@@ -55,16 +58,38 @@ class IntelligenceCompiler:
             # Extract key product information
             product_info = {
                 'url': product_url,
-                'title': product_data.get('title', ''),
-                'description': product_data.get('description', ''),
-                'price': product_data.get('price'),
-                'features': product_data.get('features', []),
-                'benefits': product_data.get('benefits', []),
+                'title': product_data.get('metadata', {}).get('title', ''),
+                'description': product_data.get('metadata', {}).get('description', ''),
+                'price': product_data.get('product_info', {}).get('price'),
+                'features': product_data.get('product_info', {}).get('features', []),
+                'benefits': product_data.get('product_info', {}).get('benefits', []),
                 'target_audience': product_data.get('target_audience', ''),
                 'pain_points': product_data.get('pain_points', []),
                 'quality_score': product_data.get('quality_score', 0),
                 'compliance_risks': product_data.get('compliance_risks', [])
             }
+            
+            # ========================================================================
+            # 🧬 NEW: EXTRACT BUSINESS DNA (Pomelli-like brand intelligence)
+            # ========================================================================
+            business_dna = None
+            try:
+                logger.info(f"Extracting Business DNA from: {product_url}")
+                
+                # Get the HTML content that was already fetched by crawler
+                # We need to fetch it again for Business DNA (or modify crawler to return it)
+                # For now, we'll let business_dna_extractor fetch it
+                business_dna = await business_dna_extractor.extract_business_dna(
+                    url=product_url
+                    # html_content could be passed here if crawler exposed it
+                )
+                
+                logger.info(f"✅ Business DNA extracted: {business_dna.get('summary', 'No summary')}")
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to extract Business DNA (non-critical): {str(e)}")
+                business_dna = None
+            # ========================================================================
             
             # Ingest into knowledge base
             await self.rag.ingest_content(
@@ -82,6 +107,7 @@ class IntelligenceCompiler:
             intelligence = {
                 'success': True,
                 'product': product_info,
+                'business_dna': business_dna,  # 🧬 NEW: Add Business DNA to intelligence
                 'analysis': {
                     'strengths': self._identify_strengths(product_info),
                     'opportunities': self._identify_opportunities(product_info),
