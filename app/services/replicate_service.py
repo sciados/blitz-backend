@@ -156,21 +156,42 @@ class ReplicateService:
         Returns:
             Tuple of (edited_image_bytes, metadata_dict)
         """
-        # Invert mask: Canvas sends black=paint, LaMa expects white=paint
-        from PIL import Image, ImageOps
+        from PIL import Image, ImageOps, ImageChops
         import io
         
-        mask_image = Image.open(io.BytesIO(mask_data))
-        inverted_mask = ImageOps.invert(mask_image.convert('L'))
+        # Load images
+        source_image = Image.open(io.BytesIO(image_data)).convert('RGBA')
+        mask_image = Image.open(io.BytesIO(mask_data)).convert('L')
         
-        # Convert back to bytes
+        # Invert mask: Canvas sends black=paint, LaMa expects white=paint
+        inverted_mask = ImageOps.invert(mask_image)
+        
+        # CRITICAL: Clear the masked area in the source image to white
+        # This ensures LaMa replaces rather than blends
+        white_fill = Image.new('RGBA', source_image.size, (255, 255, 255, 255))
+        
+        # Create an alpha mask from inverted mask (white areas = replace)
+        alpha_mask = inverted_mask.convert('L')
+        
+        # Composite: Keep original where mask is black, use white where mask is white
+        cleared_image = Image.composite(white_fill, source_image, alpha_mask)
+        
+        # Convert back to RGB for LaMa
+        cleared_image_rgb = cleared_image.convert('RGB')
+        
+        # Convert cleared image to bytes
+        cleared_buffer = io.BytesIO()
+        cleared_image_rgb.save(cleared_buffer, format='PNG')
+        cleared_image_data = cleared_buffer.getvalue()
+        
+        # Convert inverted mask to bytes
         mask_buffer = io.BytesIO()
         inverted_mask.save(mask_buffer, format='PNG')
-        mask_data = mask_buffer.getvalue()
+        inverted_mask_data = mask_buffer.getvalue()
         
         # Convert bytes to base64 data URLs
-        image_b64 = base64.b64encode(image_data).decode('utf-8')
-        mask_b64 = base64.b64encode(mask_data).decode('utf-8')
+        image_b64 = base64.b64encode(cleared_image_data).decode('utf-8')
+        mask_b64 = base64.b64encode(inverted_mask_data).decode('utf-8')
         
         image_url = f"data:image/png;base64,{image_b64}"
         mask_url = f"data:image/png;base64,{mask_b64}"
