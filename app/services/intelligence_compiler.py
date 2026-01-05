@@ -2,7 +2,7 @@
 Intelligence Compiler - Aggregates and structures intelligence data
 Compiles product research, competitor analysis, and market insights
 
-UPDATED: Now includes Business DNA extraction (Pomelli-like brand intelligence)
+UPDATED: Business DNA extraction (role-based - Business & Admin only)
 """
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -11,7 +11,7 @@ from sqlalchemy import select, and_, desc
 from app.db.models import Campaign, KnowledgeBase, GeneratedContent
 from app.services.crawler import CrawlerService
 from app.services.rag import RAGService
-from app.services.business_dna_extractor import business_dna_extractor  # NEW IMPORT
+from app.services.business_dna_extractor import business_dna_extractor
 import logging
 import json
 
@@ -30,6 +30,7 @@ class IntelligenceCompiler:
         self,
         product_url: str,
         user_id: int,
+        user_role: str,  # NEW: Role for access control
         include_competitors: bool = True
     ) -> Dict[str, Any]:
         """
@@ -38,15 +39,16 @@ class IntelligenceCompiler:
         Args:
             product_url: Product page URL
             user_id: User ID
+            user_role: User role (for feature access control)
             include_competitors: Whether to analyze competitors
             
         Returns:
             Compiled intelligence dictionary
         """
         try:
-            logger.info(f"Compiling product intelligence for: {product_url}")
+            logger.info(f"Compiling product intelligence for: {product_url} (user_role: {user_role})")
             
-            # Crawl product page
+            # Crawl product page (ALL USERS)
             product_data = await self.crawler.crawl_page(product_url)
             
             if not product_data.get('success'):
@@ -55,7 +57,7 @@ class IntelligenceCompiler:
                     'error': 'Failed to crawl product page'
                 }
             
-            # Extract key product information
+            # Extract key product information (ALL USERS)
             product_info = {
                 'url': product_url,
                 'title': product_data.get('metadata', {}).get('title', ''),
@@ -70,25 +72,49 @@ class IntelligenceCompiler:
             }
             
             # ========================================================================
-            # 🧬 NEW: EXTRACT BUSINESS DNA (Pomelli-like brand intelligence)
+            # 🧬 BUSINESS DNA - ROLE-BASED ACCESS (Business & Admin ONLY)
             # ========================================================================
             business_dna = None
-            try:
-                logger.info(f"Extracting Business DNA from: {product_url}")
-                
-                # Get the HTML content that was already fetched by crawler
-                # We need to fetch it again for Business DNA (or modify crawler to return it)
-                # For now, we'll let business_dna_extractor fetch it
-                business_dna = await business_dna_extractor.extract_business_dna(
-                    url=product_url
-                    # html_content could be passed here if crawler exposed it
-                )
-                
-                logger.info(f"✅ Business DNA extracted: {business_dna.get('summary', 'No summary')}")
-                
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to extract Business DNA (non-critical): {str(e)}")
-                business_dna = None
+            
+            # Check if user has access to Business DNA feature
+            if user_role in ['business', 'admin']:
+                try:
+                    logger.info(f"🏢 Business/Admin role detected - extracting Business DNA")
+                    
+                    business_dna = await business_dna_extractor.extract_business_dna(
+                        url=product_url
+                    )
+                    
+                    # Mark as extracted by business tier
+                    business_dna["extracted_by_role"] = user_role
+                    business_dna["available"] = True
+                    
+                    logger.info(f"✅ Business DNA extracted: {business_dna.get('summary', 'No summary')}")
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to extract Business DNA (non-critical): {str(e)}")
+                    business_dna = {
+                        "available": False,
+                        "error": str(e),
+                        "extracted_by_role": user_role
+                    }
+            else:
+                # User doesn't have access - return upgrade message
+                logger.info(f"👨‍💻 User role '{user_role}' - Business DNA not available (Business tier feature)")
+                business_dna = {
+                    "available": False,
+                    "tier": "business",
+                    "reason": "Business DNA extraction is available for Business tier and Admin users only",
+                    "features": [
+                        "Automatic brand color extraction",
+                        "Typography and font detection",
+                        "Tone of voice analysis",
+                        "Visual style guidelines",
+                        "Messaging consistency"
+                    ],
+                    "upgrade_message": "Upgrade to Business tier to unlock brand intelligence",
+                    "user_role": user_role
+                }
             # ========================================================================
             
             # Ingest into knowledge base
@@ -107,7 +133,7 @@ class IntelligenceCompiler:
             intelligence = {
                 'success': True,
                 'product': product_info,
-                'business_dna': business_dna,  # 🧬 NEW: Add Business DNA to intelligence
+                'business_dna': business_dna,  # Includes access control info
                 'analysis': {
                     'strengths': self._identify_strengths(product_info),
                     'opportunities': self._identify_opportunities(product_info),

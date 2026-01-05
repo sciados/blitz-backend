@@ -22,6 +22,7 @@ from app.services.usage_limits import start_trial, check_trial_status, get_effec
 class ProfileUpdate(BaseModel):
     full_name: str
     profile_image_url: str | None = None
+    signature: str | None = None
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -221,6 +222,10 @@ async def update_profile(
     # Update profile image URL if provided
     if profile_data.profile_image_url is not None:
         current_user.profile_image_url = profile_data.profile_image_url
+
+    # Update signature if provided
+    if profile_data.signature is not None:
+        current_user.signature = profile_data.signature
 
     await db.commit()
     await db.refresh(current_user)

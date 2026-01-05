@@ -16,6 +16,7 @@ from app.services.intelligence_amplifier import IntelligenceAmplifier
 from app.services.embeddings_router import EmbeddingRouterService
 from app.services.storage_r2 import r2_storage
 from app.services.rag.intelligent_rag import rag_system
+from app.services.business_dna_extractor import business_dna_extractor
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class IntelligenceCompilerService:
     async def compile_for_campaign(
         self,
         campaign_id: int,
+        user_role: str,
         options: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -169,6 +171,7 @@ class IntelligenceCompilerService:
             result = await self._compile_new_intelligence(
                 campaign,
                 url_hash,
+                user_role,
                 options,
                 existing_intelligence_id=existing_intelligence.id if existing_intelligence else None
             )
@@ -190,6 +193,7 @@ class IntelligenceCompilerService:
         self,
         product_intelligence_id: int,
         user_id: int,
+        user_role: str,
         options: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -201,6 +205,7 @@ class IntelligenceCompilerService:
         Args:
             product_intelligence_id: ProductIntelligence record ID
             user_id: User ID for RAG ingestion
+            user_role: User role for feature access control (Business DNA)
             options: Compilation options (same as compile_for_campaign)
 
         Returns:
@@ -292,6 +297,40 @@ class IntelligenceCompilerService:
 
             logger.info(f"✅ Intelligence amplified")
 
+
+            # Step 2.5: Extract Business DNA (Role-Based - Business & Admin only)
+            if user_role in ['business', 'admin']:
+                try:
+                    logger.info("🧬 Extracting Business DNA (Business/Admin user)...")
+                    business_dna = await business_dna_extractor.extract_business_dna(
+                        url=product_intelligence.product_url
+                    )
+                    business_dna["available"] = True
+                    business_dna["extracted_by_role"] = user_role
+                    amplified_intelligence["business_dna"] = business_dna
+                    logger.info(f"✅ Business DNA extracted: {business_dna.get('summary', 'No summary')}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Business DNA extraction failed (non-critical): {str(e)}")
+                    amplified_intelligence["business_dna"] = {
+                        "available": False,
+                        "error": str(e),
+                        "extracted_by_role": user_role
+                    }
+            else:
+                logger.info(f"👨‍💻 User role '{user_role}' - Business DNA not available (Business tier feature)")
+                amplified_intelligence["business_dna"] = {
+                    "available": False,
+                    "tier": "business",
+                    "reason": "Business DNA extraction is available for Business tier only",
+                    "features": [
+                        "Automatic brand color extraction",
+                        "Typography and font detection",
+                        "Tone of voice analysis",
+                        "Visual style guidelines"
+                    ],
+                    "upgrade_message": "Upgrade to Business tier to unlock brand intelligence",
+                    "user_role": user_role
+                }
             # Step 3c: Generate RAG Embeddings
             if options.get('enable_rag', True):
                 logger.info("🔢 Step 3/3: Generating embeddings...")
@@ -423,6 +462,7 @@ class IntelligenceCompilerService:
         self,
         campaign: Campaign,
         url_hash: str,
+        user_role: str,
         options: Dict[str, Any],
         existing_intelligence_id: Optional[int] = None
     ) -> Dict[str, Any]:
@@ -431,6 +471,7 @@ class IntelligenceCompilerService:
 
         Args:
             existing_intelligence_id: If provided, UPDATE this record instead of INSERT
+            user_role: User role for feature access control (Business DNA)
 
         Returns:
             Compilation result with costs
@@ -525,6 +566,40 @@ class IntelligenceCompilerService:
 
         logger.info(f"✅ Intelligence amplified")
 
+
+        # Step 2.5: Extract Business DNA (Role-Based - Business & Admin only)
+        if user_role in ['business', 'admin']:
+            try:
+                logger.info("🧬 Extracting Business DNA (Business/Admin user)...")
+                business_dna = await business_dna_extractor.extract_business_dna(
+                    url=campaign.product_url
+                )
+                business_dna["available"] = True
+                business_dna["extracted_by_role"] = user_role
+                amplified_intelligence["business_dna"] = business_dna
+                logger.info(f"✅ Business DNA extracted: {business_dna.get('summary', 'No summary')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Business DNA extraction failed (non-critical): {str(e)}")
+                amplified_intelligence["business_dna"] = {
+                    "available": False,
+                    "error": str(e),
+                    "extracted_by_role": user_role
+                }
+        else:
+            logger.info(f"👨‍💻 User role '{user_role}' - Business DNA not available (Business tier feature)")
+            amplified_intelligence["business_dna"] = {
+                "available": False,
+                "tier": "business",
+                "reason": "Business DNA extraction is available for Business tier only",
+                "features": [
+                    "Automatic brand color extraction",
+                    "Typography and font detection",
+                    "Tone of voice analysis",
+                    "Visual style guidelines"
+                ],
+                "upgrade_message": "Upgrade to Business tier to unlock brand intelligence",
+                "user_role": user_role
+            }
         # Step 3: Generate RAG Embeddings
         if options.get('enable_rag', True):
             logger.info("🔢 Step 3/3: Generating embeddings...")

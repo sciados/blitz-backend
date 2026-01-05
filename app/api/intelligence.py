@@ -82,6 +82,7 @@ async def compile_campaign_intelligence(
        - Step 1: Scrape sales page with image download and R2 upload
        - Step 2: Amplify intelligence with Claude 3.5 Sonnet
        - Step 3: Generate embeddings with OpenAI text-embedding-3-large
+    4. Business DNA extraction (Business & Admin users only)
     """
     # Verify campaign ownership
     result = await db.execute(
@@ -98,9 +99,10 @@ async def compile_campaign_intelligence(
             detail="Campaign not found"
         )
 
-    # Compile intelligence with global sharing
+    # Compile intelligence with global sharing + role-based Business DNA
     compilation_result = await compiler.compile_for_campaign(
         campaign_id=campaign_id,
+        user_role=current_user.role,  # ← ADDED: Pass user role for Business DNA
         options={
             'deep_scrape': request.deep_scrape,
             'scrape_images': request.scrape_images,
@@ -129,6 +131,7 @@ async def get_campaign_intelligence_data(
     - Marketing intelligence (hooks, angles, testimonials)
     - Images with classifications
     - Analysis and recommendations
+    - Business DNA (if user has access)
     """
     # Verify campaign ownership
     result = await db.execute(
@@ -197,7 +200,12 @@ async def compile_intelligence(
     compiler: IntelligenceCompiler = Depends(get_intelligence_compiler),
     rag_service: RAGService = Depends(get_rag_service)
 ):
-    """Compile intelligence for a product/campaign."""
+    """
+    Compile intelligence for a product/campaign (legacy endpoint).
+    
+    Note: This uses the old IntelligenceCompiler. For new implementations,
+    use POST /campaigns/{campaign_id}/compile instead.
+    """
     # Verify campaign ownership if campaign_id provided
     if request.campaign_id:
         result = await db.execute(
@@ -214,11 +222,11 @@ async def compile_intelligence(
                 detail="Campaign not found"
             )
     
-    # Compile intelligence
+    # Compile intelligence with role-based Business DNA
     intelligence_data = await compiler.compile_product_intelligence(
         product_url=request.product_url,
-        product_name=request.product_name,
-        niche=request.niche,
+        user_id=current_user.id,
+        user_role=current_user.role,  # ← ADDED: Pass user role for Business DNA
         include_competitors=request.include_competitors
     )
     
@@ -228,32 +236,31 @@ async def compile_intelligence(
             content=intelligence_data.get("summary", ""),
             source=request.product_url,
             campaign_id=request.campaign_id,
-            content_type="product_intelligence",
-            metadata=intelligence_data
+            content_type="intelligence_summary",
+            metadata={"product_url": request.product_url}
         )
     
     return IntelligenceResponse(
-        product_name=intelligence_data.get("product_name"),
-        niche=intelligence_data.get("niche"),
-        summary=intelligence_data.get("summary"),
-        key_features=intelligence_data.get("key_features", []),
-        target_audience=intelligence_data.get("target_audience", {}),
-        pain_points=intelligence_data.get("pain_points", []),
-        unique_selling_points=intelligence_data.get("unique_selling_points", []),
-        competitor_analysis=intelligence_data.get("competitor_analysis", []),
-        market_insights=intelligence_data.get("market_insights", {}),
-        content_angles=intelligence_data.get("content_angles", [])
+        product_name=intelligence_data.get("product", {}).get("title", ""),
+        niche=request.niche or "",
+        summary=intelligence_data.get("summary", ""),
+        key_features=intelligence_data.get("product", {}).get("features", []),
+        target_audience=intelligence_data.get("analysis", {}).get("target_audience", {}),
+        pain_points=intelligence_data.get("product", {}).get("pain_points", []),
+        unique_selling_points=intelligence_data.get("product", {}).get("benefits", []),
+        competitor_analysis=intelligence_data.get("competitors", []),
+        market_insights=intelligence_data.get("analysis", {}).get("opportunities", []),
+        content_angles=intelligence_data.get("analysis", {}).get("marketing_angles", [])
     )
 
 
-@router.get("/campaign/{campaign_id}", response_model=IntelligenceResponse)
+@router.get("/campaigns/{campaign_id}", response_model=IntelligenceResponse)
 async def get_campaign_intelligence(
     campaign_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    compiler: IntelligenceCompiler = Depends(get_intelligence_compiler)
+    db: AsyncSession = Depends(get_db)
 ):
-    """Get compiled intelligence for a campaign."""
+    """Get compiled intelligence for a specific campaign."""
     # Verify campaign ownership
     result = await db.execute(
         select(Campaign).where(

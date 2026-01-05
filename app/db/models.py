@@ -18,6 +18,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=True)
     profile_image_url = Column(String(500), nullable=True)
+    signature = Column(Text, nullable=True)  # Email signature for automated emails
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), server_default="user", nullable=False, index=True)
     is_active = Column(Boolean, server_default="true", nullable=False, index=True)
