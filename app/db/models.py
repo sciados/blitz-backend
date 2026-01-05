@@ -54,6 +54,7 @@ class User(Base):
     shortened_links = relationship("ShortenedLink", back_populates="user", cascade="all, delete-orphan")
     platform_credentials = relationship("UserPlatformCredential", back_populates="user", cascade="all, delete-orphan")
     affiliate_profile = relationship("AffiliateProfile", back_populates="user", uselist=False)
+    product_assets = relationship("ProductAsset", back_populates="user", cascade="all, delete-orphan")
 
 # ============================================================================
 # PRODUCT INTELLIGENCE MODEL (Global Shared Intelligence)
@@ -182,6 +183,8 @@ class Campaign(Base):
     analytics = relationship("CampaignAnalytics", back_populates="campaign", cascade="all, delete-orphan")
     analytics_events = relationship("AnalyticsEvent", back_populates="campaign", cascade="all, delete-orphan")
     shortened_links = relationship("ShortenedLink", back_populates="campaign", cascade="all, delete-orphan")
+    product_assets = relationship("ProductAsset", back_populates="campaign", cascade="all, delete-orphan")
+
 
 # ============================================================================
 # GENERATED CONTENT MODEL
@@ -243,6 +246,60 @@ class GeneratedImage(Base):
     # Relationship for parent-child hierarchy (one-way relationship to avoid circular reference)
     parent_image_id = Column(Integer, ForeignKey("generated_images.id", ondelete="SET NULL"), nullable=True, index=True)
     parent = relationship("GeneratedImage", foreign_keys=[parent_image_id], remote_side=[id])
+
+
+# ============================================================================
+# PRODUCT ASSETS MODEL
+# ============================================================================
+class ProductAsset(Base):
+    """
+    Product assets uploaded by Product Developers
+    
+    These are transparent PNG product images that affiliates can use in the overlay tool
+    to create promotional content. Assets are tied to campaigns and automatically 
+    available through campaign intelligence.
+    
+    Storage: R2 at campaigns/{campaign_id}/assets/{filename}
+    """
+    __tablename__ = "product_assets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Asset file details
+    asset_url = Column(Text, nullable=False)  # R2 public URL
+    r2_path = Column(Text, nullable=False)    # R2 storage path
+    
+    # Asset metadata
+    filename = Column(String(255), nullable=False)
+    asset_type = Column(String(50), nullable=False, index=True)  # product_image, lifestyle, detail, packaging
+    view_angle = Column(String(50), nullable=True, index=True)   # front, side, angle, top, close_up, in_use
+    
+    # Image properties
+    has_transparency = Column(Boolean, default=True, nullable=False, index=True)  # MUST be True
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    file_size_bytes = Column(Integer, nullable=True)
+    content_type = Column(String(50), default="image/png", nullable=False)
+    
+    # Display metadata
+    title = Column(String(255), nullable=True)         # "iPhone 16 - Front View"
+    description = Column(Text, nullable=True)          # Optional description
+    is_featured = Column(Boolean, default=False, nullable=False, index=True)  # Show prominently
+    display_order = Column(Integer, default=0, nullable=False)  # Sort order
+    
+    # Usage tracking
+    times_used = Column(Integer, default=0, nullable=False)  # How many times used in overlays
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    campaign = relationship("Campaign", back_populates="product_assets")
+    user = relationship("User", back_populates="product_assets")
 
 
 # ============================================================================
