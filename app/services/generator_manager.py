@@ -12,6 +12,7 @@ from app.services.intelligence_compiler_service import IntelligenceCompilerServi
 from app.services.prompt_generator_service import PromptGeneratorService
 from app.services.ai_router import AIRouter
 from app.services.usage_limits import UsageLimitsService, get_effective_tier
+from app.services.compliance_checker import ComplianceChecker
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class GeneratorManager:
         self.prompt_generator = PromptGeneratorService(db)
         self.ai_router = AIRouter()
         self.usage_limits = UsageLimitsService(db)
+        self.compliance_checker = ComplianceChecker()
 
     async def generate_from_calendar(
         self,
@@ -423,6 +425,35 @@ class GeneratorManager:
                 length
             )
 
+    def _add_compliance_footer(self, content: str, content_type: str) -> str:
+        """
+        Add compliance footer to email content.
+
+        Args:
+            content: The generated content
+            content_type: Type of content (email, email_sequence, etc.)
+
+        Returns:
+            Content with compliance footer if email, otherwise unchanged
+        """
+        if content_type not in ["email", "email_sequence"]:
+            return content
+
+        # Check if footer already exists
+        if "affiliate disclosure:" in content.lower() and "unsubscribe" in content.lower():
+            return content
+
+        # Standard compliance footer
+        footer = """
+
+----
+Affiliate Disclosure: This email contains affiliate links. I may earn a commission from purchases made through these links.
+Results May Vary: Individual results may vary. The testimonials and examples used are exceptional results and are not intended to guarantee that anyone will achieve the same or similar results.
+Unsubscribe: Click here to unsubscribe from future emails.
+----"""
+
+        return content + footer
+
     async def _generate_text_content(
         self,
         campaign_id: int,
@@ -445,6 +476,25 @@ class GeneratorManager:
             temperature=0.7
         )
 
+        # Add compliance footer to email content
+        generated_text = self._add_compliance_footer(generated_text, content_type)
+
+        # Get product category for compliance checking
+        product_category = None
+        try:
+            campaign = await self._get_campaign(campaign_id)
+            if campaign and campaign.product_intelligence:
+                product_category = campaign.product_intelligence.product_category
+        except Exception as e:
+            logger.warning(f"Could not fetch campaign for compliance check: {str(e)}")
+
+        # Check compliance using the full compliance checker
+        compliance_result = self.compliance_checker.check_content(
+            content=generated_text,
+            content_type=content_type,
+            product_category=product_category
+        )
+
         # Now save to database - simplified for now
         from datetime import datetime
         content_data = {
@@ -453,7 +503,8 @@ class GeneratorManager:
                 "prompt": prompt,
                 "model": getattr(self.ai_router, 'last_used_model', 'unknown'),
                 "generation_time": datetime.utcnow().isoformat(),
-                "calendar_params": calendar_params
+                "calendar_params": calendar_params,
+                "compliance_result": compliance_result
             }
         }
 
@@ -464,8 +515,9 @@ class GeneratorManager:
             content_type=content_type,
             marketing_angle=calendar_params.get("marketing_angle", ""),
             content_data=content_data,
-            compliance_status="compliant",  # Default for now
-            compliance_score=100,
+            compliance_status=compliance_result.get("status", "compliant"),
+            compliance_score=compliance_result.get("score", 100),
+            compliance_notes=compliance_result.get("notes", None),
             version=1
         )
         self.db.add(content_record)
@@ -513,6 +565,22 @@ class GeneratorManager:
             temperature=0.7
         )
 
+        # Get product category for compliance checking
+        product_category = None
+        try:
+            campaign = await self._get_campaign(campaign_id)
+            if campaign and campaign.product_intelligence:
+                product_category = campaign.product_intelligence.product_category
+        except Exception as e:
+            logger.warning(f"Could not fetch campaign for compliance check: {str(e)}")
+
+        # Check compliance
+        compliance_result = self.compliance_checker.check_content(
+            content=generated_text,
+            content_type="video_script",
+            product_category=product_category
+        )
+
         # Save to database
         from datetime import datetime
         content_data = {
@@ -522,7 +590,8 @@ class GeneratorManager:
                 "model": getattr(self.ai_router, 'last_used_model', 'unknown'),
                 "generation_time": datetime.utcnow().isoformat(),
                 "calendar_params": calendar_params,
-                "duration": duration
+                "duration": duration,
+                "compliance_result": compliance_result
             }
         }
 
@@ -532,8 +601,9 @@ class GeneratorManager:
             content_type="video_script",
             marketing_angle=calendar_params.get("marketing_angle", ""),
             content_data=content_data,
-            compliance_status="compliant",
-            compliance_score=100,
+            compliance_status=compliance_result.get("status", "compliant"),
+            compliance_score=compliance_result.get("score", 100),
+            compliance_notes=compliance_result.get("notes", None),
             version=1
         )
         self.db.add(content_record)
