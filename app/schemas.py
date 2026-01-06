@@ -141,6 +141,7 @@ class UserResponse(UserBase):
     role: str
     user_type: Optional[str] = None
     profile_image_url: Optional[str] = None
+    signature: Optional[str] = None
     created_at: datetime
     is_active: bool = True
     affiliate_tier: Optional[str] = None
