@@ -11,7 +11,7 @@ from app.db.models import Campaign, ProductIntelligence
 from app.services.intelligence_compiler_service import IntelligenceCompilerService
 from app.services.prompt_generator_service import PromptGeneratorService
 from app.services.ai_router import AIRouter
-from app.services.usage_limits import UsageLimitsService
+from app.services.usage_limits import UsageLimitsService, get_effective_tier
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +126,8 @@ class GeneratorManager:
         if not campaign:
             raise ValueError("Campaign not found")
 
-        # Get user's effective tier
-        tier = await self.usage_limits.get_effective_tier(campaign.user_id)
+        # Get user's effective tier using standalone function
+        tier = await get_effective_tier(self.db, campaign.user_id)
         if not tier:
             tier = "trial"  # Default to trial if no tier found
 
