@@ -15,7 +15,7 @@ from app.auth import (
     get_user_by_email
 )
 from app.core.config.settings import settings
-from app.utils.r2_storage import R2Storage
+from app.utils.r2_storage import r2_storage
 from app.services.usage_limits import start_trial, check_trial_status, get_effective_tier, UsageLimitsService
 
 # Profile update schema
@@ -267,7 +267,7 @@ async def upload_profile_image(
     """
 
     # Check if R2 is configured
-    if not R2Storage.is_configured():
+    if not r2_storage.is_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="File upload service is not configured"
@@ -296,11 +296,11 @@ async def upload_profile_image(
     try:
         # Delete old profile image if exists
         if current_user.profile_image_url:
-            R2Storage.delete_file(current_user.profile_image_url)
+            r2_storage.delete_file(current_user.profile_image_url)
 
         # Upload to R2
         allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
-        image_url = R2Storage.upload_file(
+        image_url = r2_storage.upload_file(
             file=file,
             folder="profile-images",
             allowed_extensions=allowed_extensions
