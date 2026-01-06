@@ -169,6 +169,13 @@ class Campaign(Base):
     # Legacy: Direct intelligence storage (deprecated, kept for migration)
     intelligence_data = Column(JSONB, nullable=True)
 
+    # Launch date (copied from ProductIntelligence when campaign is created/linked)
+    launch_date = Column(Date, nullable=True)
+
+    # Calendar configuration (computed once when calendar is first generated)
+    # Structure: {"total_days": 21, "pre_launch_days": 13, "launch_day": 14, "post_launch_days": 7, "day_mapping": [...]}
+    calendar_config = Column(JSONB, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

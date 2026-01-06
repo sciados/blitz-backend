@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, EmailStr, HttpUrl, Field, validator
 from typing import Optional, List, Dict, Any, Union, Literal
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 # ============================================================================
@@ -199,6 +199,8 @@ class CampaignResponse(CampaignBase):
     affiliate_link_short_code: Optional[str] = None  # Shortened link code
     intelligence_data: Optional[Dict[str, Any]] = None
     thumbnail_image_url: Optional[str] = None  # Product thumbnail from ProductIntelligence
+    launch_date: Optional[date] = None  # Product launch date
+    calendar_config: Optional[Dict[str, Any]] = None  # Dynamic calendar configuration
     created_at: datetime
     updated_at: datetime
 

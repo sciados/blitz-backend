@@ -7,9 +7,10 @@ from pydantic import BaseModel
 import logging
 
 from app.db.session import get_db
-from app.db.models import User, Campaign
+from app.db.models import User, Campaign, ProductIntelligence
 from app.auth import get_current_active_user
 from app.services.generator_manager import GeneratorManager
+from app.services.calendar_config import calculate_calendar_config, get_day_content_mapping
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 logger = logging.getLogger(__name__)
@@ -343,3 +344,172 @@ async def _verify_campaign_ownership(db: AsyncSession, campaign_id: int, user_id
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+@router.get("/config/{campaign_id}")
+async def get_calendar_config(
+    campaign_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get or initialize the calendar configuration for a campaign.
+
+    This endpoint:
+    1. Returns existing calendar_config if already computed
+    2. Computes and saves new config if not yet initialized
+    3. Uses launch_date from ProductIntelligence (copied to Campaign)
+
+    The calendar configuration determines:
+    - Total number of days (11-21 depending on timing)
+    - Which default day content maps to each calendar day
+    - Launch/Pitch day position
+
+    Args:
+        campaign_id: Campaign ID
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        Calendar configuration with day mapping
+    """
+    try:
+        # Verify campaign belongs to user
+        campaign = await _verify_campaign_ownership(db, campaign_id, current_user.id)
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found or access denied"
+            )
+
+        # If calendar_config already exists, return it
+        if campaign.calendar_config:
+            return {
+                "campaign_id": campaign_id,
+                "campaign_name": campaign.name,
+                "launch_date": campaign.launch_date.isoformat() if campaign.launch_date else None,
+                "calendar_config": campaign.calendar_config,
+                "status": "existing"
+            }
+
+        # Try to get launch_date from ProductIntelligence if not on campaign
+        launch_date = campaign.launch_date
+        if not launch_date and campaign.product_intelligence_id:
+            stmt = select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+            result = await db.execute(stmt)
+            product_intel = result.scalar_one_or_none()
+            if product_intel and product_intel.launch_date:
+                launch_date = product_intel.launch_date
+                # Copy launch_date to campaign
+                campaign.launch_date = launch_date
+                logger.info(f"Copied launch_date {launch_date} from ProductIntelligence to Campaign {campaign_id}")
+
+        # Calculate calendar configuration
+        calendar_config = calculate_calendar_config(
+            campaign_created_at=campaign.created_at,
+            launch_date=launch_date
+        )
+
+        # Save to campaign
+        campaign.calendar_config = calendar_config
+        await db.commit()
+        await db.refresh(campaign)
+
+        logger.info(
+            f"Calendar config initialized for Campaign {campaign_id}: "
+            f"{calendar_config['total_days']} days, launch at day {calendar_config['launch_day_index']}"
+        )
+
+        return {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.name,
+            "launch_date": launch_date.isoformat() if launch_date else None,
+            "calendar_config": calendar_config,
+            "status": "initialized"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting calendar config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post("/config/{campaign_id}/reset")
+async def reset_calendar_config(
+    campaign_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Reset and recalculate the calendar configuration for a campaign.
+
+    Use this when:
+    - Launch date has changed
+    - You want to recalculate based on new timing
+
+    Note: This does NOT delete generated content, only recalculates the day mapping.
+
+    Args:
+        campaign_id: Campaign ID
+        current_user: Authenticated user
+        db: Database session
+
+    Returns:
+        New calendar configuration
+    """
+    try:
+        # Verify campaign belongs to user
+        campaign = await _verify_campaign_ownership(db, campaign_id, current_user.id)
+        if not campaign:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campaign not found or access denied"
+            )
+
+        # Get launch date
+        launch_date = campaign.launch_date
+        if not launch_date and campaign.product_intelligence_id:
+            stmt = select(ProductIntelligence).where(
+                ProductIntelligence.id == campaign.product_intelligence_id
+            )
+            result = await db.execute(stmt)
+            product_intel = result.scalar_one_or_none()
+            if product_intel and product_intel.launch_date:
+                launch_date = product_intel.launch_date
+                campaign.launch_date = launch_date
+
+        # Recalculate calendar configuration
+        calendar_config = calculate_calendar_config(
+            campaign_created_at=campaign.created_at,
+            launch_date=launch_date
+        )
+
+        # Save to campaign
+        campaign.calendar_config = calendar_config
+        await db.commit()
+        await db.refresh(campaign)
+
+        logger.info(f"Calendar config reset for Campaign {campaign_id}")
+
+        return {
+            "campaign_id": campaign_id,
+            "campaign_name": campaign.name,
+            "launch_date": launch_date.isoformat() if launch_date else None,
+            "calendar_config": calendar_config,
+            "status": "reset"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resetting calendar config: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
