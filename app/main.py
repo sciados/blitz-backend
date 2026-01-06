@@ -16,6 +16,7 @@ from app.db.session import engine, Base
 from app.api import auth, campaigns, intelligence, video, compliance, products, links, product_analytics, platform_credentials, overlays, email_signups, tracking
 from app.api.content import text_router, images_router, unified_content_router, prompt_generator_router
 from app.api.content.video_overlay import router as video_overlay_router
+from app.api.calendar import router as calendar_router
 
 # ✅ AI erase functionality now integrated in image_editor_router with AI Router (75% cost savings!)
 # ❌ Deprecated: from app.api.images.ai_erase import router as ai_erase_router
@@ -235,6 +236,7 @@ async def health_check():
 app.include_router(auth.router)
 app.include_router(campaigns.router)
 app.include_router(products.router)
+app.include_router(calendar_router)  # Calendar-driven content generation
 app.include_router(text_router)
 app.include_router(proxy_router)  # Image proxy endpoint (no auth)
 app.include_router(move_images_router, prefix="/api/images")  # Move images to different folders
