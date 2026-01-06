@@ -126,15 +126,21 @@ class GeneratorManager:
         if not campaign:
             raise ValueError("Campaign not found")
 
-        # Check usage limits
-        can_generate = await self.usage_limits.check_generation_limit(
+        # Get user's effective tier
+        tier = await self.usage_limits.get_effective_tier(campaign.user_id)
+        if not tier:
+            tier = "trial"  # Default to trial if no tier found
+
+        # Check usage limits for text generations (most common)
+        allowed, message, current_usage, limit = await self.usage_limits.check_limit(
             campaign.user_id,
+            tier,
             "ai_text_generations"
         )
 
-        if not can_generate:
+        if not allowed:
             raise ValueError(
-                "Monthly usage limit reached. Please upgrade your plan or wait for next month."
+                f"Monthly usage limit reached. {message} Please upgrade your plan or wait for next month."
             )
 
     async def _get_campaign_intelligence(self, campaign_id: int) -> Optional[Dict[str, Any]]:
@@ -505,17 +511,17 @@ class GeneratorManager:
             # Update usage based on content type
             usage_field = None
             if content_type in ["article", "email", "email_sequence", "social_post", "landing_page", "ad_copy"]:
-                usage_field = "ai_text_generations_used"
+                usage_field = "ai_text_generations"
             elif content_type in ["image", "hero_image", "social_image", "ad_image"]:
-                usage_field = "ai_image_generations_used"
+                usage_field = "ai_image_generations"
             elif content_type == "video_script":
-                usage_field = "ai_video_scripts_used"
+                usage_field = "ai_video_scripts"
 
             if usage_field:
                 await self.usage_limits.increment_usage(
                     campaign.user_id,
                     usage_field,
-                    1
+                    0.0  # No cost estimate for now
                 )
 
         except Exception as e:
