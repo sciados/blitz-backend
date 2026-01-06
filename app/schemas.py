@@ -254,7 +254,7 @@ class ContentResponse(BaseModel):
     id: int
     campaign_id: int
     content_type: ContentType
-    marketing_angle: MarketingAngle
+    marketing_angle: str  # Changed from MarketingAngle to str for flexibility
     content_data: Dict[str, Any]
     compliance_status: ComplianceStatus
     compliance_score: Optional[float] = None
