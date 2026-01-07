@@ -257,8 +257,9 @@ async def create_short_link(
         await db.commit()
         await db.refresh(shortened_link)
 
-        # Build short URL (use environment variable for domain in production)
-        short_url = f"https://blitzed.up.railway.app/r/{shortened_link.short_code}"
+        # Build short URL with domain rotation
+        from app.services.domain_rotator import domain_rotator
+        short_url = domain_rotator.build_short_url(shortened_link.short_code)
 
         return ShortLinkResponse(
             id=shortened_link.id,
@@ -313,10 +314,11 @@ async def list_short_links(
     result = await db.execute(query)
     links = result.scalars().all()
 
-    # Build response
+    # Build response with domain rotation
+    from app.services.domain_rotator import domain_rotator
     short_links = []
     for link in links:
-        short_url = f"https://blitzed.up.railway.app/r/{link.short_code}"
+        short_url = domain_rotator.build_short_url(link.short_code)
         short_links.append(ShortLinkResponse(
             id=link.id,
             short_code=link.short_code,
