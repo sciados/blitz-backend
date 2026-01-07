@@ -232,6 +232,23 @@ async def health_check():
         "platforms": ["replicate", "stability", "together", "fal", "huggingface", "openai"]
     }
 
+@app.get("/debug/domains", tags=["Debug"])
+async def debug_domains():
+    """Debug endpoint to check domain configuration."""
+    from app.services.domain_rotator import domain_rotator
+
+    import os
+    short_link_domains = os.getenv("SHORT_LINK_DOMAINS", "")
+    short_link_domain = os.getenv("SHORT_LINK_DOMAIN", "")
+
+    return {
+        "env_short_link_domains": short_link_domains,
+        "env_short_link_domain": short_link_domain,
+        "loaded_domains": domain_rotator.get_all_domains(),
+        "current_domain": domain_rotator.get_domain(),
+        "build_short_url_example": domain_rotator.build_short_url("ABC123")
+    }
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(campaigns.router)
