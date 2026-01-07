@@ -167,6 +167,8 @@ async def list_campaigns(
 
     # Fetch intelligence data for campaigns that have it
     from app.db.models import ProductIntelligence
+    from app.services.domain_rotator import domain_rotator
+
     campaign_responses = []
     for campaign in campaigns:
         intelligence_data = None
@@ -184,6 +186,11 @@ async def list_campaigns(
                 if intelligence.thumbnail_image_url:
                     thumbnail_image_url = intelligence.thumbnail_image_url
 
+        # Build full short URL if short code exists
+        affiliate_link_short_url = None
+        if campaign.affiliate_link_short_code:
+            affiliate_link_short_url = domain_rotator.build_short_url(campaign.affiliate_link_short_code)
+
         campaign_responses.append(CampaignResponse(
             id=campaign.id,
             user_id=campaign.user_id,
@@ -192,6 +199,7 @@ async def list_campaigns(
             affiliate_network=campaign.affiliate_network,
             affiliate_link=campaign.affiliate_link,
             affiliate_link_short_code=campaign.affiliate_link_short_code,
+            affiliate_link_short_url=affiliate_link_short_url,
             keywords=campaign.keywords,
             product_description=campaign.product_description,
             product_type=campaign.product_type,
@@ -257,6 +265,12 @@ async def get_campaign(
             if intelligence.thumbnail_image_url:
                 thumbnail_image_url = intelligence.thumbnail_image_url
 
+    # Build full short URL if short code exists
+    from app.services.domain_rotator import domain_rotator
+    affiliate_link_short_url = None
+    if campaign.affiliate_link_short_code:
+        affiliate_link_short_url = domain_rotator.build_short_url(campaign.affiliate_link_short_code)
+
     # Build response with intelligence data
     return CampaignResponse(
         id=campaign.id,
@@ -266,6 +280,7 @@ async def get_campaign(
         affiliate_network=campaign.affiliate_network,
         affiliate_link=campaign.affiliate_link,
         affiliate_link_short_code=campaign.affiliate_link_short_code,
+        affiliate_link_short_url=affiliate_link_short_url,
         keywords=campaign.keywords,
         product_description=campaign.product_description,
         product_type=campaign.product_type,
@@ -386,7 +401,32 @@ async def update_campaign(
     await db.commit()
     await db.refresh(campaign)
 
-    return campaign
+    # Build full short URL for response
+    from app.services.domain_rotator import domain_rotator
+    affiliate_link_short_url = None
+    if campaign.affiliate_link_short_code:
+        affiliate_link_short_url = domain_rotator.build_short_url(campaign.affiliate_link_short_code)
+
+    # Build response with full short URL
+    return CampaignResponse(
+        id=campaign.id,
+        user_id=campaign.user_id,
+        name=campaign.name,
+        product_url=campaign.product_url,
+        affiliate_network=campaign.affiliate_network,
+        affiliate_link=campaign.affiliate_link,
+        affiliate_link_short_code=campaign.affiliate_link_short_code,
+        affiliate_link_short_url=affiliate_link_short_url,
+        keywords=campaign.keywords,
+        product_description=campaign.product_description,
+        product_type=campaign.product_type,
+        target_audience=campaign.target_audience,
+        marketing_angles=campaign.marketing_angles,
+        status=campaign.status,
+        product_intelligence_id=campaign.product_intelligence_id,
+        created_at=campaign.created_at,
+        updated_at=campaign.updated_at
+    )
 
 # ============================================================================
 # CHECK URL IN PRODUCT LIBRARY
@@ -646,7 +686,32 @@ async def delete_affiliate_link(
 
     logger.info(f"✅ Removed affiliate link from campaign {campaign_id}")
 
-    return campaign
+    # Build full short URL for response (will be None after deletion)
+    from app.services.domain_rotator import domain_rotator
+    affiliate_link_short_url = None
+    if campaign.affiliate_link_short_code:
+        affiliate_link_short_url = domain_rotator.build_short_url(campaign.affiliate_link_short_code)
+
+    # Build response with full short URL
+    return CampaignResponse(
+        id=campaign.id,
+        user_id=campaign.user_id,
+        name=campaign.name,
+        product_url=campaign.product_url,
+        affiliate_network=campaign.affiliate_network,
+        affiliate_link=campaign.affiliate_link,
+        affiliate_link_short_code=campaign.affiliate_link_short_code,
+        affiliate_link_short_url=affiliate_link_short_url,
+        keywords=campaign.keywords,
+        product_description=campaign.product_description,
+        product_type=campaign.product_type,
+        target_audience=campaign.target_audience,
+        marketing_angles=campaign.marketing_angles,
+        status=campaign.status,
+        product_intelligence_id=campaign.product_intelligence_id,
+        created_at=campaign.created_at,
+        updated_at=campaign.updated_at
+    )
 
 # ============================================================================
 # GET CAMPAIGN ANALYTICS

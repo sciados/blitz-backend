@@ -197,6 +197,7 @@ class CampaignResponse(CampaignBase):
     status: CampaignStatus
     product_intelligence_id: Optional[int] = None  # Link to product library
     affiliate_link_short_code: Optional[str] = None  # Shortened link code
+    affiliate_link_short_url: Optional[str] = None  # Full shortened URL with domain
     intelligence_data: Optional[Dict[str, Any]] = None
     thumbnail_image_url: Optional[str] = None  # Product thumbnail from ProductIntelligence
     launch_date: Optional[date] = None  # Product launch date
