@@ -258,7 +258,7 @@ async def create_short_link(
         await db.refresh(shortened_link)
 
         # Build short URL (use environment variable for domain in production)
-        short_url = f"https://blitz.ws/{shortened_link.short_code}"
+        short_url = f"https://blitzed.up.railway.app/r/{shortened_link.short_code}"
 
         return ShortLinkResponse(
             id=shortened_link.id,
@@ -316,7 +316,7 @@ async def list_short_links(
     # Build response
     short_links = []
     for link in links:
-        short_url = f"https://blitz.ws/{link.short_code}"
+        short_url = f"https://blitzed.up.railway.app/r/{link.short_code}"
         short_links.append(ShortLinkResponse(
             id=link.id,
             short_code=link.short_code,

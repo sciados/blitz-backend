@@ -55,7 +55,7 @@ def replace_affiliate_urls(
 
     # Get short link domain from environment or use default
     short_domain = os.getenv("SHORT_LINK_DOMAIN", "https://blitz.link")
-    base_short_url = f"{short_domain}/{campaign.affiliate_link_short_code}"
+    base_short_url = f"{short_domain}/r/{campaign.affiliate_link_short_code}"
 
     # Build tracked URL with UTM parameters if content_id provided
     if content_id:
