@@ -118,7 +118,15 @@ app.add_middleware(
 # Trust proxy headers (for HTTPS redirect preservation)
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["blitzed.up.railway.app", "*.railway.app", "127.0.0.1", "localhost"]
+    allowed_hosts=[
+        "blitzed.up.railway.app",
+        "*.railway.app",
+        "blitz.surf",
+        "clikin.info",
+        "gocme.icu",
+        "127.0.0.1",
+        "localhost"
+    ]
 )
 
 # ====
@@ -128,7 +136,15 @@ app.add_middleware(
 # Trust proxy headers (for HTTPS redirect preservation)
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["blitzed.up.railway.app", "*.railway.app", "127.0.0.1", "localhost"]
+    allowed_hosts=[
+        "blitzed.up.railway.app",
+        "*.railway.app",
+        "blitz.surf",
+        "clikin.info",
+        "gocme.icu",
+        "127.0.0.1",
+        "localhost"
+    ]
 )
 
 # Protocol Preservation Middleware
