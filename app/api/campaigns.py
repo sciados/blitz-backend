@@ -91,6 +91,11 @@ async def create_campaign(
                 title=f"{new_campaign.name} - Affiliate Link"
             )
             new_campaign.affiliate_link_short_code = shortened_link.short_code
+
+            # Build and save the complete short URL for stability
+            from app.services.domain_rotator import domain_rotator
+            new_campaign.affiliate_link_short_url = domain_rotator.build_short_url(shortened_link.short_code)
+
             logger.info(f"✅ Auto-shortened affiliate link for campaign {new_campaign.id}: {shortened_link.short_code}")
         except Exception as e:
             logger.error(f"❌ Failed to auto-shorten affiliate link: {str(e)}")
@@ -374,6 +379,11 @@ async def update_campaign(
                 title=f"{campaign.name} - Affiliate Link"
             )
             campaign.affiliate_link_short_code = shortened_link.short_code
+
+            # Build and save the complete short URL for stability
+            from app.services.domain_rotator import domain_rotator
+            campaign.affiliate_link_short_url = domain_rotator.build_short_url(shortened_link.short_code)
+
             logger.info(f"✅ Auto-shortened affiliate link for campaign {campaign.id}: {shortened_link.short_code}")
         except Exception as e:
             logger.error(f"❌ Failed to auto-shorten affiliate link: {str(e)}")
@@ -396,6 +406,7 @@ async def update_campaign(
         # Clear affiliate link fields
         campaign.affiliate_link = None
         campaign.affiliate_link_short_code = None
+        campaign.affiliate_link_short_url = None
         logger.info(f"✅ Removed affiliate link from campaign {campaign.id}")
 
     await db.commit()
@@ -680,6 +691,7 @@ async def delete_affiliate_link(
     # Clear affiliate link fields from campaign
     campaign.affiliate_link = None
     campaign.affiliate_link_short_code = None
+    campaign.affiliate_link_short_url = None
 
     await db.commit()
     await db.refresh(campaign)

@@ -165,6 +165,7 @@ class Campaign(Base):
     # URL Shortener: Affiliate link management (optional - can be added after creation)
     affiliate_link = Column(Text, nullable=True)  # User's full affiliate URL
     affiliate_link_short_code = Column(String(20), nullable=True)  # Auto-generated short code
+    affiliate_link_short_url = Column(String(255), nullable=True)  # Complete short URL with domain (stable, never changes)
 
     # Legacy: Direct intelligence storage (deprecated, kept for migration)
     intelligence_data = Column(JSONB, nullable=True)
