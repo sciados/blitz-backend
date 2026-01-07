@@ -552,7 +552,7 @@ async def link_campaign_to_product(
 # DELETE CAMPAIGN
 # ============================================================================
 
-@router.delete("/{campaign_id}", response_model=MessageResponse)
+@router.delete("/{campaign_id}")
 async def delete_campaign(
     campaign_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -580,11 +580,13 @@ async def delete_campaign(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Campaign not found"
         )
-    
+
     await db.delete(campaign)
     await db.commit()
 
-    return MessageResponse(message="Campaign deleted successfully")
+    # Return 204 No Content for successful DELETE (REST standard)
+    from fastapi import Response
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ============================================================================
 # DELETE AFFILIATE LINK
