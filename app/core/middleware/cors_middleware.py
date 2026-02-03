@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from app.core.config.deployment import deployment_config
+from app.core.config.settings import deployment_config
 
 logger = logging.getLogger(__name__)
 
